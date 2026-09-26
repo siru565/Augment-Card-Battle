@@ -47,6 +47,12 @@ public sealed record NetMessage
     /// <summary>대기방 사람마다 지금 게임에 앉아 있는지 표시합니다. (0번은 방장)</summary>
     public bool[]? Busy { get; init; }
 
+    /// <summary>
+    /// 대기방 사람(또는 게임 자리)마다의 Steam ID입니다. 프로필 사진을 가져올 때 씁니다.
+    /// IP 접속이나 봇은 0입니다.
+    /// </summary>
+    public ulong[]? SteamIds { get; init; }
+
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,

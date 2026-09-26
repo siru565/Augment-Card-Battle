@@ -66,11 +66,12 @@ public partial class SeatView : PanelContainer
     }
 
     /// <summary>게임이 시작될 때 이 자리에 앉을 플레이어를 정합니다.</summary>
-    public void Assign(int playerId, string name)
+    public void Assign(int playerId, string name, ulong steamId = 0)
     {
         PlayerId = playerId;
         _name.Text = name;
         _avatar.Letter = AvatarLetter(name);
+        _avatar.SetSteamId(steamId);
         _augmentSignature = "-";
     }
 

@@ -52,6 +52,21 @@ public sealed class HostSession : GameSession
 
     public bool InGame => _engine != null;
 
+    /// <summary>방장 자신의 Steam ID입니다. (Steam이 없으면 0) 화면 쪽에서 넣어 줍니다.</summary>
+    public ulong HostSteamId
+    {
+        get => _hostSteamId;
+        set
+        {
+            _hostSteamId = value;
+            UpdateLobbyNames();
+        }
+    }
+
+    private ulong _hostSteamId;
+
+    private static ulong ParseSteamId(string identity) => ulong.TryParse(identity, out ulong id) ? id : 0;
+
     public HostSession(string hostName, IServerTransport? transport, string version = "", GameOptions? options = null)
     {
         _hostName = hostName;
@@ -73,6 +88,7 @@ public sealed class HostSession : GameSession
     private void UpdateLobbyNames()
     {
         LobbyNames = new[] { _hostName }.Concat(_lobby.Select(p => p.Name)).ToArray();
+        LobbySteamIds = new[] { HostSteamId }.Concat(_lobby.Select(p => ParseSteamId(p.Identity))).ToArray();
     }
 
     private void BroadcastLobby()
@@ -85,6 +101,7 @@ public sealed class HostSession : GameSession
         SendAll(new NetMessage
         {
             T = NetMessage.Lobby, Names = LobbyNames, Options = RoomOptions, Playing = GameRunning, Busy = LobbyBusy,
+            SteamIds = LobbySteamIds,
         });
         RaiseLobbyChanged();
     }
@@ -239,9 +256,11 @@ public sealed class HostSession : GameSession
         _seatPeers = new long[SeatCount];
         _bots = new IBot[SeatCount];
         var names = new string[SeatCount];
+        var steamIds = new ulong[SeatCount];
 
         _seatKinds[0] = SeatKind.Local;
         names[0] = _hostName;
+        steamIds[0] = HostSteamId;
 
         int botLetter = 0;
         for (int seat = 1; seat < SeatCount; seat++)
@@ -251,6 +270,7 @@ public sealed class HostSession : GameSession
                 _seatKinds[seat] = SeatKind.Remote;
                 _seatPeers[seat] = _lobby[seat - 1].Peer;
                 names[seat] = _lobby[seat - 1].Name;
+                steamIds[seat] = ParseSteamId(_lobby[seat - 1].Identity);
             }
             else
             {
@@ -261,6 +281,7 @@ public sealed class HostSession : GameSession
         }
 
         Names = names;
+        SeatSteamIds = steamIds;
         BeginRound();
     }
 
@@ -313,7 +334,7 @@ public sealed class HostSession : GameSession
         {
             if (_seatKinds[seat] == SeatKind.Remote)
             {
-                _transport?.Send(_seatPeers[seat], new NetMessage { T = NetMessage.Start, Seat = seat, Names = Names }.ToJson());
+                _transport?.Send(_seatPeers[seat], new NetMessage { T = NetMessage.Start, Seat = seat, Names = Names, SteamIds = SeatSteamIds }.ToJson());
             }
         }
 

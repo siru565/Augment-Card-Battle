@@ -72,12 +72,14 @@ public sealed class ClientSession : GameSession
                 RoomOptions = message.Options ?? new GameOptions();
                 GameRunning = message.Playing;
                 LobbyBusy = message.Busy ?? Array.Empty<bool>();
+                LobbySteamIds = message.SteamIds ?? Array.Empty<ulong>();
                 RaiseLobbyChanged();
                 break;
 
             case NetMessage.Start:
                 MySeat = message.Seat;
                 Names = message.Names ?? Array.Empty<string>();
+                SeatSteamIds = message.SteamIds ?? Array.Empty<ulong>();
                 View = null;
                 Playing = true;
                 RaiseGameStarted();

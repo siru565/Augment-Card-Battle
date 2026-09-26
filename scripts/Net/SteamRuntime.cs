@@ -25,6 +25,8 @@ public static class SteamRuntime
     private static Callback<GameLobbyJoinRequested_t>? _joinRequested;
     private static Callback<SteamNetConnectionStatusChangedCallback_t>? _connectionStatus;
     private static Callback<LobbyInvite_t>? _lobbyInvite;
+    private static Callback<AvatarImageLoaded_t>? _avatarLoaded;
+    private static readonly Dictionary<ulong, ImageTexture?> AvatarCache = new();
     private static Callback<GameRichPresenceJoinRequested_t>? _presenceJoin;
     private static CallResult<LobbyCreated_t>? _lobbyCreated;
     private static CallResult<LobbyEnter_t>? _lobbyEntered;
@@ -42,6 +44,9 @@ public static class SteamRuntime
     /// <summary>Steam 친구 목록이나 초대로 "게임 참가"를 눌렀을 때 호출합니다.</summary>
     public static event Action<CSteamID>? JoinRequested;
 
+    /// <summary>늦게 도착한 프로필 사진이 준비됐을 때 호출합니다. (Steam ID)</summary>
+    public static event Action<ulong>? AvatarLoaded;
+
     /// <summary>게임 안에서 친구의 방 초대를 받았을 때 호출합니다. (보낸 사람 이름, 로비)</summary>
     public static event Action<string, CSteamID>? InviteReceived;
 
@@ -49,6 +54,65 @@ public static class SteamRuntime
     public static event Action<SteamNetConnectionStatusChangedCallback_t>? ConnectionStatusChanged;
 
     public static string PersonaName => IsReady ? SteamFriends.GetPersonaName() : "";
+
+    /// <summary>내 Steam ID입니다. Steam이 없으면 0입니다.</summary>
+    public static ulong MySteamId => IsReady ? SteamUser.GetSteamID().m_SteamID : 0;
+
+    // ───────────── 프로필 사진 ─────────────
+
+    /// <summary>
+    /// Steam 프로필 사진(184×184)을 텍스처로 돌려줍니다. 아직 받는 중이거나 없으면 null이고,
+    /// 받는 중이었다면 도착했을 때 AvatarLoaded가 호출됩니다.
+    /// </summary>
+    public static Texture2D? GetAvatar(ulong steamId)
+    {
+        if (!IsReady || steamId == 0)
+        {
+            return null;
+        }
+
+        if (AvatarCache.TryGetValue(steamId, out var cached))
+        {
+            return cached;
+        }
+
+        var id = new CSteamID(steamId);
+        int handle = SteamFriends.GetLargeFriendAvatar(id);
+
+        // -1: 아직 받는 중 (도착하면 콜백이 옵니다), 0: 사용자 정보가 없어서 먼저 요청해야 합니다.
+        if (handle == -1)
+        {
+            return null;
+        }
+
+        if (handle == 0)
+        {
+            SteamFriends.RequestUserInformation(id, false);
+            return null;
+        }
+
+        var texture = ToTexture(handle);
+        AvatarCache[steamId] = texture;
+        return texture;
+    }
+
+    /// <summary>Steam 이미지 핸들의 RGBA 픽셀을 Godot 텍스처로 바꿉니다.</summary>
+    private static ImageTexture? ToTexture(int handle)
+    {
+        if (!SteamUtils.GetImageSize(handle, out uint width, out uint height) || width == 0 || height == 0)
+        {
+            return null;
+        }
+
+        var pixels = new byte[width * height * 4];
+        if (!SteamUtils.GetImageRGBA(handle, pixels, pixels.Length))
+        {
+            return null;
+        }
+
+        var image = Image.CreateFromData((int)width, (int)height, false, Image.Format.Rgba8, pixels);
+        return ImageTexture.CreateFromImage(image);
+    }
 
     /// <summary>
     /// Steam을 초기화하고, 매 프레임 콜백을 돌릴 노드를 트리에 붙입니다. 여러 번 불러도 한 번만 동작합니다.
@@ -83,6 +147,12 @@ public static class SteamRuntime
             _joinRequested = Callback<GameLobbyJoinRequested_t>.Create(data => JoinRequested?.Invoke(data.m_steamIDLobby));
             _connectionStatus = Callback<SteamNetConnectionStatusChangedCallback_t>.Create(data => ConnectionStatusChanged?.Invoke(data));
             _lobbyInvite = Callback<LobbyInvite_t>.Create(OnLobbyInvite);
+            _avatarLoaded = Callback<AvatarImageLoaded_t>.Create(data =>
+            {
+                ulong id = data.m_steamID.m_SteamID;
+                AvatarCache.Remove(id);
+                AvatarLoaded?.Invoke(id);
+            });
             _presenceJoin = Callback<GameRichPresenceJoinRequested_t>.Create(data =>
             {
                 if (TryParseConnect(data.m_rgchConnect, out var lobby))

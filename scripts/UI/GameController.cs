@@ -236,6 +236,7 @@ public partial class GameController : Control
         SteamRuntime.EnsureInitialized(this);
         SteamRuntime.JoinRequested += lobby => Callable.From(() => JoinSteamLobby(lobby)).CallDeferred();
         SteamRuntime.InviteReceived += (from, lobby) => Callable.From(() => ShowInvite(from, lobby)).CallDeferred();
+        SteamRuntime.AvatarLoaded += OnAvatarLoaded;
 
         BuildUi();
         ShowLobbyMenu("");
@@ -307,7 +308,36 @@ public partial class GameController : Control
         RunAutoPlay(delta);
     }
 
-    public override void _ExitTree() => _net.Close();
+    public override void _ExitTree()
+    {
+        SteamRuntime.AvatarLoaded -= OnAvatarLoaded;
+        _net.Close();
+    }
+
+    /// <summary>늦게 도착한 Steam 프로필 사진을 해당 아바타에 다시 그립니다.</summary>
+    private void OnAvatarLoaded(ulong steamId) => Callable.From(() =>
+    {
+        foreach (var avatar in FindAvatars(this).Where(a => a.SteamId == steamId))
+        {
+            avatar.RefreshPicture();
+        }
+    }).CallDeferred();
+
+    private static IEnumerable<AvatarView> FindAvatars(Node node)
+    {
+        foreach (var child in node.GetChildren())
+        {
+            if (child is AvatarView avatar)
+            {
+                yield return avatar;
+            }
+
+            foreach (var inner in FindAvatars(child))
+            {
+                yield return inner;
+            }
+        }
+    }
 
     // ───────────── 세션 시작과 종료 ─────────────
 
@@ -324,7 +354,7 @@ public partial class GameController : Control
     {
         LeaveSession();
         var options = new GameOptions(SpecialAugments: _soloAugmentToggle.ButtonPressed);
-        var host = new HostSession(PlayerName, null, GameVersion.Current, options) { BotDelay = _botDelay };
+        var host = new HostSession(PlayerName, null, GameVersion.Current, options) { BotDelay = _botDelay, HostSteamId = SteamRuntime.MySteamId };
         AttachSession(host);
         host.StartGame();
     }
@@ -342,7 +372,7 @@ public partial class GameController : Control
 
         var transport = new ServerTransport(_net);
         _transport = transport;
-        AttachSession(new HostSession(PlayerName, transport, GameVersion.Current) { BotDelay = _botDelay });
+        AttachSession(new HostSession(PlayerName, transport, GameVersion.Current) { BotDelay = _botDelay, HostSteamId = SteamRuntime.MySteamId });
         ShowLobbyRoom($"방을 만들었어요. 포트 {port}\n같은 PC라면 127.0.0.1, 다른 PC라면 이 PC의 IP로 접속하면 돼요.");
     }
 
@@ -403,7 +433,7 @@ public partial class GameController : Control
             var transport = new SteamServerTransport();
             _transport = transport;
             _roomCode = SteamRuntime.ToRoomCode(lobby);
-            AttachSession(new HostSession(PlayerName, transport, GameVersion.Current) { BotDelay = _botDelay });
+            AttachSession(new HostSession(PlayerName, transport, GameVersion.Current) { BotDelay = _botDelay, HostSteamId = SteamRuntime.MySteamId });
             ShowLobbyRoom("Steam 방을 만들었어요! 친구를 초대하거나 방 코드를 알려 주세요.");
         }, error => ShowLobbyMenu(error));
     }
@@ -472,11 +502,12 @@ public partial class GameController : Control
         for (int k = 1; k < SeatCount; k++)
         {
             int seat = (_session.MySeat + k) % SeatCount;
-            _seats[k].Assign(seat, _session.NameOf(seat));
+            _seats[k].Assign(seat, _session.NameOf(seat), _session.SteamIdOf(seat));
         }
 
         _myNameLabel.Text = _session.NameOf(_session.MySeat);
         _myAvatar.Letter = SeatView.AvatarLetter(_session.NameOf(_session.MySeat));
+        _myAvatar.SetSteamId(_session.SteamIdOf(_session.MySeat));
         _newGameButton.Visible = _session.IsHost;
         _newGameButton.Text = _session.IsSolo ? "새 게임" : "모두 대기방으로";
     }
@@ -1286,7 +1317,9 @@ public partial class GameController : Control
             row.AddChild(line);
 
             string letter = filled ? SeatView.AvatarLetter(names[i]) : "봇";
-            line.AddChild(new AvatarView(letter) { CustomMinimumSize = new Vector2(34, 34) });
+            var rowAvatar = new AvatarView(letter) { CustomMinimumSize = new Vector2(34, 34) };
+            rowAvatar.SetSteamId(filled && i < _session.LobbySteamIds.Length ? _session.LobbySteamIds[i] : 0);
+            line.AddChild(rowAvatar);
 
             var name = UiTheme.MakeLabel(filled ? names[i] : "빈자리 → 봇이 앉아요", 16,
                 filled ? Colors.White : UiTheme.TextDim, bold: filled);
@@ -1375,6 +1408,10 @@ public partial class GameController : Control
             var row = new HBoxContainer();
             row.AddThemeConstantOverride("separation", 8);
             _friendList.AddChild(row);
+
+            var friendAvatar = new AvatarView(SeatView.AvatarLetter(friend.Name)) { CustomMinimumSize = new Vector2(28, 28) };
+            friendAvatar.SetSteamId(friend.Id.m_SteamID);
+            row.AddChild(friendAvatar);
 
             var color = friend.InThisGame ? UiTheme.Gold : friend.Online ? Colors.White : UiTheme.TextDim;
             var name = UiTheme.MakeLabel(friend.Name, 14, color, bold: friend.Online);

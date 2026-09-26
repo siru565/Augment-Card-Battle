@@ -22,6 +22,15 @@ public abstract class GameSession
     /// <summary>대기방에 모인 사람 이름입니다. (0번은 방장)</summary>
     public string[] LobbyNames { get; protected set; } = Array.Empty<string>();
 
+    /// <summary>대기방 사람마다의 Steam ID입니다. (LobbyNames와 같은 순서, 모르면 0)</summary>
+    public ulong[] LobbySteamIds { get; protected set; } = Array.Empty<ulong>();
+
+    /// <summary>게임 자리마다의 Steam ID입니다. (Names와 같은 순서, 봇이나 IP 접속은 0)</summary>
+    public ulong[] SeatSteamIds { get; protected set; } = Array.Empty<ulong>();
+
+    /// <summary>자리의 Steam ID를 돌려줍니다. 모르면 0입니다.</summary>
+    public ulong SteamIdOf(int seat) => seat >= 0 && seat < SeatSteamIds.Length ? SeatSteamIds[seat] : 0;
+
     /// <summary>방장이 고른 판 설정입니다.</summary>
     public GameOptions RoomOptions { get; protected set; } = new();
 
