@@ -710,7 +710,8 @@ public partial class GameController : Control
             for (int i = 0; i < view.AbilityChoices.Count; i++)
             {
                 int index = i;
-                var card = new AbilityCardView(view.AbilityChoices[i]) { Modulate = new Color(1, 1, 1, 0) };
+                var card = AbilityCardView.Create(view.AbilityChoices[i]);
+                card.Modulate = new Color(1, 1, 1, 0);
                 card.Picked += () => OnAbilityPicked(index);
                 _abilityRow.AddChild(card);
 
@@ -792,7 +793,9 @@ public partial class GameController : Control
             for (int i = 0; i < view.AugmentChoices.Count; i++)
             {
                 int index = i;
-                var card = new AbilityCardView(view.AugmentChoices[i]) { Modulate = new Color(1, 1, 1, 0), Scale = new Vector2(0.7f, 0.7f) };
+                var card = AbilityCardView.Create(view.AugmentChoices[i]);
+                card.Modulate = new Color(1, 1, 1, 0);
+                card.Scale = new Vector2(0.7f, 0.7f);
                 card.Picked += () => OnAugmentPicked(index);
                 _augmentRow.AddChild(card);
 
@@ -931,46 +934,10 @@ public partial class GameController : Control
             int seat = seats[n];
             int rank = view.Ranks[seat];
             bool me = seat == view.PlayerId;
-            var medal = RankEmblem.MedalColor(rank);
-
-            var row = new PanelContainer();
-            var style = UiTheme.Box(new Color(medal, me ? 0.16f : 0.08f), new Color(medal, me ? 0.6f : 0.18f), 1, 6, 10);
-            style.BorderWidthLeft = 4;
-            style.BorderColor = new Color(medal, me ? 0.9f : 0.5f);
-            row.AddThemeStyleboxOverride("panel", style);
-            _rankList.AddChild(row);
-
-            var line = new HBoxContainer();
-            line.AddThemeConstantOverride("separation", 12);
-            row.AddChild(line);
-
-            var number = UiTheme.MakeLabel($"{rank}", 26, medal.Lightened(0.2f), bold: true);
-            number.CustomMinimumSize = new Vector2(30, 0);
-            number.HorizontalAlignment = HorizontalAlignment.Center;
-            number.SizeFlagsVertical = SizeFlags.ShrinkCenter;
-            line.AddChild(number);
-
             string name = _session!.NameOf(seat);
-            var avatar = new AvatarView(SeatView.AvatarLetter(name)) { CustomMinimumSize = new Vector2(40, 40) };
-            avatar.SetSteamId(_session.SteamIdOf(seat));
-            avatar.Active = rank == 1;
-            line.AddChild(avatar);
-
-            var texts = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill, Alignment = BoxContainer.AlignmentMode.Center };
-            texts.AddThemeConstantOverride("separation", 0);
-            line.AddChild(texts);
-            texts.AddChild(UiTheme.MakeLabel(me ? $"{name}  (나)" : name, 17, UiTheme.Text, bold: true));
-            if (_placeReasons.TryGetValue(seat, out var reason))
-            {
-                texts.AddChild(UiTheme.MakeLabel(reason, 12, UiTheme.TextDim));
-            }
-
-            if (view.Eliminated[seat])
-            {
-                var tag = UiTheme.MakeLabel("탈락", 12, UiTheme.Danger, bold: true);
-                tag.SizeFlagsVertical = SizeFlags.ShrinkCenter;
-                line.AddChild(tag);
-            }
+            string reason = _placeReasons.TryGetValue(seat, out var r) ? r : "";
+            var row = RankRow.Create(rank, name, _session.SteamIdOf(seat), me, reason, view.Eliminated[seat]);
+            _rankList.AddChild(row);
 
             // 위에서부터 차례로 미끄러져 들어옵니다.
             row.Modulate = new Color(1, 1, 1, 0);
@@ -1110,7 +1077,7 @@ public partial class GameController : Control
         _myAugments.AddChild(UiTheme.MakeLabel($"특수 증강 {mine.Count}/{SpecialAugments.MaxPerPlayer}", 14, UiTheme.TextDim));
         foreach (var augment in mine)
         {
-            _myAugments.AddChild(new AugmentChip(augment, 15));
+            _myAugments.AddChild(AugmentChip.Create(augment, 15));
         }
     }
 
@@ -1369,49 +1336,19 @@ public partial class GameController : Control
 
         for (int i = 0; i < HostSession.SeatCount; i++)
         {
-            var row = new PanelContainer();
+            // 한 줄의 모양은 scenes/ui/RoomRow.tscn에 있습니다.
             bool filled = i < names.Length;
-            row.AddThemeStyleboxOverride("panel", UiTheme.Box(
-                filled ? new Color(1, 1, 1, 0.045f) : new Color(1, 1, 1, 0.015f),
-                UiTheme.PanelBorder, 1, 6, 8));
-            _roomPlayers.AddChild(row);
-
-            var line = new HBoxContainer();
-            line.AddThemeConstantOverride("separation", 10);
-            row.AddChild(line);
-
-            string letter = filled ? SeatView.AvatarLetter(names[i]) : "봇";
-            var rowAvatar = new AvatarView(letter) { CustomMinimumSize = new Vector2(34, 34) };
-            rowAvatar.SetSteamId(filled && i < _session.LobbySteamIds.Length ? _session.LobbySteamIds[i] : 0);
-            line.AddChild(rowAvatar);
-
-            var name = UiTheme.MakeLabel(filled ? names[i] : "빈자리 (봇)", 15,
-                filled ? UiTheme.Text : new Color(UiTheme.TextDim, 0.7f), bold: filled);
-            name.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-            name.SizeFlagsVertical = SizeFlags.ShrinkCenter;
-            line.AddChild(name);
-
-            if (filled && i < _session.LobbyBusy.Length && _session.LobbyBusy[i])
-            {
-                var busy = UiTheme.MakeLabel("게임 중", 12, UiTheme.TextDim, bold: true);
-                busy.SizeFlagsVertical = SizeFlags.ShrinkCenter;
-                line.AddChild(busy);
-            }
-
-            if (i == 0)
-            {
-                var crown = UiTheme.MakeLabel("방장", 12, UiTheme.Gold, bold: true);
-                crown.SizeFlagsVertical = SizeFlags.ShrinkCenter;
-                line.AddChild(crown);
-            }
-            else if (filled && isHost && _session is HostSession host)
+            ulong steamId = filled && i < _session.LobbySteamIds.Length ? _session.LobbySteamIds[i] : 0;
+            bool busy = filled && i < _session.LobbyBusy.Length && _session.LobbyBusy[i];
+            bool canKick = i > 0 && filled && isHost;
+            var row = RoomRow.Create(filled ? names[i] : "", steamId, busy, i == 0, canKick);
+            if (canKick && _session is HostSession host)
             {
                 int index = i;
-                var kick = new Button { Text = "강퇴" };
-                UiTheme.StyleButton(kick, UiTheme.ButtonKind.Danger, 13);
-                kick.Pressed += () => host.Kick(index);
-                line.AddChild(kick);
+                row.KickPressed += () => host.Kick(index);
             }
+
+            _roomPlayers.AddChild(row);
         }
 
         _updatingToggle = true;
@@ -1469,36 +1406,10 @@ public partial class GameController : Control
 
         foreach (var friend in friends.Take(60))
         {
-            var row = new HBoxContainer();
-            row.AddThemeConstantOverride("separation", 8);
+            var row = FriendRow.Create(friend);
+            row.Invited += (name, ok) =>
+                _lobbyStatus.Text = ok ? $"{name}님에게 초대를 보냈습니다." : "초대를 보내지 못했습니다. Steam 연결을 확인해 주세요.";
             _friendList.AddChild(row);
-
-            var friendAvatar = new AvatarView(SeatView.AvatarLetter(friend.Name)) { CustomMinimumSize = new Vector2(28, 28) };
-            friendAvatar.SetSteamId(friend.Id.m_SteamID);
-            row.AddChild(friendAvatar);
-
-            var color = friend.InThisGame ? UiTheme.Gold : friend.Online ? UiTheme.Text : UiTheme.TextDim;
-            var name = UiTheme.MakeLabel(friend.Name, 14, color, bold: friend.Online);
-            name.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-            name.ClipText = true;
-            name.SizeFlagsVertical = SizeFlags.ShrinkCenter;
-            row.AddChild(name);
-
-            var state = UiTheme.MakeLabel(friend.InThisGame ? "게임 중" : friend.Online ? "온라인" : "오프라인", 12, color);
-            state.SizeFlagsVertical = SizeFlags.ShrinkCenter;
-            row.AddChild(state);
-
-            var invite = new Button { Text = "초대", Disabled = !friend.Online };
-            UiTheme.StyleButton(invite, UiTheme.ButtonKind.Secondary, 13);
-            var id = friend.Id;
-            invite.Pressed += () =>
-            {
-                bool ok = SteamRuntime.InviteFriend(id);
-                invite.Text = ok ? "보냄" : "실패";
-                invite.Disabled = true;
-                _lobbyStatus.Text = ok ? $"{friend.Name}님에게 초대를 보냈어요." : "초대를 보내지 못했어요. Steam 연결을 확인해 주세요.";
-            };
-            row.AddChild(invite);
         }
     }
 
@@ -1978,7 +1889,7 @@ public partial class GameController : Control
         left.AddChild(seats);
         for (int k = 1; k < SeatCount; k++)
         {
-            _seats[k] = new SeatView(k, $"P{k}");
+            _seats[k] = SeatView.Create(k, $"P{k}");
             _seats[k].Clicked += OnSeatClicked;
             seats.AddChild(_seats[k]);
         }

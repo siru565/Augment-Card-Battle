@@ -8,7 +8,14 @@ namespace SpCardgame.UI;
 /// </summary>
 public partial class AbilityEmblem : Control
 {
-    private readonly AugmentTier _tier;
+    private AugmentTier _tier;
+
+    /// <summary>문장 색을 정하는 등급입니다.</summary>
+    public AugmentTier Tier
+    {
+        get => _tier;
+        set { _tier = value; QueueRedraw(); }
+    }
     private float _t;
 
     /// <summary>Godot가 스크립트를 다시 불러올 때 필요한 기본 생성자입니다.</summary>

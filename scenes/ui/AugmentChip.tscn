@@ -1,0 +1,14 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/UI/AugmentChip.cs" id="1_chip"]
+
+[node name="AugmentChip" type="PanelContainer"]
+mouse_default_cursor_shape = 16
+script = ExtResource("1_chip")
+
+[node name="Text" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"BoldLabel"
+theme_override_font_sizes/font_size = 14
+text = "증강 이름"

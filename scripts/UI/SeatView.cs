@@ -16,53 +16,27 @@ public partial class SeatView : PanelContainer
 
     public event Action<int>? Clicked;
 
-    private readonly Label _name;
-    private readonly Label _count;
-    private readonly Label _badges;
-    private readonly HBoxContainer _augments;
-    private readonly FanView _fan;
-    private readonly AvatarView _avatar;
+    // 자식 노드는 scenes/ui/Seat.tscn에 있습니다. (%이름 = 씬 고유 이름)
+    private Label _name => GetNode<Label>("%Name");
+    private Label _count => GetNode<Label>("%Count");
+    private Label _badges => GetNode<Label>("%Badges");
+    private HBoxContainer _augments => GetNode<HBoxContainer>("%Augments");
+    private FanView _fan => GetNode<FanView>("%Fan");
+    private AvatarView _avatar => GetNode<AvatarView>("%Avatar");
     private bool _targetable;
     private string _augmentSignature = "-";
 
-    /// <summary>Godot가 스크립트를 다시 불러올 때 필요한 기본 생성자입니다.</summary>
-    public SeatView() : this(0, "?") { }
-
-    public SeatView(int playerId, string name)
+    /// <summary>Seat.tscn으로 자리를 하나 만듭니다.</summary>
+    public static SeatView Create(int playerId, string name)
     {
-        PlayerId = playerId;
+        var seat = Scenes.Create<SeatView>(Scenes.Seat);
+        seat.Assign(playerId, name);
+        return seat;
+    }
+
+    public SeatView()
+    {
         MouseFilter = MouseFilterEnum.Stop;
-        SizeFlagsHorizontal = SizeFlags.ExpandFill;
-        CustomMinimumSize = new Vector2(0, 100);
-
-        var row = new HBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
-        row.AddThemeConstantOverride("separation", 10);
-        AddChild(row);
-
-        _avatar = new AvatarView(AvatarLetter(name));
-        row.AddChild(_avatar);
-
-        var col = new VBoxContainer { MouseFilter = MouseFilterEnum.Ignore, SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        col.AddThemeConstantOverride("separation", 4);
-        row.AddChild(col);
-
-        var header = new HBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
-        header.AddThemeConstantOverride("separation", 8);
-        col.AddChild(header);
-
-        _name = UiTheme.MakeLabel(name, 17, UiTheme.Text, bold: true);
-        _count = UiTheme.MakeLabel("", 14, UiTheme.TextDim);
-        _badges = UiTheme.MakeLabel("", 13, UiTheme.Danger, bold: true);
-        header.AddChild(_name);
-        header.AddChild(_count);
-        header.AddChild(_badges);
-
-        _fan = new FanView();
-        col.AddChild(_fan);
-
-        _augments = new HBoxContainer { MouseFilter = MouseFilterEnum.Pass };
-        _augments.AddThemeConstantOverride("separation", 4);
-        col.AddChild(_augments);
     }
 
     /// <summary>게임이 시작될 때 이 자리에 앉을 플레이어를 정합니다.</summary>
@@ -152,7 +126,7 @@ public partial class SeatView : PanelContainer
 
         foreach (var augment in augments)
         {
-            _augments.AddChild(new AugmentChip(augment, 13));
+            _augments.AddChild(AugmentChip.Create(augment, 13));
         }
     }
 }

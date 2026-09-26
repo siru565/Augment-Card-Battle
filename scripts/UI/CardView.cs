@@ -250,8 +250,8 @@ public partial class CardView : Control
         var band = new[] { a - normal, b - normal, b + normal, a + normal };
         foreach (var piece in Geometry2D.IntersectPolygons(band, face))
         {
-            // 잘린 조각이 너무 얇으면(넓이가 거의 0) 삼각형으로 나눌 수 없어서 오류가 나므로 건너뜁니다.
-            if (piece.Length >= 3 && PolygonArea(piece) > 0.5f)
+            // 잘린 조각이 너무 얇거나 점이 겹치면 삼각형으로 나눌 수 없어서 오류가 나므로, 미리 나눠 보고 안 되면 건너뜁니다.
+            if (piece.Length >= 3 && PolygonArea(piece) > 0.5f && Geometry2D.TriangulatePolygon(piece).Length > 0)
             {
                 DrawColoredPolygon(piece, color);
             }

@@ -10,23 +10,24 @@ namespace SpCardgame.UI;
 /// </summary>
 public partial class AbilityCardView : PanelContainer
 {
-    private readonly AugmentTier _tier;
+    private AugmentTier _tier;
     private bool _hovered;
 
     public event Action? Picked;
 
-    /// <summary>Godot가 스크립트를 다시 불러올 때 필요한 기본 생성자입니다.</summary>
-    public AbilityCardView() : this(AbilityPool.All[0]) { }
-
-    public AbilityCardView(AbilityInfo ability)
-        : this(ability.Name, ability.Tier, ability.Description, NeedsText(ability))
-    {
-    }
+    /// <summary>각성 능력 선택지로 만듭니다. (모양은 scenes/ui/AbilityCard.tscn)</summary>
+    public static AbilityCardView Create(AbilityInfo ability) =>
+        Create(ability.Name, ability.Tier, ability.Description, NeedsText(ability));
 
     /// <summary>특수 증강 선택지로 만듭니다. 승리 조건을 바꾸는 증강은 아래에 따로 표시합니다.</summary>
-    public AbilityCardView(AugmentInfo augment)
-        : this(augment.Name, augment.Tier, augment.Description, augment.AltWin ? "승리 조건 추가" : "영구 효과")
+    public static AbilityCardView Create(AugmentInfo augment) =>
+        Create(augment.Name, augment.Tier, augment.Description, augment.AltWin ? "승리 조건 추가" : "영구 효과");
+
+    public static AbilityCardView Create(string title, AugmentTier tierValue, string text, string needs)
     {
+        var card = Scenes.Create<AbilityCardView>(Scenes.AbilityCard);
+        card.Setup(title, tierValue, text, needs);
+        return card;
     }
 
     private static string NeedsText(AbilityInfo ability) =>
@@ -35,40 +36,19 @@ public partial class AbilityCardView : PanelContainer
         : ability.NeedsSuit ? "문양 선택"
         : "바로 발동";
 
-    public AbilityCardView(string title, AugmentTier tierValue, string text, string needs)
+    /// <summary>씬의 라벨과 문장에 값을 채우고 등급 색을 칠합니다.</summary>
+    public void Setup(string title, AugmentTier tierValue, string text, string needs)
     {
         _tier = tierValue;
-        CustomMinimumSize = new Vector2(250, 330);
-        MouseFilter = MouseFilterEnum.Stop;
-        MouseDefaultCursorShape = CursorShape.PointingHand;
-
         var tier = UiTheme.TierColor(tierValue);
 
-        var box = new VBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
-        box.AddThemeConstantOverride("separation", 10);
-        AddChild(box);
-
-        var tierLabel = UiTheme.MakeLabel(Augment.TierName(tierValue), 13, tier, bold: true);
-        tierLabel.HorizontalAlignment = HorizontalAlignment.Center;
-        box.AddChild(tierLabel);
-
-        box.AddChild(new AbilityEmblem(tierValue) { CustomMinimumSize = new Vector2(0, 90) });
-
-        var name = UiTheme.MakeLabel(title, 22, UiTheme.Text, bold: true);
-        name.HorizontalAlignment = HorizontalAlignment.Center;
-        box.AddChild(name);
-
-        var description = UiTheme.MakeLabel(text, 15, Color.FromHtml("#b9bfca"));
-        description.AutowrapMode = TextServer.AutowrapMode.Word;
-        description.HorizontalAlignment = HorizontalAlignment.Center;
-        description.CustomMinimumSize = new Vector2(220, 0);
-        description.SizeFlagsVertical = SizeFlags.ExpandFill;
-        box.AddChild(description);
-
-        var footer = UiTheme.MakeLabel(needs, 12, UiTheme.TextDim, bold: true);
-        footer.HorizontalAlignment = HorizontalAlignment.Center;
-        box.AddChild(footer);
-
+        var tierLabel = GetNode<Label>("%Tier");
+        tierLabel.Text = Augment.TierName(tierValue);
+        tierLabel.AddThemeColorOverride("font_color", tier);
+        GetNode<AbilityEmblem>("%Emblem").Tier = tierValue;
+        GetNode<Label>("%Title").Text = title;
+        GetNode<Label>("%Description").Text = text;
+        GetNode<Label>("%Footer").Text = needs;
         ApplyStyle();
     }
 
