@@ -53,11 +53,8 @@ scripts/
 - **서버 권한 구조**: 규칙 판정은 호스트의 `GameEngine`만 합니다. 클라이언트는 행동(`PlayerAction`)만 보내고, 자기 시점의 `PlayerView`만 받습니다.
 - **밸런스는 시뮬레이션으로**: 증강을 추가·수정할 때마다 봇 대전 수천 판을 돌려서 증강별 승률을 20~30% 안에 맞췄습니다.
 
-## 빌드 방법
-
-1. [Godot 4.7 .NET](https://godotengine.org/download) 과 .NET 8 SDK를 설치합니다.
-2. [Steamworks.NET Standalone](https://github.com/rlabrecque/Steamworks.NET/releases) 에서 `steam_api64.dll` 을 받아 프로젝트 루트에 둡니다. (저장소에는 포함하지 않았습니다)
-3. Godot로 `project.godot` 을 열고 실행합니다. Steam이 켜져 있으면 Steam 멀티, 아니면 혼자 하기와 IP 멀티를 쓸 수 있습니다.
+## 다운로드
+ https://hamark.itch.io/sp-cardgame
 
 > 개발 중에는 Valve 테스트 앱 ID `480`을 사용합니다.
 
