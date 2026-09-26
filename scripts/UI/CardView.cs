@@ -468,7 +468,7 @@ public partial class CardView : Control
     }
 
     /// <summary>
-    /// 카드 뒷면입니다. 금색 테두리 + 남색 판 + 마름모 격자 + 육각 엠블럼입니다.
+    /// 카드 뒷면입니다. 금색 테두리 + 남색 판 + 가장자리 마름모 띠 + 육각 엠블럼입니다.
     /// </summary>
     private void DrawBack(Rect2 rect, float radius)
     {
@@ -479,18 +479,28 @@ public partial class CardView : Control
         var inner = rect.Grow(-size.X * 0.055f);
         DrawStyleBox(UiTheme.Box(navy, navy, 0, (int)(radius * 0.7f), 0), inner);
 
-        // 작은 마름모를 격자로 깔아 무늬를 만듭니다. 카드 밖으로 나가는 마름모는 그리지 않습니다.
-        var line = new Color(gold, 0.18f);
-        float step = size.X * 0.16f;
-        float half = step * 0.42f;
-        var area = inner.Grow(-4);
-        for (float y = area.Position.Y + half; y <= area.End.Y - half; y += step)
+        // 테두리를 따라 한 줄로 도는 작은 마름모 띠입니다. 가로 5칸에 맞춰 칸 크기를 정하고, 세로는 들어가는 만큼만 넣은 뒤
+        // 남는 공간을 위아래로 똑같이 나눠서 좌우·상하 대칭이 되게 합니다. 가운데 엠블럼과는 겹치지 않습니다.
+        var center = size / 2;
+        float r = size.X * 0.26f;
+        var line = new Color(gold, 0.28f);
+        var area = inner.Grow(-size.X * 0.05f);
+        const int cols = 5;
+        float step = area.Size.X / cols;
+        int rows = Mathf.FloorToInt(area.Size.Y / step);
+        float top = area.Position.Y + (area.Size.Y - rows * step) / 2;
+        float half = step * 0.34f;
+        for (int row = 0; row < rows; row++)
         {
-            int row = (int)((y - area.Position.Y) / step);
-            float offset = row % 2 == 0 ? 0 : step / 2;
-            for (float x = area.Position.X + half + offset; x <= area.End.X - half; x += step)
+            for (int col = 0; col < cols; col++)
             {
-                var c = new Vector2(x, y);
+                bool edge = row == 0 || row == rows - 1 || col == 0 || col == cols - 1;
+                if (!edge)
+                {
+                    continue;
+                }
+
+                var c = new Vector2(area.Position.X + (col + 0.5f) * step, top + (row + 0.5f) * step);
                 DrawPolyline(new[] { c + new Vector2(0, -half), c + new Vector2(half, 0), c + new Vector2(0, half),
                     c + new Vector2(-half, 0), c + new Vector2(0, -half) }, line, 1f, true);
             }
@@ -499,8 +509,6 @@ public partial class CardView : Control
         DrawStyleBox(UiTheme.Box(new Color(0, 0, 0, 0), gold, 2, (int)(radius * 0.7f), 0), inner);
 
         // 가운데 육각 엠블럼입니다.
-        var center = size / 2;
-        float r = size.X * 0.3f;
         var hex = new Vector2[7];
         for (int i = 0; i < 6; i++)
         {
