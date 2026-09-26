@@ -139,7 +139,7 @@ public partial class FxLayer : Control
     /// <summary>글자가 톡 튀어나왔다가 떠오르며 사라집니다.</summary>
     public void FloatText(Vector2 at, string text, Color color, int fontSize = 34, float hold = 0.6f)
     {
-        var label = UiTheme.MakeLabel(text, fontSize, color, bold: true);
+        var label = UiTheme.MakeTitle(text, fontSize, color);
         label.AddThemeColorOverride("font_outline_color", new Color(0, 0, 0, 0.85f));
         label.AddThemeConstantOverride("outline_size", Math.Max(6, fontSize / 5));
         label.HorizontalAlignment = HorizontalAlignment.Center;

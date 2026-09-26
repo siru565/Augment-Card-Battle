@@ -14,4 +14,10 @@ if not exist build\windows mkdir build\windows
 "%GODOT%" --headless --path . --export-release "Windows Desktop" build\windows\AugmentCardBattle.exe
 copy /y steam_api64.dll build\windows\ >nul
 copy /y steam_appid.txt build\windows\ >nul
+rem Font/asset licenses (OFL requires the license to ship with the fonts)
+if not exist build\windows\licenses mkdir build\windows\licenses
+copy /y assets\fonts\*.txt build\windows\licenses\ >nul
+copy /y assets\ui\KENNEY_LICENSE.txt build\windows\licenses\Kenney-UI-LICENSE.txt >nul
+copy /y audio\sfx\KENNEY_LICENSE.txt build\windows\licenses\Kenney-Audio-LICENSE.txt >nul
+copy /y assets\textures\LICENSE.txt build\windows\licenses\ambientCG-LICENSE.txt >nul
 echo Export done: %CD%\build\windows

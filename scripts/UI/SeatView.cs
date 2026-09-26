@@ -135,7 +135,7 @@ public partial class SeatView : PanelContainer
         // 차례인 자리는 강조색 테두리, 대상으로 고를 수 있는 자리는 강조색 배경을 옅게 깝니다.
         var border = targetable || isTurn ? UiTheme.Gold : UiTheme.PanelBorder;
         var bg = targetable ? new Color(UiTheme.Gold, 0.12f) : UiTheme.Panel;
-        AddThemeStyleboxOverride("panel", UiTheme.Box(bg, border, 1, 8, 10));
+        AddThemeStyleboxOverride("panel", UiTheme.Shadowed(UiTheme.Box(bg, border, 1, 8, 10), 10));
     }
 
     private void RebuildAugments(IReadOnlyList<AugmentInfo> augments)

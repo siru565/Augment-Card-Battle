@@ -118,7 +118,7 @@ public partial class AvatarView : Control
             DrawColoredPolygon(points, Colors.White, uvs, picture);
         }
 
-        var ring = _active ? UiTheme.Gold with { A = 0.7f + 0.3f * Mathf.Sin(_t) } : new Color(1, 1, 1, 0.25f);
+        var ring = _active ? UiTheme.Gold with { A = 0.7f + 0.3f * Mathf.Sin(_t) } : new Color(0, 0, 0, 0.45f);
         DrawArc(center, r, 0, Mathf.Tau, 48, ring, _active ? 4f : 2f, true);
 
         if (picture != null)

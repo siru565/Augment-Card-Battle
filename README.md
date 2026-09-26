@@ -62,5 +62,8 @@ scripts/
 ## 크레딧
 
 - 배경음악: "Backbay Lounge" Kevin MacLeod (incompetech.com) · Licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)
-- 효과음: 코드로 직접 합성 (`scripts/Audio/SfxSynth.cs`)
+- 효과음: 코드로 직접 합성 (`scripts/Audio/SfxSynth.cs`) + 카드 소리 [Kenney Casino Audio](https://kenney.nl/assets/casino-audio) (CC0)
+- 글꼴: [Pretendard](https://github.com/orioncactus/pretendard), [Black Han Sans](https://github.com/zesstype/Black-Han-Sans) (SIL OFL 1.1, `assets/fonts`에 라이선스 포함)
+- 장식 테두리: [Kenney Fantasy UI Borders](https://kenney.nl/assets/fantasy-ui-borders) (CC0)
+- 테이블 천 텍스처: [ambientCG Fabric 031](https://ambientcg.com/view?id=Fabric031) (CC0)
 - [Steamworks.NET](https://github.com/rlabrecque/Steamworks.NET) (MIT)

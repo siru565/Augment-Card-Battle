@@ -11,9 +11,12 @@ public static class UiTheme
     // 배경과 패널 색입니다. 채도를 낮춘 어두운 회청색 위에 강조색 하나만 씁니다.
     public static readonly Color TableCenter = Color.FromHtml("#1c212b");
     public static readonly Color TableEdge = Color.FromHtml("#0a0c10");
-    public static readonly Color Panel = new(0.075f, 0.086f, 0.11f, 0.92f);
+    public static readonly Color Panel = Color.FromHtml("#161a22f0");
     public static readonly Color PanelRaised = Color.FromHtml("#1b1f28");
-    public static readonly Color PanelBorder = new(1f, 1f, 1f, 0.07f);
+    /// <summary>
+    /// 패널 가장자리 색입니다. 밝은 선은 이미지가 잘린 것처럼 보여서, 배경보다 어두운 선과 그림자로 경계를 만듭니다.
+    /// </summary>
+    public static readonly Color PanelBorder = new(0f, 0f, 0f, 0.45f);
     public static readonly Color Text = Color.FromHtml("#eceef2");
 
     /// <summary>강조색입니다. 내 차례, 선택 가능, 중요한 숫자에만 씁니다.</summary>
@@ -44,12 +47,32 @@ public static class UiTheme
 
     private static Font? _regular;
     private static Font? _bold;
+    private static Font? _title;
+
+    /// <summary>본문 글꼴입니다. (Pretendard, OFL) 없으면 시스템 글꼴을 씁니다.</summary>
+    public static Font Regular => _regular ??= LoadFont("res://assets/fonts/Pretendard-Regular.otf", 500);
+
+    public static Font Bold => _bold ??= LoadFont("res://assets/fonts/Pretendard-Bold.otf", 700);
+
+    /// <summary>제목·큰 숫자용 글꼴입니다. (Black Han Sans, OFL)</summary>
+    public static Font Title => _title ??= LoadFont("res://assets/fonts/BlackHanSans-Regular.ttf", 800);
+
+    /// <summary>
+    /// 글꼴 파일을 불러옵니다. 글꼴에 없는 기호(화살표 등)는 시스템 글꼴로 이어서 그리도록 대체 글꼴을 붙입니다.
+    /// </summary>
+    private static Font LoadFont(string path, int fallbackWeight)
+    {
+        var system = MakeFont(fallbackWeight);
+        if (ResourceLoader.Exists(path) && GD.Load<FontFile>(path) is { } file)
+        {
+            file.Fallbacks = new Godot.Collections.Array<Font> { system };
+            return file;
+        }
+
+        return system;
+    }
 
     /// <summary>한글이 확실히 나오도록 시스템 폰트(맑은 고딕 등)를 씁니다.</summary>
-    public static Font Regular => _regular ??= MakeFont(500);
-
-    public static Font Bold => _bold ??= MakeFont(700);
-
     private static Font MakeFont(int weight) => new SystemFont
     {
         FontNames = new[] { "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans CJK KR", "NanumGothic", "sans-serif" },
@@ -118,8 +141,8 @@ public static class UiTheme
             default:
                 bg = PanelRaised;
                 hover = PanelRaised.Lightened(0.08f);
-                border = new Color(1, 1, 1, 0.08f);
-                hoverBorder = new Color(1, 1, 1, 0.2f);
+                border = new Color(0, 0, 0, 0.4f);
+                hoverBorder = new Color(0, 0, 0, 0.5f);
                 fg = hoverFg = Text;
                 break;
         }
@@ -129,7 +152,7 @@ public static class UiTheme
 
     /// <summary>색을 직접 정하는 버튼입니다. (문양 고르기 버튼처럼 색 자체가 정보인 곳에서만 씁니다.)</summary>
     public static void StyleButton(Button button, Color bg, Color fg, int fontSize = 16) =>
-        ApplyButton(button, bg, bg.Lightened(0.1f), new Color(1, 1, 1, 0.06f), new Color(1, 1, 1, 0.25f), fg, fg, fontSize);
+        ApplyButton(button, bg, bg.Lightened(0.1f), new Color(0, 0, 0, 0.4f), new Color(0, 0, 0, 0.5f), fg, fg, fontSize);
 
     private static void ApplyButton(Button button, Color bg, Color hover, Color border, Color hoverBorder, Color fg, Color hoverFg, int fontSize)
     {
@@ -157,7 +180,98 @@ public static class UiTheme
     }
 
     /// <summary>모달 창(설정, 결과 등)의 패널 스타일입니다.</summary>
-    public static StyleBoxFlat Modal(int margin = 28) => Box(Color.FromHtml("#12151b"), new Color(1, 1, 1, 0.08f), 1, 8, margin);
+    /// <summary>모달 창(설정, 결과 등)의 패널입니다. 장식 테두리를 씁니다.</summary>
+    public static StyleBox Modal(int margin = 28) => Ornate(Color.FromHtml("#171b23f5"), new Color(Gold, 0.6f), margin);
+
+    /// <summary>패널 스타일입니다. 어두운 가장자리 + 부드러운 그림자로 배경과 구분합니다.</summary>
+    public static StyleBoxFlat PanelBox(int radius = 8, int margin = 10) => Shadowed(Box(Panel, PanelBorder, 1, radius, margin), 10);
+
+    /// <summary>스타일 박스 아래에 부드러운 그림자를 깝니다.</summary>
+    public static StyleBoxFlat Shadowed(StyleBoxFlat box, int size)
+    {
+        box.ShadowColor = new Color(0, 0, 0, 0.35f);
+        box.ShadowSize = size;
+        box.ShadowOffset = new Vector2(0, size / 4f);
+        return box;
+    }
+
+    /// <summary>제목 글꼴(Black Han Sans)로 된 라벨입니다.</summary>
+    public static Label MakeTitle(string text, int size, Color color)
+    {
+        var label = MakeLabel(text, size, color);
+        label.AddThemeFontOverride("font", Title);
+        return label;
+    }
+
+    private static readonly System.Collections.Generic.Dictionary<string, Texture2D?> OrnateCache = new();
+
+    /// <summary>
+    /// 장식 테두리 패널입니다. (Kenney Fantasy UI Borders, CC0) 안쪽은 bg 색으로 채우고 테두리 무늬는 accent 색으로 칠합니다.
+    /// 모서리 16px은 늘리지 않고 그대로 그려서 무늬가 뭉개지지 않습니다. 이미지가 없으면 평범한 패널로 대신합니다.
+    /// </summary>
+    public static StyleBox Ornate(Color bg, Color accent, int margin = 24, int pattern = 7)
+    {
+        var texture = OrnateTexture(bg, accent, pattern);
+        if (texture == null)
+        {
+            return Shadowed(Box(bg, accent, 1, 8, margin), 16);
+        }
+
+        var box = new StyleBoxTexture { Texture = texture };
+        box.SetTextureMarginAll(16);
+        box.SetContentMarginAll(margin);
+        return box;
+    }
+
+    private static Texture2D? OrnateTexture(Color bg, Color accent, int pattern)
+    {
+        string key = $"{bg.ToHtml()}_{accent.ToHtml()}_{pattern}";
+        if (OrnateCache.TryGetValue(key, out var cached))
+        {
+            return cached;
+        }
+
+        string borderPath = $"res://assets/ui/panel-border-{pattern:000}.png";
+        string fillPath = $"res://assets/ui/panel-{pattern:000}.png";
+        Texture2D? result = null;
+        if (ResourceLoader.Exists(borderPath) && ResourceLoader.Exists(fillPath))
+        {
+            var border = ReadImage(borderPath);
+            var fill = ReadImage(fillPath);
+            int w = border.GetWidth();
+            int h = border.GetHeight();
+            var image = Image.CreateEmpty(w, h, false, Image.Format.Rgba8);
+            for (int y = 0; y < h; y++)
+            {
+                for (int x = 0; x < w; x++)
+                {
+                    // 채움 모양 안쪽은 배경색, 그 위에 테두리 무늬를 강조색으로 덮습니다.
+                    float fa = fill.GetPixel(x, y).A;
+                    float ba = border.GetPixel(x, y).A;
+                    var color = new Color(bg, bg.A * fa);
+                    color = color.Blend(new Color(accent, accent.A * ba));
+                    image.SetPixel(x, y, color);
+                }
+            }
+
+            result = ImageTexture.CreateFromImage(image);
+        }
+
+        OrnateCache[key] = result;
+        return result;
+    }
+
+    private static Image ReadImage(string path)
+    {
+        var image = GD.Load<Texture2D>(path).GetImage();
+        if (image.IsCompressed())
+        {
+            image.Decompress();
+        }
+
+        image.Convert(Image.Format.Rgba8);
+        return image;
+    }
 
     /// <summary>작은 제목(구역 이름)입니다. 흐린 색 굵은 글씨로 씁니다.</summary>
     public static Label Caption(string text) => MakeLabel(text, 12, TextDim, bold: true);

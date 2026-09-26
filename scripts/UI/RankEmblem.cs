@@ -80,7 +80,7 @@ public partial class RankEmblem : Control
 
         // 가운데 별과 순위 숫자
         SuitIcons.DrawStar(this, center + new Vector2(0, -r * 0.3f), r * 0.55f, new Color(medal, 0.9f));
-        var font = UiTheme.Bold;
+        var font = UiTheme.Title;
         int size = (int)(r * 0.62f);
         string text = _rank > 0 ? _rank.ToString() : "-";
         var pos = new Vector2(0, center.Y + r * 0.52f);

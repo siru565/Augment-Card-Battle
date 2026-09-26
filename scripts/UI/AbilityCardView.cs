@@ -101,9 +101,7 @@ public partial class AbilityCardView : PanelContainer
     {
         var tier = UiTheme.TierColor(_tier);
         var bg = _hovered ? Color.FromHtml("#1d212a") : Color.FromHtml("#14171d");
-        var style = UiTheme.Box(bg, _hovered ? tier : new Color(tier, 0.35f), 1, 8, 18);
-        // 위쪽에만 등급 색 굵은 선을 둬서 등급을 구분합니다.
-        style.BorderWidthTop = 3;
-        AddThemeStyleboxOverride("panel", style);
+        // 등급 색 장식 테두리입니다. 마우스를 올리면 테두리가 더 밝아집니다.
+        AddThemeStyleboxOverride("panel", UiTheme.Ornate(bg, _hovered ? tier : new Color(tier, 0.6f), 18, 10));
     }
 }

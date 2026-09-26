@@ -5,7 +5,8 @@ namespace SpCardgame.Audio;
 
 /// <summary>
 /// 효과음을 재생하는 노드입니다. 처음 쓸 때 소리를 합성해 두고, 여러 소리가 겹쳐도 되도록 플레이어를 여러 개 돌려 씁니다.
-/// res://audio/sfx/이름.wav(또는 .ogg)가 있으면 합성음 대신 그 파일을 씁니다. (나중에 산 에셋으로 바로 교체할 수 있습니다)
+/// res://audio/sfx/이름.wav(또는 .ogg)나 이름_1, 이름_2 ... 파일이 있으면 합성음 대신 그 파일을 씁니다.
+/// (카드 내기·뽑기·섞기·나눠 주기는 Kenney Casino Audio(CC0) 녹음을 씁니다)
 /// </summary>
 public partial class Sfx : Node
 {
@@ -89,15 +90,31 @@ public partial class Sfx : Node
             return cached;
         }
 
-        AudioStream? stream = null;
-        foreach (string ext in new[] { "wav", "ogg", "mp3" })
+        AudioStream? stream = LoadFile(name);
+
+        // 이름_1, 이름_2 ... 처럼 여러 개 있으면 재생할 때마다 무작위로 골라서 같은 소리 반복을 줄입니다.
+        var variants = new List<AudioStream>();
+        for (int i = 1; i <= 9; i++)
         {
-            string path = $"res://audio/sfx/{name}.{ext}";
-            if (ResourceLoader.Exists(path))
+            if (LoadFile($"{name}_{i}") is { } variant)
             {
-                stream = GD.Load<AudioStream>(path);
-                break;
+                variants.Add(variant);
             }
+        }
+
+        if (stream == null && variants.Count == 1)
+        {
+            stream = variants[0];
+        }
+        else if (stream == null && variants.Count > 1)
+        {
+            var randomizer = new AudioStreamRandomizer { PlaybackMode = AudioStreamRandomizer.PlaybackModeEnum.RandomNoRepeats };
+            foreach (var variant in variants)
+            {
+                randomizer.AddStream(-1, variant);
+            }
+
+            stream = randomizer;
         }
 
         stream ??= new AudioStreamWav
@@ -110,5 +127,20 @@ public partial class Sfx : Node
 
         _streams[name] = stream;
         return stream;
+    }
+
+    /// <summary>res://audio/sfx/이름.(wav|ogg|mp3) 파일이 있으면 불러옵니다.</summary>
+    private static AudioStream? LoadFile(string name)
+    {
+        foreach (string ext in new[] { "wav", "ogg", "mp3" })
+        {
+            string path = $"res://audio/sfx/{name}.{ext}";
+            if (ResourceLoader.Exists(path))
+            {
+                return GD.Load<AudioStream>(path);
+            }
+        }
+
+        return null;
     }
 }

@@ -18,10 +18,11 @@ public partial class MenuBackground : Control
         public float Spin;
     }
 
-    private const int CardCount = 10;
+    private const int CardCount = 14;
 
     private readonly List<Floater> _floaters = new();
     private readonly Random _rng = new();
+    private float _t;
 
     public MenuBackground()
     {
@@ -59,7 +60,7 @@ public partial class MenuBackground : Control
                 PivotOffset = cardSize / 2,
                 Position = new Vector2((float)_rng.NextDouble() * size.X, (float)_rng.NextDouble() * size.Y),
                 Rotation = (float)(_rng.NextDouble() * Math.Tau),
-                Modulate = new Color(0.8f, 0.8f, 0.85f, 0.07f + 0.2f * (depth - 0.45f)),
+                Modulate = new Color(1, 1, 1, 0.22f + 0.45f * (depth - 0.45f)),
             };
             AddChild(view);
             _floaters.Add(new Floater
@@ -97,6 +98,8 @@ public partial class MenuBackground : Control
         }
 
         float dt = (float)delta;
+        _t += dt;
+        QueueRedraw();
 
         foreach (var floater in _floaters)
         {
@@ -125,15 +128,44 @@ public partial class MenuBackground : Control
     public override void _Draw()
     {
         var size = Size;
-        var center = new Vector2(size.X * 0.62f, size.Y * 0.45f);
 
-        // 오른쪽이 살짝 밝은 원형 그라데이션만 깝니다. (메뉴는 왼쪽에 있어서 오른쪽을 밝게 둡니다)
-        DrawRect(new Rect2(Vector2.Zero, size), UiTheme.TableEdge);
-        float maxR = size.Length() * 0.55f;
-        for (int i = 32; i >= 0; i--)
+        // 바탕: 위는 푸른 회색, 아래로 갈수록 어두워지는 세로 그라데이션입니다.
+        var top = Color.FromHtml("#1d2433");
+        var bottom = Color.FromHtml("#0c0f16");
+        const int bands = 24;
+        for (int i = 0; i < bands; i++)
         {
-            float t = i / 32f;
-            DrawCircle(center, maxR * t, UiTheme.TableEdge.Lerp(UiTheme.TableCenter, (1f - t) * 0.9f));
+            float t = i / (float)(bands - 1);
+            DrawRect(new Rect2(0, size.Y * i / bands, size.X, size.Y / bands + 1), top.Lerp(bottom, t));
+        }
+
+        // 오른쪽 가운데의 큰 조명입니다. 메뉴(왼쪽) 뒤보다 밝게 해서 공간감을 줍니다.
+        SoftGlow(new Vector2(size.X * 0.68f, size.Y * 0.42f), size.Y * 0.95f, Color.FromHtml("#4a5878"), 0.5f);
+
+        // 문양 색 빛 번짐이 천천히 떠다닙니다. (카드 색과 같은 색입니다)
+        var glows = new (Vector2 Pos, CardColor Suit, float Radius)[]
+        {
+            (new Vector2(0.55f, 0.18f), CardColor.Yellow, 0.42f),
+            (new Vector2(0.92f, 0.3f), CardColor.Blue, 0.38f),
+            (new Vector2(0.78f, 0.86f), CardColor.Red, 0.4f),
+            (new Vector2(0.45f, 0.8f), CardColor.Green, 0.34f),
+        };
+        for (int i = 0; i < glows.Length; i++)
+        {
+            var (pos, suit, radius) = glows[i];
+            var drift = new Vector2(Mathf.Sin(_t * 0.13f + i * 1.9f), Mathf.Cos(_t * 0.11f + i * 2.7f)) * size.Y * 0.05f;
+            SoftGlow(pos * size + drift, size.Y * radius, UiTheme.CardColor(suit), 0.22f);
+        }
+    }
+
+    /// <summary>가운데가 진하고 바깥으로 갈수록 사라지는 둥근 빛을 그립니다.</summary>
+    private void SoftGlow(Vector2 center, float radius, Color color, float strength)
+    {
+        const int steps = 40;
+        for (int i = 0; i < steps; i++)
+        {
+            float t = i / (float)steps;
+            DrawCircle(center, radius * (1f - t), new Color(color, strength / steps * 1.6f));
         }
     }
 }

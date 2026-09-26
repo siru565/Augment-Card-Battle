@@ -871,10 +871,7 @@ public partial class GameController : Control
             _gameOverLabel.Text = myRank == 1 ? "우승" : myRank > 0 ? $"{myRank}등" : "게임 종료";
             _gameOverLabel.AddThemeColorOverride("font_color", myRank is > 0 and <= 3 ? RankEmblem.MedalColor(myRank).Lightened(0.15f) : UiTheme.Text);
             _rankEmblem.Rank = myRank;
-            var modal = UiTheme.Modal(32);
-            modal.BorderWidthTop = 3;
-            modal.BorderColor = RankEmblem.MedalColor(myRank);
-            _gameOverPanel.AddThemeStyleboxOverride("panel", modal);
+            _gameOverPanel.AddThemeStyleboxOverride("panel", UiTheme.Ornate(Color.FromHtml("#171b23f5"), RankEmblem.MedalColor(myRank), 32));
             RebuildRankList(view);
 
             // 혼자 하기: 다시 하기 / 메인으로
@@ -1720,7 +1717,12 @@ public partial class GameController : Control
         switch (e.Type)
         {
             case GameEventType.CardPlayed when e.Card != null:
-                Audio.Sfx.Play(e.Card.IsAction ? "play_action" : "play", me ? 0f : -3f);
+                // 카드를 내려놓는 실제 녹음 소리에, 액션 카드는 합성 타격음을 살짝 겹칩니다.
+                Audio.Sfx.Play("play", me ? 0f : -3f);
+                if (e.Card.IsAction)
+                {
+                    Audio.Sfx.Play("play_action", me ? -5f : -8f);
+                }
                 break;
             case GameEventType.CardDrawn:
                 Audio.Sfx.Play("draw", me ? -2f : -8f, 1f, 0.08f);
@@ -1913,10 +1915,26 @@ public partial class GameController : Control
 
     private void BuildUi()
     {
-        // 테이블 배경입니다. 가운데가 밝은 원형 그라데이션입니다.
+        // 테이블 바닥입니다. 펠트 천 텍스처(ambientCG Fabric031, CC0)를 짙은 초록으로 물들여 타일로 깝니다.
+        AddChild(new ColorRect { Color = UiTheme.TableEdge, AnchorRight = 1, AnchorBottom = 1, MouseFilter = MouseFilterEnum.Ignore });
+        if (ResourceLoader.Exists("res://assets/textures/felt.jpg"))
+        {
+            var felt = new TextureRect
+            {
+                Texture = GD.Load<Texture2D>("res://assets/textures/felt.jpg"),
+                StretchMode = TextureRect.StretchModeEnum.Tile,
+                ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+                Modulate = new Color(0.36f, 0.62f, 0.5f),
+                MouseFilter = MouseFilterEnum.Ignore,
+            };
+            felt.SetAnchorsPreset(LayoutPreset.FullRect);
+            AddChild(felt);
+        }
+
+        // 가장자리를 어둡게 눌러서 조명이 테이블 가운데를 비추는 느낌을 줍니다.
         var gradient = new Gradient();
-        gradient.SetColor(0, UiTheme.TableCenter);
-        gradient.SetColor(1, UiTheme.TableEdge);
+        gradient.SetColor(0, new Color(0, 0, 0, 0f));
+        gradient.SetColor(1, new Color(0, 0, 0, 0.78f));
         var bg = new TextureRect
         {
             Texture = new GradientTexture2D
@@ -1996,7 +2014,7 @@ public partial class GameController : Control
         AddChild(_gameOverOverlay);
 
         _toast = new PanelContainer { Visible = false, MouseFilter = MouseFilterEnum.Ignore };
-        _toastLabel = UiTheme.MakeLabel("", 24, UiTheme.Text, bold: true);
+        _toastLabel = UiTheme.MakeTitle("", 26, UiTheme.Text);
         _toastLabel.HorizontalAlignment = HorizontalAlignment.Center;
         _toast.AddChild(_toastLabel);
         AddChild(_toast);
@@ -2123,7 +2141,7 @@ public partial class GameController : Control
     private Control BuildMyBar()
     {
         var panel = new PanelContainer();
-        panel.AddThemeStyleboxOverride("panel", UiTheme.Box(UiTheme.Panel, UiTheme.PanelBorder, 1, 8, 10));
+        panel.AddThemeStyleboxOverride("panel", UiTheme.PanelBox(8, 10));
 
         var bar = new HBoxContainer();
         bar.AddThemeConstantOverride("separation", 12);
@@ -2173,7 +2191,7 @@ public partial class GameController : Control
     private Control BuildLogPanel()
     {
         _logPanel = new PanelContainer { CustomMinimumSize = new Vector2(290, 0) };
-        _logPanel.AddThemeStyleboxOverride("panel", UiTheme.Box(UiTheme.Panel, UiTheme.PanelBorder, 1, 8, 14));
+        _logPanel.AddThemeStyleboxOverride("panel", UiTheme.PanelBox(8, 14));
 
         var box = new VBoxContainer();
         box.AddThemeConstantOverride("separation", 8);
@@ -2207,7 +2225,7 @@ public partial class GameController : Control
         box.AddThemeConstantOverride("separation", 18);
         panel.AddChild(box);
 
-        var title = UiTheme.MakeLabel("문양 선택", 22, UiTheme.Text, bold: true);
+        var title = UiTheme.MakeTitle("문양 선택", 26, UiTheme.Text);
         title.HorizontalAlignment = HorizontalAlignment.Center;
         box.AddChild(title);
 
@@ -2240,7 +2258,7 @@ public partial class GameController : Control
         box.AddThemeConstantOverride("separation", 22);
         CenterIn(overlay, box);
 
-        var title = UiTheme.MakeLabel("각성", 34, UiTheme.Text, bold: true);
+        var title = UiTheme.MakeTitle("각성", 40, UiTheme.Gold);
         title.HorizontalAlignment = HorizontalAlignment.Center;
         box.AddChild(title);
 
@@ -2269,7 +2287,7 @@ public partial class GameController : Control
         box.AddThemeConstantOverride("separation", 20);
         CenterIn(overlay, box);
 
-        var title = UiTheme.MakeLabel("도박사", 30, UiTheme.Text, bold: true);
+        var title = UiTheme.MakeTitle("도박사", 36, UiTheme.Silver);
         title.HorizontalAlignment = HorizontalAlignment.Center;
         box.AddChild(title);
         var sub = UiTheme.MakeLabel("2장 중 1장을 가져갑니다. 나머지는 덱 맨 아래로 돌아갑니다.", 15, UiTheme.TextDim);
@@ -2326,7 +2344,7 @@ public partial class GameController : Control
         box.AddThemeConstantOverride("separation", 20);
         CenterIn(overlay, box);
 
-        var title = UiTheme.MakeLabel("특수 증강", 34, UiTheme.Text, bold: true);
+        var title = UiTheme.MakeTitle("특수 증강", 40, UiTheme.Prism);
         title.HorizontalAlignment = HorizontalAlignment.Center;
         box.AddChild(title);
 
@@ -2400,7 +2418,7 @@ public partial class GameController : Control
         box.AddThemeConstantOverride("separation", 14);
         panel.AddChild(box);
 
-        var title = UiTheme.MakeLabel("설정", 26, UiTheme.Text, bold: true);
+        var title = UiTheme.MakeTitle("설정", 30, UiTheme.Text);
         box.AddChild(title);
 
         // 화면
@@ -2441,7 +2459,7 @@ public partial class GameController : Control
         };
         box.AddChild(SettingsRow("해상도 (창 모드)", _resolutionOption));
 
-        box.AddChild(new HSeparator());
+        box.AddChild(new ColorRect { Color = new Color(0, 0, 0, 0.35f), CustomMinimumSize = new Vector2(0, 1) });
 
         // 소리
         box.AddChild(UiTheme.Caption("소리"));
@@ -2491,7 +2509,8 @@ public partial class GameController : Control
         close.Pressed += ToggleSettings;
         box.AddChild(close);
 
-        var credit = UiTheme.MakeLabel(Audio.Music.Credit, 11, UiTheme.TextDim);
+        var credit = UiTheme.MakeLabel(Audio.Music.Credit
+            + "\n글꼴: Pretendard, Black Han Sans (SIL OFL 1.1)  ·  효과음·테두리: Kenney (CC0)  ·  천 텍스처: ambientCG (CC0)", 11, UiTheme.TextDim);
         credit.HorizontalAlignment = HorizontalAlignment.Center;
         credit.AutowrapMode = TextServer.AutowrapMode.Word;
         box.AddChild(credit);
@@ -2551,7 +2570,7 @@ public partial class GameController : Control
     private Control BuildInviteBanner()
     {
         _inviteBanner = new PanelContainer { Visible = false };
-        _inviteBanner.AddThemeStyleboxOverride("panel", UiTheme.Box(Color.FromHtml("#12151b"), new Color(1, 1, 1, 0.1f), 1, 8, 16));
+        _inviteBanner.AddThemeStyleboxOverride("panel", UiTheme.Shadowed(UiTheme.Box(Color.FromHtml("#171b23"), UiTheme.PanelBorder, 1, 8, 16), 16));
         _inviteBanner.SetAnchorsPreset(LayoutPreset.TopRight);
         _inviteBanner.Position = new Vector2(1280 - 380, 16);
         _inviteBanner.CustomMinimumSize = new Vector2(360, 0);
@@ -2616,7 +2635,7 @@ public partial class GameController : Control
         _rankEmblem = new RankEmblem();
         box.AddChild(_rankEmblem);
 
-        _gameOverLabel = UiTheme.MakeLabel("", 38, UiTheme.Text, bold: true);
+        _gameOverLabel = UiTheme.MakeTitle("", 44, UiTheme.Text);
         _gameOverLabel.HorizontalAlignment = HorizontalAlignment.Center;
         box.AddChild(_gameOverLabel);
 
@@ -2671,7 +2690,7 @@ public partial class GameController : Control
         panel.SetAnchorsPreset(LayoutPreset.LeftWide);
         var panelStyle = UiTheme.Box(new Color(0.043f, 0.05f, 0.066f, 0.9f), Colors.Transparent, 0, 0, 0);
         panelStyle.BorderWidthRight = 1;
-        panelStyle.BorderColor = new Color(1, 1, 1, 0.06f);
+        panelStyle.BorderColor = new Color(0, 0, 0, 0.5f);
         panelStyle.ContentMarginLeft = panelStyle.ContentMarginRight = 56;
         panelStyle.ContentMarginTop = panelStyle.ContentMarginBottom = 48;
         panel.AddThemeStyleboxOverride("panel", panelStyle);
@@ -2688,7 +2707,7 @@ public partial class GameController : Control
         box.AddThemeConstantOverride("separation", 14);
         panel.AddChild(box);
 
-        var title = UiTheme.MakeLabel("증강 카드 배틀", 42, UiTheme.Text, bold: true);
+        var title = UiTheme.MakeTitle("증강 카드 배틀", 52, UiTheme.Text);
         box.AddChild(title);
         box.AddChild(new ColorRect { Color = UiTheme.Gold, CustomMinimumSize = new Vector2(44, 3), SizeFlagsHorizontal = SizeFlags.ShrinkBegin });
         box.AddChild(new Control { CustomMinimumSize = new Vector2(0, 18) });
@@ -2949,7 +2968,7 @@ public partial class GameController : Control
     {
         var edit = new LineEdit { Text = text, CustomMinimumSize = new Vector2(0, 42) };
         edit.AddThemeFontSizeOverride("font_size", 15);
-        edit.AddThemeStyleboxOverride("normal", UiTheme.Box(Color.FromHtml("#0e1015"), new Color(1, 1, 1, 0.09f), 1, 4, 10));
+        edit.AddThemeStyleboxOverride("normal", UiTheme.Box(Color.FromHtml("#0e1015"), new Color(0, 0, 0, 0.5f), 1, 4, 10));
         edit.AddThemeStyleboxOverride("focus", UiTheme.Box(Color.FromHtml("#0e1015"), UiTheme.Gold, 1, 4, 10));
         return edit;
     }

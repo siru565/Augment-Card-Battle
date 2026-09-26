@@ -382,7 +382,7 @@ public partial class CardView : Control
         bool isPrism = card.Color == CardColor.Wild;
         var suitColor = isPrism ? UiTheme.Gold : UiTheme.CardColor(card.Color);
         var deep = isPrism ? Color.FromHtml("#1b1532") : suitColor.Darkened(0.68f);
-        var font = UiTheme.Bold;
+        var font = UiTheme.Title;
 
         // 프레임과 안쪽 판입니다. 특수 카드는 프레임이 금색입니다.
         var frame = card.IsSpecial ? UiTheme.Gold : suitColor;
