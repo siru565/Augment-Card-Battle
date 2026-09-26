@@ -96,6 +96,9 @@ public static class SteamRuntime
         return texture;
     }
 
+    /// <summary>움직이는 아바타처럼 다른 곳에서 준비한 사진이 도착했음을 화면들에 알립니다.</summary>
+    internal static void NotifyAvatarLoaded(ulong steamId) => AvatarLoaded?.Invoke(steamId);
+
     /// <summary>Steam 이미지 핸들의 RGBA 픽셀을 Godot 텍스처로 바꿉니다.</summary>
     private static ImageTexture? ToTexture(int handle)
     {

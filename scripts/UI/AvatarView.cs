@@ -46,7 +46,22 @@ public partial class AvatarView : Control
         RefreshPicture();
     }
 
-    public void RefreshPicture() => Picture = SteamId == 0 ? null : Net.SteamRuntime.GetAvatar(SteamId);
+    /// <summary>움직이는 아바타(GIF)입니다. 있으면 정지 사진 대신 이것을 재생합니다.</summary>
+    private Net.SteamAnimatedAvatars.Animation? _animation;
+
+    private int _frame = -1;
+
+    public void RefreshPicture()
+    {
+        Picture = SteamId == 0 ? null : Net.SteamRuntime.GetAvatar(SteamId);
+        _animation = SteamId == 0 ? null : Net.SteamAnimatedAvatars.Get(SteamId);
+        _frame = -1;
+        QueueRedraw();
+    }
+
+    /// <summary>지금 그릴 사진입니다. 움직이는 아바타가 있으면 현재 프레임, 없으면 정지 사진입니다.</summary>
+    private Texture2D? CurrentPicture =>
+        _animation != null && _frame >= 0 ? _animation.Frames[_frame] : _picture;
 
     /// <summary>Godot가 스크립트를 다시 불러올 때 필요한 기본 생성자입니다.</summary>
     public AvatarView() : this("?") { }
@@ -66,6 +81,17 @@ public partial class AvatarView : Control
             _t += (float)delta * 4f;
             QueueRedraw();
         }
+
+        // 움직이는 아바타는 모든 화면이 같은 시계를 써서, 같은 사람의 아바타가 여러 곳에서 똑같이 움직입니다.
+        if (_animation != null && IsVisibleInTree())
+        {
+            int frame = _animation.FrameAt(Time.GetTicksMsec());
+            if (frame != _frame)
+            {
+                _frame = frame;
+                QueueRedraw();
+            }
+        }
     }
 
     public override void _Draw()
@@ -74,7 +100,8 @@ public partial class AvatarView : Control
         float r = Mathf.Min(Size.X, Size.Y) / 2 - 3;
         DrawCircle(center, r, Color.FromHtml("#34405a"));
 
-        if (_picture != null)
+        var picture = CurrentPicture;
+        if (picture != null)
         {
             // 원을 여러 개의 점으로 만들고, 각 점에 사진 좌표(UV)를 붙여서 원형으로 잘라 그립니다.
             const int segments = 48;
@@ -88,13 +115,13 @@ public partial class AvatarView : Control
                 uvs[i] = new Vector2(0.5f, 0.5f) + dir * 0.5f;
             }
 
-            DrawColoredPolygon(points, Colors.White, uvs, _picture);
+            DrawColoredPolygon(points, Colors.White, uvs, picture);
         }
 
         var ring = _active ? UiTheme.Gold with { A = 0.7f + 0.3f * Mathf.Sin(_t) } : new Color(1, 1, 1, 0.25f);
         DrawArc(center, r, 0, Mathf.Tau, 48, ring, _active ? 4f : 2f, true);
 
-        if (_picture != null)
+        if (picture != null)
         {
             return;
         }
