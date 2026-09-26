@@ -126,7 +126,8 @@ public partial class GameController : Control
     private Button _endGameButton = null!;
     private Label _myProgress = null!;
     private PanelContainer _toast = null!;
-    private Tween? _toastTween;
+    /// <summary>알림(토스트) 연출입니다. 모양과 시간은 Game.tscn의 ToastAnim에서 고칩니다.</summary>
+    private AnimationPlayer _toastAnim = null!;
     private Label _toastLabel = null!;
 
     // 로비 노드입니다.
@@ -893,15 +894,13 @@ public partial class GameController : Control
             if (!wasVisible)
             {
                 // 순위표를 가리지 않도록 떠 있던 알림과 글자 연출을 치웁니다.
-                _toastTween?.Kill();
+                _toastAnim.Stop();
                 _toast.Visible = false;
                 _fx.ClearTransient();
 
-                var panel = _gameOverPanel;
-                panel.PivotOffset = panel.Size / 2;
-                panel.Scale = new Vector2(0.6f, 0.6f);
-                CreateTween().TweenProperty(panel, "scale", Vector2.One, 0.35)
-                    .SetTrans(Tween.TransitionType.Back).SetEase(Tween.EaseType.Out);
+                // 결과 창이 튀어나오는 연출은 GameOver.tscn의 AppearAnim("appear")입니다.
+                _gameOverPanel.PivotOffset = _gameOverPanel.Size / 2;
+                _gameOverOverlay.GetNode<AnimationPlayer>("%AppearAnim").Play("appear");
             }
         }
         else
@@ -1689,15 +1688,10 @@ public partial class GameController : Control
         _toast.Size = _toast.GetCombinedMinimumSize();
         _toast.Position = _table.GetGlobalRect().GetCenter() - _toast.Size / 2;
         _toast.PivotOffset = _toast.Size / 2;
-        _toast.Scale = new Vector2(0.6f, 0.6f);
 
-        _toastTween?.Kill();
-        var tween = CreateTween();
-        _toastTween = tween;
-        tween.TweenProperty(_toast, "scale", Vector2.One, 0.25).SetTrans(Tween.TransitionType.Back).SetEase(Tween.EaseType.Out);
-        tween.TweenInterval(1.6);
-        tween.TweenProperty(_toast, "modulate:a", 0f, 0.5);
-        tween.TweenCallback(Callable.From(() => _toast.Visible = false));
+        // 튀어나왔다가 사라지는 연출은 AnimationPlayer(ToastAnim의 "show")가 합니다.
+        _toastAnim.Stop();
+        _toastAnim.Play("show");
     }
 
     /// <summary>
@@ -1905,6 +1899,7 @@ public partial class GameController : Control
 
         _toast = GetNode<PanelContainer>("%Toast");
         _toastLabel = GetNode<Label>("%ToastLabel");
+        _toastAnim = GetNode<AnimationPlayer>("%ToastAnim");
 
         BindLobby();
         BindSettings();
@@ -2215,9 +2210,7 @@ public partial class GameController : Control
         _inviteBanner.Size = _inviteBanner.GetCombinedMinimumSize();
         _inviteBanner.Position = new Vector2(GetViewportRect().Size.X - _inviteBanner.Size.X - 16, 16);
         _inviteBanner.PivotOffset = new Vector2(_inviteBanner.Size.X, 0);
-        _inviteBanner.Scale = new Vector2(0.7f, 0.7f);
-        CreateTween().TweenProperty(_inviteBanner, "scale", Vector2.One, 0.25)
-            .SetTrans(Tween.TransitionType.Back).SetEase(Tween.EaseType.Out);
+        _inviteBanner.GetNode<AnimationPlayer>("%AppearAnim").Play("appear");
     }
 
     // ───────────── 로비 ─────────────

@@ -125,12 +125,14 @@ public partial class CardView : Control
             QueueRedraw();
         }
 
-        // 프리즘·특수 카드는 앞면일 때 계속 빛이 움직입니다.
+        // 프리즘·특수 카드는 앞면일 때 계속 빛이 움직입니다. (띠와 광택은 셰이더, 별빛은 여기서 다시 그립니다)
         if (IsShiny && IsVisibleInTree())
         {
             _shine += (float)delta;
             QueueRedraw();
         }
+
+        UpdateFoil();
     }
 
     /// <summary>떠오른 만큼 아래쪽 판정 영역을 늘려서, 떠오를 때 마우스가 빠져 깜빡이는 현상을 막습니다.</summary>
@@ -196,10 +198,6 @@ public partial class CardView : Control
         {
             DrawHolo(rect, radius);
         }
-        else if (_card.IsSpecial)
-        {
-            DrawGloss(rect, 3.4f, 0.22f);
-        }
 
         DrawBadge(rect);
         DrawHighlight(rect, radius);
@@ -224,92 +222,43 @@ public partial class CardView : Control
         }
     }
 
-    /// <summary>카드 앞면 안쪽 판의 네 꼭짓점입니다. 빛 효과를 이 안으로 잘라 그립니다.</summary>
-    private Vector2[] FacePolygon(Rect2 rect)
-    {
-        var inner = rect.Grow(-rect.Size.X * 0.06f);
-        return new[] { inner.Position, new Vector2(inner.End.X, inner.Position.Y), inner.End, new Vector2(inner.Position.X, inner.End.Y) };
-    }
+    private ColorRect? _foil;
+    private ShaderMaterial? _foilMaterial;
+    private static Shader? _foilShader;
 
     /// <summary>
-    /// 대각선 띠 하나를 카드 안쪽으로 잘라 그립니다. from~to는 대각선 방향으로 잰 위치(0~1)입니다.
+    /// 프리즘·특수 카드의 빛 효과(셰이더)를 앞면 안쪽에 맞춰 붙이거나 숨깁니다.
+    /// 무지개 띠와 광택은 assets/shaders/card_foil.gdshader가 GPU에서 그립니다.
     /// </summary>
-    private void DrawDiagonalBand(Vector2[] face, Rect2 rect, Vector2 dir, float from, float to, Color color)
+    private void UpdateFoil()
     {
-        if (color.A <= 0.004f)
+        bool shiny = IsShiny;
+        if (!shiny)
         {
+            if (_foil != null)
+            {
+                _foil.Visible = false;
+            }
+
             return;
         }
 
-        // 대각선 방향으로 카드가 차지하는 길이입니다.
-        float length = Mathf.Abs(rect.Size.X * dir.X) + Mathf.Abs(rect.Size.Y * dir.Y);
-        var start = rect.GetCenter() - dir * length / 2;
-        var normal = new Vector2(-dir.Y, dir.X) * rect.Size.Length();
-        var a = start + dir * (from * length);
-        var b = start + dir * (to * length);
-        var band = new[] { a - normal, b - normal, b + normal, a + normal };
-        foreach (var piece in Geometry2D.IntersectPolygons(band, face))
+        if (_foil == null)
         {
-            // 잘린 조각이 너무 얇거나 점이 겹치면 엔진의 삼각분할이 실패해서 오류가 나므로,
-            // 직접 삼각형으로 나눈 뒤 삼각형 배열로 그립니다. 나눌 수 없는 조각은 건너뜁니다.
-            if (piece.Length < 3 || PolygonArea(piece) <= 0.5f)
-            {
-                continue;
-            }
-
-            int[] indices = Geometry2D.TriangulatePolygon(piece);
-            if (indices.Length == 0)
-            {
-                continue;
-            }
-
-            var colors = new Color[piece.Length];
-            Array.Fill(colors, color);
-            RenderingServer.CanvasItemAddTriangleArray(GetCanvasItem(), indices, piece, colors);
-        }
-    }
-
-    private static float PolygonArea(Vector2[] points)
-    {
-        float sum = 0f;
-        for (int i = 0; i < points.Length; i++)
-        {
-            var p = points[i];
-            var q = points[(i + 1) % points.Length];
-            sum += p.X * q.Y - q.X * p.Y;
+            _foilShader ??= GD.Load<Shader>("res://assets/shaders/card_foil.gdshader");
+            _foilMaterial = new ShaderMaterial { Shader = _foilShader };
+            _foilMaterial.SetShaderParameter("seed", _shine);
+            _foil = new ColorRect { MouseFilter = MouseFilterEnum.Ignore, Material = _foilMaterial };
+            AddChild(_foil);
         }
 
-        return Mathf.Abs(sum) / 2f;
-    }
+        var inner = new Rect2(Vector2.Zero, Size).Grow(-Size.X * 0.06f);
+        _foil.Visible = true;
+        _foil.Position = inner.Position;
+        _foil.Size = inner.Size;
+        _foil.Modulate = _dimmed ? new Color(1, 1, 1, 0.4f) : Colors.White;
 
-    /// <summary>주기적으로 카드 위를 한 번 쓸고 지나가는 흰 광택입니다.</summary>
-    private void DrawGloss(Rect2 rect, float period, float strength)
-    {
-        float phase = _shine % period / 1.1f;
-        if (phase > 1f)
-        {
-            return;
-        }
-
-        var face = FacePolygon(rect);
-        var dir = new Vector2(1f, 0.7f).Normalized();
-        float center = -0.2f + phase * 1.4f;
-        for (int i = -3; i <= 3; i++)
-        {
-            float a = strength * Mathf.Exp(-i * i / 3f);
-            DrawDiagonalBand(face, rect, dir, center + i * 0.025f, center + (i + 1) * 0.025f, new Color(1, 1, 1, a));
-        }
-    }
-
-    /// <summary>
-    /// 프리즘 카드의 홀로그램입니다. 무지개 띠가 천천히 흐르고, 마우스를 올리면 마우스 위치를 따라 색이 움직이며,
-    /// 밝은 빛줄기가 지나가고 작은 별빛이 반짝입니다. (레어 카드 느낌)
-    /// </summary>
-    private void DrawHolo(Rect2 rect, float radius)
-    {
-        var face = FacePolygon(rect);
-        var dir = new Vector2(1f, 0.55f).Normalized();
-
+        bool prism = _card!.Color == CardColor.Wild;
         float mouse = 0f;
         if (_hovered)
         {
@@ -317,21 +266,23 @@ public partial class CardView : Control
             mouse = (m.X + m.Y) * 0.6f;
         }
 
-        // 무지개 띠
-        const int strips = 16;
-        for (int i = 0; i < strips; i++)
-        {
-            float hue = Mathf.PosMod(i / (float)strips * 1.4f + _shine * 0.12f + mouse, 1f);
-            DrawDiagonalBand(face, rect, dir, i / (float)strips, (i + 1) / (float)strips + 0.002f,
-                Color.FromHsv(hue, 0.6f, 1f, _hovered ? 0.34f : 0.25f));
-        }
+        _foilMaterial!.SetShaderParameter("gloss_only", prism ? 0f : 1f);
+        _foilMaterial.SetShaderParameter("strength", _hovered ? 0.34f : 0.25f);
+        _foilMaterial.SetShaderParameter("mouse_shift", mouse);
+        _foilMaterial.SetShaderParameter("rect_size", inner.Size);
+        _foilMaterial.SetShaderParameter("corner_radius", Size.X * 0.11f * 0.7f);
+    }
 
-        // 지나가는 빛줄기
-        float sweep = Mathf.PosMod(_shine * 0.35f + mouse, 1.6f) - 0.3f;
-        for (int i = -4; i <= 4; i++)
+    /// <summary>
+    /// 프리즘 카드의 별빛과 무지개 테두리입니다. (무지개 띠와 빛줄기는 셰이더가 그립니다)
+    /// </summary>
+    private void DrawHolo(Rect2 rect, float radius)
+    {
+        float mouse = 0f;
+        if (_hovered)
         {
-            float a = 0.42f * Mathf.Exp(-i * i / 5f);
-            DrawDiagonalBand(face, rect, dir, sweep + i * 0.02f, sweep + (i + 1) * 0.02f, new Color(1, 1, 1, a));
+            var m = GetLocalMousePosition() / Size;
+            mouse = (m.X + m.Y) * 0.6f;
         }
 
         // 반짝이는 별빛 (카드마다 위치가 다릅니다)

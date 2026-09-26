@@ -35,6 +35,14 @@
 ## 구조
 
 ```
+scenes/
+├─ Game.tscn       게임 화면 전체 (테이블, 상대 자리, 내 정보, 손패, 로그, 각종 창)
+├─ screens/        메인 메뉴·대기방, 설정, 결과, 문양 선택
+└─ ui/             재사용 부품: Seat, AugmentChip, AbilityCard, RankRow, RoomRow, FriendRow, ChoiceOverlay, InviteBanner
+assets/
+├─ ui/ui_theme.tres   테마 (버튼 역할·패널·글자 스타일을 타입 변형으로 관리)
+├─ shaders/           카드 홀로그램·광택 셰이더 (card_foil.gdshader)
+└─ fonts, textures    글꼴(OFL), 테이블 천(CC0)
 scripts/
 ├─ Core/         게임 규칙 (Godot 의존 없음 — 콘솔 테스트·봇 시뮬레이션·멀티 서버에서 그대로 사용)
 │  ├─ GameEngine.cs   유일한 상태 변경 진입점 (Apply)
@@ -45,7 +53,7 @@ scripts/
 ├─ AI/           랜덤봇, 규칙봇 (PlayerView만 보고 판단)
 ├─ Simulation/   봇끼리 수천 판 자동 대전 → 밸런스 측정
 ├─ Net/          HostSession(서버 권한) / ClientSession, ENet·Steam 전송 계층, 대기방
-├─ UI/           화면 (전부 코드로 생성·벡터 드로잉), 연출(FxLayer), 설정
+├─ UI/           씬에 동작을 연결하는 스크립트, 카드·아바타 벡터 드로잉, 연출(FxLayer)
 ├─ Audio/        효과음 합성(SfxSynth), 배경음악
 ├─ Util/         GIF 디코더 (Steam 움직이는 아바타 재생용)
 └─ Debug/        UI 스냅샷, 2인 네트워크 자동 테스트
