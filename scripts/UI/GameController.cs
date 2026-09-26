@@ -218,7 +218,7 @@ public partial class GameController : Control
     public override void _Ready()
     {
         SetAnchorsPreset(LayoutPreset.FullRect);
-        Theme = UiTheme.BuildTheme();
+        Theme = UiTheme.LoadTheme();
 
         _net = new NetBridge { Name = "Net" };
         AddChild(_net);
@@ -2141,7 +2141,7 @@ public partial class GameController : Control
     private Control BuildMyBar()
     {
         var panel = new PanelContainer();
-        panel.AddThemeStyleboxOverride("panel", UiTheme.PanelBox(8, 10));
+        panel.ThemeTypeVariation = "CardPanel";
 
         var bar = new HBoxContainer();
         bar.AddThemeConstantOverride("separation", 12);
@@ -2191,7 +2191,7 @@ public partial class GameController : Control
     private Control BuildLogPanel()
     {
         _logPanel = new PanelContainer { CustomMinimumSize = new Vector2(290, 0) };
-        _logPanel.AddThemeStyleboxOverride("panel", UiTheme.PanelBox(8, 14));
+        _logPanel.ThemeTypeVariation = "CardPanel";
 
         var box = new VBoxContainer();
         box.AddThemeConstantOverride("separation", 8);
@@ -2218,7 +2218,7 @@ public partial class GameController : Control
         var overlay = MakeDimOverlay();
 
         var panel = new PanelContainer();
-        panel.AddThemeStyleboxOverride("panel", UiTheme.Modal(24));
+        panel.ThemeTypeVariation = "ModalPanel";
         CenterIn(overlay, panel);
 
         var box = new VBoxContainer();
@@ -2411,7 +2411,7 @@ public partial class GameController : Control
         ((ColorRect)overlay).Color = new Color(0, 0, 0, 0.6f);
 
         var panel = new PanelContainer { CustomMinimumSize = new Vector2(520, 0) };
-        panel.AddThemeStyleboxOverride("panel", UiTheme.Modal(26));
+        panel.ThemeTypeVariation = "ModalPanel";
         CenterIn(overlay, panel);
 
         var box = new VBoxContainer();
@@ -2624,7 +2624,7 @@ public partial class GameController : Control
         var overlay = MakeDimOverlay();
 
         var panel = new PanelContainer { CustomMinimumSize = new Vector2(520, 0) };
-        panel.AddThemeStyleboxOverride("panel", UiTheme.Modal(32));
+        panel.ThemeTypeVariation = "ModalPanel";
         _gameOverPanel = panel;
         CenterIn(overlay, panel);
 
@@ -2688,12 +2688,7 @@ public partial class GameController : Control
         // 메뉴는 왼쪽 세로 패널에 둡니다. (오른쪽은 배경이 보이도록 비워 둡니다)
         var panel = new PanelContainer { CustomMinimumSize = new Vector2(540, 0) };
         panel.SetAnchorsPreset(LayoutPreset.LeftWide);
-        var panelStyle = UiTheme.Box(new Color(0.043f, 0.05f, 0.066f, 0.9f), Colors.Transparent, 0, 0, 0);
-        panelStyle.BorderWidthRight = 1;
-        panelStyle.BorderColor = new Color(0, 0, 0, 0.5f);
-        panelStyle.ContentMarginLeft = panelStyle.ContentMarginRight = 56;
-        panelStyle.ContentMarginTop = panelStyle.ContentMarginBottom = 48;
-        panel.AddThemeStyleboxOverride("panel", panelStyle);
+        panel.ThemeTypeVariation = "SidePanel";
         overlay.AddChild(panel);
 
         var version = UiTheme.MakeLabel($"v{GameVersion.Current}", 12, new Color(UiTheme.TextDim, 0.7f));
@@ -2954,12 +2949,6 @@ public partial class GameController : Control
     private static CheckButton MakeToggle(string text)
     {
         var toggle = new CheckButton { Text = text, FocusMode = FocusModeEnum.None };
-        toggle.AddThemeFontOverride("font", UiTheme.Bold);
-        toggle.AddThemeFontSizeOverride("font_size", 14);
-        toggle.AddThemeColorOverride("font_color", UiTheme.TextDim);
-        toggle.AddThemeColorOverride("font_hover_color", UiTheme.Text);
-        toggle.AddThemeColorOverride("font_pressed_color", UiTheme.Text);
-        toggle.AddThemeColorOverride("font_hover_pressed_color", UiTheme.Text);
         toggle.MouseDefaultCursorShape = CursorShape.PointingHand;
         return toggle;
     }
@@ -2967,9 +2956,6 @@ public partial class GameController : Control
     private static LineEdit MakeEdit(string text)
     {
         var edit = new LineEdit { Text = text, CustomMinimumSize = new Vector2(0, 42) };
-        edit.AddThemeFontSizeOverride("font_size", 15);
-        edit.AddThemeStyleboxOverride("normal", UiTheme.Box(Color.FromHtml("#0e1015"), new Color(0, 0, 0, 0.5f), 1, 4, 10));
-        edit.AddThemeStyleboxOverride("focus", UiTheme.Box(Color.FromHtml("#0e1015"), UiTheme.Gold, 1, 4, 10));
         return edit;
     }
 

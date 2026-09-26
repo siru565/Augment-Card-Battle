@@ -23,7 +23,7 @@ public partial class CoverShot : Node
         };
         AddChild(viewport);
 
-        var root = new Control { Size = CanvasSize, Theme = UiTheme.BuildTheme() };
+        var root = new Control { Size = CanvasSize, Theme = UiTheme.LoadTheme() };
         viewport.AddChild(root);
 
         root.AddChild(new CoverBackground { Size = CanvasSize });

@@ -250,11 +250,25 @@ public partial class CardView : Control
         var band = new[] { a - normal, b - normal, b + normal, a + normal };
         foreach (var piece in Geometry2D.IntersectPolygons(band, face))
         {
-            if (piece.Length >= 3)
+            // 잘린 조각이 너무 얇으면(넓이가 거의 0) 삼각형으로 나눌 수 없어서 오류가 나므로 건너뜁니다.
+            if (piece.Length >= 3 && PolygonArea(piece) > 0.5f)
             {
                 DrawColoredPolygon(piece, color);
             }
         }
+    }
+
+    private static float PolygonArea(Vector2[] points)
+    {
+        float sum = 0f;
+        for (int i = 0; i < points.Length; i++)
+        {
+            var p = points[i];
+            var q = points[(i + 1) % points.Length];
+            sum += p.X * q.Y - q.X * p.Y;
+        }
+
+        return Mathf.Abs(sum) / 2f;
     }
 
     /// <summary>주기적으로 카드 위를 한 번 쓸고 지나가는 흰 광택입니다.</summary>

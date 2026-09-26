@@ -1,3 +1,4 @@
+using System;
 using Godot;
 using SpCardgame.Core;
 
@@ -80,11 +81,131 @@ public static class UiTheme
         Antialiasing = TextServer.FontAntialiasing.Gray,
     };
 
-    public static Theme BuildTheme()
+    /// <summary>에디터에서 고칠 수 있는 테마 리소스 경로입니다. (색·글꼴·버튼·패널 스타일이 모두 여기 들어 있습니다)</summary>
+    public const string ThemePath = "res://assets/ui/ui_theme.tres";
+
+    private static Theme? _theme;
+
+    /// <summary>
+    /// 게임 전체 테마를 불러옵니다. ui_theme.tres가 있으면 그것을 쓰고(에디터에서 수정한 값이 반영됩니다),
+    /// 없으면 코드로 같은 테마를 만듭니다. 글꼴 대체(기호용 시스템 글꼴)는 불러온 뒤에 붙입니다.
+    /// </summary>
+    public static Theme LoadTheme()
+    {
+        if (_theme != null)
+        {
+            return _theme;
+        }
+
+        _theme = ResourceLoader.Exists(ThemePath) ? GD.Load<Theme>(ThemePath) : CreateThemeResource();
+        foreach (var font in new[] { _theme.DefaultFont, Regular, Bold, Title })
+        {
+            if (font is FontFile file && file.Fallbacks.Count == 0)
+            {
+                file.Fallbacks = new Godot.Collections.Array<Font> { MakeFont(600) };
+            }
+        }
+
+        return _theme;
+    }
+
+    /// <summary>
+    /// 테마 리소스를 코드로 만듭니다. tools/gen_theme.tscn이 이 결과를 ui_theme.tres로 저장합니다.
+    /// 여기서 정한 타입 변형(PrimaryButton, CaptionLabel, ModalPanel 등)을 씬의 theme_type_variation에 적어서 씁니다.
+    /// </summary>
+    public static Theme CreateThemeResource()
     {
         var theme = new Theme { DefaultFont = Regular, DefaultFontSize = 15 };
+
+        // 글자
         theme.SetColor("font_color", "Label", Text);
+        AddVariation(theme, "CaptionLabel", "Label");
+        theme.SetFont("font", "CaptionLabel", Bold);
+        theme.SetFontSize("font_size", "CaptionLabel", 12);
+        theme.SetColor("font_color", "CaptionLabel", TextDim);
+        AddVariation(theme, "DimLabel", "Label");
+        theme.SetColor("font_color", "DimLabel", TextDim);
+        theme.SetFontSize("font_size", "DimLabel", 13);
+        AddVariation(theme, "TitleLabel", "Label");
+        theme.SetFont("font", "TitleLabel", Title);
+        theme.SetFontSize("font_size", "TitleLabel", 30);
+        AddVariation(theme, "BoldLabel", "Label");
+        theme.SetFont("font", "BoldLabel", Bold);
+
+        // 버튼 (역할별)
+        foreach (ButtonKind kind in Enum.GetValues(typeof(ButtonKind)))
+        {
+            var (bg, hover, border, hoverBorder, fg, hoverFg) = ButtonColors(kind);
+            string type = $"{kind}Button";
+            AddVariation(theme, type, "Button");
+            SetButtonStyle(theme, type, bg, hover, border, hoverBorder, fg, hoverFg);
+        }
+
+        // 드롭다운(OptionButton)은 일반 버튼과 같은 모양입니다.
+        var (b0, h0, bo0, hb0, f0, hf0) = ButtonColors(ButtonKind.Secondary);
+        SetButtonStyle(theme, "OptionButton", b0, h0, bo0, hb0, f0, hf0);
+
+        // 패널
+        AddVariation(theme, "CardPanel", "PanelContainer");
+        theme.SetStylebox("panel", "CardPanel", PanelBox(8, 10));
+        AddVariation(theme, "ModalPanel", "PanelContainer");
+        theme.SetStylebox("panel", "ModalPanel", Modal(26));
+        AddVariation(theme, "SidePanel", "PanelContainer");
+        var side = Box(new Color(0.043f, 0.05f, 0.066f, 0.9f), new Color(0, 0, 0, 0.5f), 0, 0, 0);
+        side.BorderWidthRight = 1;
+        side.ContentMarginLeft = side.ContentMarginRight = 56;
+        side.ContentMarginTop = side.ContentMarginBottom = 48;
+        theme.SetStylebox("panel", "SidePanel", side);
+        AddVariation(theme, "RowPanel", "PanelContainer");
+        theme.SetStylebox("panel", "RowPanel", Box(new Color(1, 1, 1, 0.045f), PanelBorder, 1, 6, 8));
+
+        // 입력칸
+        theme.SetStylebox("normal", "LineEdit", Box(Color.FromHtml("#0e1015"), new Color(0, 0, 0, 0.5f), 1, 4, 10));
+        theme.SetStylebox("focus", "LineEdit", Box(Color.FromHtml("#0e1015"), Gold, 1, 4, 10));
+        theme.SetStylebox("read_only", "LineEdit", Box(Color.FromHtml("#0e101599"), new Color(0, 0, 0, 0.3f), 1, 4, 10));
+        theme.SetFontSize("font_size", "LineEdit", 15);
+
+        // 켜기/끄기
+        theme.SetFont("font", "CheckButton", Bold);
+        theme.SetFontSize("font_size", "CheckButton", 14);
+        theme.SetColor("font_color", "CheckButton", TextDim);
+        theme.SetColor("font_hover_color", "CheckButton", Text);
+        theme.SetColor("font_pressed_color", "CheckButton", Text);
+        theme.SetColor("font_hover_pressed_color", "CheckButton", Text);
+        theme.SetStylebox("focus", "CheckButton", new StyleBoxEmpty());
+
+        // 구분선
+        var line = new StyleBoxLine { Color = new Color(0, 0, 0, 0.35f), Thickness = 1 };
+        theme.SetStylebox("separator", "HSeparator", line);
+        theme.SetConstant("separation", "HSeparator", 12);
         return theme;
+    }
+
+    private static void AddVariation(Theme theme, string name, string baseType) => theme.SetTypeVariation(name, baseType);
+
+    private static (Color Bg, Color Hover, Color Border, Color HoverBorder, Color Fg, Color HoverFg) ButtonColors(ButtonKind kind) => kind switch
+    {
+        ButtonKind.Primary => (Gold, Gold.Lightened(0.12f), Colors.Transparent, Colors.Transparent, Color.FromHtml("#15171c"), Color.FromHtml("#15171c")),
+        ButtonKind.Ghost => (Colors.Transparent, new Color(1, 1, 1, 0.06f), Colors.Transparent, Colors.Transparent, TextDim, Text),
+        ButtonKind.Danger => (Colors.Transparent, new Color(Danger, 0.14f), new Color(Danger, 0.45f), Danger, Danger.Lightened(0.15f), Danger.Lightened(0.15f)),
+        _ => (PanelRaised, PanelRaised.Lightened(0.08f), new Color(0, 0, 0, 0.4f), new Color(0, 0, 0, 0.5f), Text, Text),
+    };
+
+    private static void SetButtonStyle(Theme theme, string type, Color bg, Color hover, Color border, Color hoverBorder, Color fg, Color hoverFg)
+    {
+        theme.SetStylebox("normal", type, ButtonBox(bg, border));
+        theme.SetStylebox("hover", type, ButtonBox(hover, hoverBorder));
+        theme.SetStylebox("pressed", type, ButtonBox(bg.Darkened(0.12f), hoverBorder));
+        theme.SetStylebox("hover_pressed", type, ButtonBox(hover.Darkened(0.06f), hoverBorder));
+        theme.SetStylebox("disabled", type, ButtonBox(new Color(bg, bg.A * 0.4f), new Color(border, border.A * 0.5f)));
+        theme.SetStylebox("focus", type, new StyleBoxEmpty());
+        theme.SetColor("font_color", type, fg);
+        theme.SetColor("font_hover_color", type, hoverFg);
+        theme.SetColor("font_pressed_color", type, hoverFg);
+        theme.SetColor("font_hover_pressed_color", type, hoverFg);
+        theme.SetColor("font_focus_color", type, fg);
+        theme.SetColor("font_disabled_color", type, new Color(fg, 0.35f));
+        theme.SetFont("font", type, Bold);
     }
 
     public static Color CardColor(CardColor color) => color switch
@@ -112,42 +233,19 @@ public static class UiTheme
         return style;
     }
 
-    /// <summary>역할에 맞는 버튼 스타일을 적용합니다.</summary>
+    /// <summary>
+    /// 역할에 맞는 버튼 스타일을 적용합니다. 색은 테마(ui_theme.tres)의 타입 변형에서 오고, 여기서는 변형 이름과 글자 크기만 정합니다.
+    /// </summary>
     public static void StyleButton(Button button, ButtonKind kind, int fontSize = 15)
     {
-        Color bg, hover, border, hoverBorder, fg, hoverFg;
-        switch (kind)
+        button.ThemeTypeVariation = $"{kind}Button";
+        if (fontSize != 15)
         {
-            case ButtonKind.Primary:
-                bg = Gold;
-                hover = Gold.Lightened(0.12f);
-                border = hoverBorder = Colors.Transparent;
-                fg = hoverFg = Color.FromHtml("#15171c");
-                break;
-            case ButtonKind.Ghost:
-                bg = Colors.Transparent;
-                hover = new Color(1, 1, 1, 0.06f);
-                border = hoverBorder = Colors.Transparent;
-                fg = TextDim;
-                hoverFg = Text;
-                break;
-            case ButtonKind.Danger:
-                bg = Colors.Transparent;
-                hover = new Color(Danger, 0.14f);
-                border = new Color(Danger, 0.45f);
-                hoverBorder = Danger;
-                fg = hoverFg = Danger.Lightened(0.15f);
-                break;
-            default:
-                bg = PanelRaised;
-                hover = PanelRaised.Lightened(0.08f);
-                border = new Color(0, 0, 0, 0.4f);
-                hoverBorder = new Color(0, 0, 0, 0.5f);
-                fg = hoverFg = Text;
-                break;
+            button.AddThemeFontSizeOverride("font_size", fontSize);
         }
 
-        ApplyButton(button, bg, hover, border, hoverBorder, fg, hoverFg, fontSize);
+        button.FocusMode = Control.FocusModeEnum.None;
+        button.MouseDefaultCursorShape = Control.CursorShape.PointingHand;
     }
 
     /// <summary>색을 직접 정하는 버튼입니다. (문양 고르기 버튼처럼 색 자체가 정보인 곳에서만 씁니다.)</summary>
@@ -199,7 +297,7 @@ public static class UiTheme
     public static Label MakeTitle(string text, int size, Color color)
     {
         var label = MakeLabel(text, size, color);
-        label.AddThemeFontOverride("font", Title);
+        label.ThemeTypeVariation = "TitleLabel";
         return label;
     }
 
@@ -274,7 +372,7 @@ public static class UiTheme
     }
 
     /// <summary>작은 제목(구역 이름)입니다. 흐린 색 굵은 글씨로 씁니다.</summary>
-    public static Label Caption(string text) => MakeLabel(text, 12, TextDim, bold: true);
+    public static Label Caption(string text) => new() { Text = text, ThemeTypeVariation = "CaptionLabel", MouseFilter = Control.MouseFilterEnum.Ignore };
 
     public static Label MakeLabel(string text, int size, Color color, bool bold = false)
     {
@@ -283,7 +381,7 @@ public static class UiTheme
         label.AddThemeColorOverride("font_color", color);
         if (bold)
         {
-            label.AddThemeFontOverride("font", Bold);
+            label.ThemeTypeVariation = "BoldLabel";
         }
 
         return label;
