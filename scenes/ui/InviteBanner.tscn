@@ -1,0 +1,50 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Theme" path="res://assets/ui/ui_theme.tres" id="1_r"]
+
+[node name="InviteBanner" type="PanelContainer"]
+theme = ExtResource("1_r")
+theme_type_variation = &"CardPanel"
+visible = false
+custom_minimum_size = Vector2(360, 0)
+layout_mode = 3
+
+[node name="Box" type="VBoxContainer" parent="."]
+theme_override_constants/separation = 10
+layout_mode = 2
+
+[node name="Caption" type="Label" parent="Box"]
+theme_type_variation = &"CaptionLabel"
+text = "STEAM 초대"
+layout_mode = 2
+
+[node name="InviteLabel" type="Label" parent="Box"]
+unique_name_in_owner = true
+theme_type_variation = &"BoldLabel"
+theme_override_font_sizes/font_size = 17
+text = ""
+autowrap_mode = 2
+layout_mode = 2
+
+[node name="Row" type="HBoxContainer" parent="Box"]
+theme_override_constants/separation = 10
+layout_mode = 2
+
+[node name="InviteJoinButton" type="Button" parent="Box/Row"]
+unique_name_in_owner = true
+focus_mode = 0
+mouse_default_cursor_shape = 2
+theme_type_variation = &"PrimaryButton"
+theme_override_font_sizes/font_size = 16
+text = "참가하기"
+size_flags_horizontal = 3
+layout_mode = 2
+
+[node name="InviteCloseButton" type="Button" parent="Box/Row"]
+unique_name_in_owner = true
+focus_mode = 0
+mouse_default_cursor_shape = 2
+theme_type_variation = &"GhostButton"
+theme_override_font_sizes/font_size = 16
+text = "닫기"
+layout_mode = 2

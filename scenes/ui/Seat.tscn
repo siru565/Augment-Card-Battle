@@ -5,9 +5,9 @@
 [ext_resource type="Script" path="res://scripts/UI/FanView.cs" id="3_fan"]
 
 [node name="Seat" type="PanelContainer"]
+script = ExtResource("1_seat")
 custom_minimum_size = Vector2(0, 100)
 size_flags_horizontal = 3
-script = ExtResource("1_seat")
 
 [node name="Row" type="HBoxContainer" parent="."]
 layout_mode = 2
@@ -15,12 +15,12 @@ mouse_filter = 2
 theme_override_constants/separation = 10
 
 [node name="Avatar" type="Control" parent="Row"]
+script = ExtResource("2_avatar")
 unique_name_in_owner = true
 custom_minimum_size = Vector2(56, 56)
 layout_mode = 2
 size_flags_vertical = 4
 mouse_filter = 2
-script = ExtResource("2_avatar")
 
 [node name="Info" type="VBoxContainer" parent="Row"]
 layout_mode = 2
@@ -54,11 +54,11 @@ theme_type_variation = &"BoldLabel"
 theme_override_font_sizes/font_size = 13
 
 [node name="Fan" type="Control" parent="Row/Info"]
+script = ExtResource("3_fan")
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 30)
 layout_mode = 2
 mouse_filter = 2
-script = ExtResource("3_fan")
 
 [node name="Augments" type="HBoxContainer" parent="Row/Info"]
 unique_name_in_owner = true

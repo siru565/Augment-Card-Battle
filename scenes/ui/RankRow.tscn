@@ -21,12 +21,12 @@ text = "1"
 horizontal_alignment = 1
 
 [node name="Avatar" type="Control" parent="Line"]
+script = ExtResource("2_avatar")
 unique_name_in_owner = true
 custom_minimum_size = Vector2(40, 40)
 layout_mode = 2
 size_flags_vertical = 4
 mouse_filter = 2
-script = ExtResource("2_avatar")
 
 [node name="Texts" type="VBoxContainer" parent="Line"]
 layout_mode = 2

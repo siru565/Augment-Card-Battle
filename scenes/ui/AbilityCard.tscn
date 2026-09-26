@@ -4,9 +4,9 @@
 [ext_resource type="Script" path="res://scripts/UI/AbilityEmblem.cs" id="2_emblem"]
 
 [node name="AbilityCard" type="PanelContainer"]
+script = ExtResource("1_card")
 custom_minimum_size = Vector2(250, 330)
 mouse_default_cursor_shape = 2
-script = ExtResource("1_card")
 
 [node name="Box" type="VBoxContainer" parent="."]
 layout_mode = 2
@@ -22,11 +22,11 @@ text = "등급"
 horizontal_alignment = 1
 
 [node name="Emblem" type="Control" parent="Box"]
+script = ExtResource("2_emblem")
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 90)
 layout_mode = 2
 mouse_filter = 2
-script = ExtResource("2_emblem")
 
 [node name="Title" type="Label" parent="Box"]
 unique_name_in_owner = true

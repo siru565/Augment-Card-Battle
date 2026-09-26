@@ -3,8 +3,8 @@
 [ext_resource type="Script" path="res://scripts/UI/AugmentChip.cs" id="1_chip"]
 
 [node name="AugmentChip" type="PanelContainer"]
-mouse_default_cursor_shape = 16
 script = ExtResource("1_chip")
+mouse_default_cursor_shape = 16
 
 [node name="Text" type="Label" parent="."]
 unique_name_in_owner = true

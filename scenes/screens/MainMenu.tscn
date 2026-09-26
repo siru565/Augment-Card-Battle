@@ -1,0 +1,413 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/UI/MenuBackground.cs" id="1_r"]
+
+[node name="MainMenu" type="ColorRect"]
+color = Color(0.0392, 0.0471, 0.0627, 1.0000)
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Background" type="Control" parent="."]
+script = ExtResource("1_r")
+mouse_filter = 2
+layout_mode = 1
+
+[node name="SidePanel" type="PanelContainer" parent="."]
+theme_type_variation = &"SidePanel"
+custom_minimum_size = Vector2(540, 0)
+layout_mode = 1
+anchors_preset = 9
+anchor_bottom = 1.0
+grow_vertical = 2
+
+[node name="Box" type="VBoxContainer" parent="SidePanel"]
+theme_override_constants/separation = 14
+alignment = 1
+layout_mode = 2
+
+[node name="Title" type="Label" parent="SidePanel/Box"]
+theme_type_variation = &"TitleLabel"
+theme_override_font_sizes/font_size = 52
+text = "증강 카드 배틀"
+layout_mode = 2
+
+[node name="Accent" type="ColorRect" parent="SidePanel/Box"]
+custom_minimum_size = Vector2(44, 3)
+size_flags_horizontal = 0
+color = Color(0.9412, 0.7216, 0.2863, 1.0000)
+layout_mode = 2
+
+[node name="Gap" type="Control" parent="SidePanel/Box"]
+custom_minimum_size = Vector2(0, 18)
+mouse_filter = 2
+layout_mode = 2
+
+[node name="NameField" type="VBoxContainer" parent="SidePanel/Box"]
+theme_override_constants/separation = 4
+layout_mode = 2
+
+[node name="Caption" type="Label" parent="SidePanel/Box/NameField"]
+theme_type_variation = &"CaptionLabel"
+text = "플레이어 이름"
+layout_mode = 2
+
+[node name="NameEdit" type="LineEdit" parent="SidePanel/Box/NameField"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 42)
+text = ""
+layout_mode = 2
+
+[node name="MenuView" type="VBoxContainer" parent="SidePanel/Box"]
+unique_name_in_owner = true
+theme_override_constants/separation = 10
+layout_mode = 2
+
+[node name="SoloRow" type="HBoxContainer" parent="SidePanel/Box/MenuView"]
+theme_override_constants/separation = 12
+layout_mode = 2
+
+[node name="SoloButton" type="Button" parent="SidePanel/Box/MenuView/SoloRow"]
+unique_name_in_owner = true
+focus_mode = 0
+mouse_default_cursor_shape = 2
+theme_type_variation = &"PrimaryButton"
+theme_override_font_sizes/font_size = 18
+text = "혼자 하기"
+custom_minimum_size = Vector2(0, 50)
+size_flags_horizontal = 3
+layout_mode = 2
+
+[node name="SoloAugmentToggle" type="CheckButton" parent="SidePanel/Box/MenuView/SoloRow"]
+unique_name_in_owner = true
+focus_mode = 0
+mouse_default_cursor_shape = 2
+text = "특수 증강"
+button_pressed = true
+layout_mode = 2
+
+[node name="Gap1" type="Control" parent="SidePanel/Box/MenuView"]
+custom_minimum_size = Vector2(0, 10)
+mouse_filter = 2
+layout_mode = 2
+
+[node name="SteamCaption" type="Label" parent="SidePanel/Box/MenuView"]
+theme_type_variation = &"CaptionLabel"
+text = "STEAM 멀티플레이"
+layout_mode = 2
+
+[node name="SteamRow" type="HBoxContainer" parent="SidePanel/Box/MenuView"]
+theme_override_constants/separation = 10
+layout_mode = 2
+
+[node name="SteamHostButton" type="Button" parent="SidePanel/Box/MenuView/SteamRow"]
+unique_name_in_owner = true
+focus_mode = 0
+mouse_default_cursor_shape = 2
+theme_type_variation = &"SecondaryButton"
+theme_override_font_sizes/font_size = 15
+text = "방 만들기"
+custom_minimum_size = Vector2(120, 44)
+layout_mode = 2
+
+[node name="CodeEdit" type="LineEdit" parent="SidePanel/Box/MenuView/SteamRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 42)
+text = ""
+placeholder_text = "방 코드"
+size_flags_horizontal = 3
+layout_mode = 2
+
+[node name="SteamJoinButton" type="Button" parent="SidePanel/Box/MenuView/SteamRow"]
+unique_name_in_owner = true
+focus_mode = 0
+mouse_default_cursor_shape = 2
+theme_type_variation = &"SecondaryButton"
+theme_override_font_sizes/font_size = 15
+text = "참가"
+custom_minimum_size = Vector2(80, 44)
+layout_mode = 2
+
+[node name="SteamStatus" type="Label" parent="SidePanel/Box/MenuView"]
+unique_name_in_owner = true
+theme_type_variation = &"DimLabel"
+theme_override_font_sizes/font_size = 12
+text = ""
+autowrap_mode = 2
+layout_mode = 2
+
+[node name="Gap2" type="Control" parent="SidePanel/Box/MenuView"]
+custom_minimum_size = Vector2(0, 10)
+mouse_filter = 2
+layout_mode = 2
+
+[node name="LanCaption" type="Label" parent="SidePanel/Box/MenuView"]
+theme_type_variation = &"CaptionLabel"
+text = "직접 연결 (LAN)"
+layout_mode = 2
+
+[node name="NetRow" type="HBoxContainer" parent="SidePanel/Box/MenuView"]
+theme_override_constants/separation = 10
+layout_mode = 2
+
+[node name="AddressField" type="VBoxContainer" parent="SidePanel/Box/MenuView/NetRow"]
+theme_override_constants/separation = 4
+size_flags_horizontal = 3
+layout_mode = 2
+
+[node name="Caption" type="Label" parent="SidePanel/Box/MenuView/NetRow/AddressField"]
+theme_type_variation = &"CaptionLabel"
+text = "주소"
+layout_mode = 2
+
+[node name="AddressEdit" type="LineEdit" parent="SidePanel/Box/MenuView/NetRow/AddressField"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 42)
+text = "127.0.0.1"
+layout_mode = 2
+
+[node name="PortField" type="VBoxContainer" parent="SidePanel/Box/MenuView/NetRow"]
+theme_override_constants/separation = 4
+layout_mode = 2
+
+[node name="Caption" type="Label" parent="SidePanel/Box/MenuView/NetRow/PortField"]
+theme_type_variation = &"CaptionLabel"
+text = "포트"
+layout_mode = 2
+
+[node name="PortEdit" type="LineEdit" parent="SidePanel/Box/MenuView/NetRow/PortField"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(110, 42)
+text = "24680"
+layout_mode = 2
+
+[node name="IpButtons" type="HBoxContainer" parent="SidePanel/Box/MenuView"]
+theme_override_constants/separation = 10
+layout_mode = 2
+
+[node name="IpHostButton" type="Button" parent="SidePanel/Box/MenuView/IpButtons"]
+unique_name_in_owner = true
+focus_mode = 0
+mouse_default_cursor_shape = 2
+theme_type_variation = &"SecondaryButton"
+theme_override_font_sizes/font_size = 15
+text = "방 만들기"
+custom_minimum_size = Vector2(0, 42)
+size_flags_horizontal = 3
+layout_mode = 2
+
+[node name="IpJoinButton" type="Button" parent="SidePanel/Box/MenuView/IpButtons"]
+unique_name_in_owner = true
+focus_mode = 0
+mouse_default_cursor_shape = 2
+theme_type_variation = &"SecondaryButton"
+theme_override_font_sizes/font_size = 15
+text = "참가하기"
+custom_minimum_size = Vector2(0, 42)
+size_flags_horizontal = 3
+layout_mode = 2
+
+[node name="Gap3" type="Control" parent="SidePanel/Box/MenuView"]
+custom_minimum_size = Vector2(0, 6)
+mouse_filter = 2
+layout_mode = 2
+
+[node name="MenuSettingsButton" type="Button" parent="SidePanel/Box/MenuView"]
+unique_name_in_owner = true
+focus_mode = 0
+mouse_default_cursor_shape = 2
+theme_type_variation = &"GhostButton"
+theme_override_font_sizes/font_size = 15
+text = "설정"
+custom_minimum_size = Vector2(0, 40)
+size_flags_horizontal = 0
+layout_mode = 2
+
+[node name="RoomView" type="VBoxContainer" parent="SidePanel/Box"]
+unique_name_in_owner = true
+theme_override_constants/separation = 12
+visible = false
+layout_mode = 2
+
+[node name="SteamRoomBox" type="HBoxContainer" parent="SidePanel/Box/RoomView"]
+unique_name_in_owner = true
+theme_override_constants/separation = 10
+layout_mode = 2
+
+[node name="RoomCodeLabel" type="Label" parent="SidePanel/Box/RoomView/SteamRoomBox"]
+unique_name_in_owner = true
+theme_type_variation = &"BoldLabel"
+theme_override_font_sizes/font_size = 22
+text = "방 코드"
+size_flags_horizontal = 3
+layout_mode = 2
+
+[node name="CopyCodeButton" type="Button" parent="SidePanel/Box/RoomView/SteamRoomBox"]
+unique_name_in_owner = true
+focus_mode = 0
+mouse_default_cursor_shape = 2
+theme_type_variation = &"SecondaryButton"
+theme_override_font_sizes/font_size = 14
+text = "코드 복사"
+layout_mode = 2
+
+[node name="OverlayInviteButton" type="Button" parent="SidePanel/Box/RoomView/SteamRoomBox"]
+unique_name_in_owner = true
+focus_mode = 0
+mouse_default_cursor_shape = 2
+theme_type_variation = &"GhostButton"
+theme_override_font_sizes/font_size = 14
+text = "Steam 오버레이"
+layout_mode = 2
+
+[node name="Columns" type="HBoxContainer" parent="SidePanel/Box/RoomView"]
+theme_override_constants/separation = 18
+layout_mode = 2
+
+[node name="Players" type="VBoxContainer" parent="SidePanel/Box/RoomView/Columns"]
+theme_override_constants/separation = 8
+custom_minimum_size = Vector2(340, 0)
+layout_mode = 2
+
+[node name="PlayersCaption" type="Label" parent="SidePanel/Box/RoomView/Columns/Players"]
+theme_type_variation = &"CaptionLabel"
+text = "참가자  ·  빈자리는 봇"
+layout_mode = 2
+
+[node name="RoomPlayers" type="VBoxContainer" parent="SidePanel/Box/RoomView/Columns/Players"]
+unique_name_in_owner = true
+theme_override_constants/separation = 6
+layout_mode = 2
+
+[node name="Gap" type="Control" parent="SidePanel/Box/RoomView/Columns/Players"]
+custom_minimum_size = Vector2(0, 8)
+mouse_filter = 2
+layout_mode = 2
+
+[node name="OptionsCaption" type="Label" parent="SidePanel/Box/RoomView/Columns/Players"]
+theme_type_variation = &"CaptionLabel"
+text = "게임 설정"
+layout_mode = 2
+
+[node name="AugmentToggle" type="CheckButton" parent="SidePanel/Box/RoomView/Columns/Players"]
+unique_name_in_owner = true
+focus_mode = 0
+mouse_default_cursor_shape = 2
+text = "특수 증강"
+layout_mode = 2
+
+[node name="Hint" type="Label" parent="SidePanel/Box/RoomView/Columns/Players"]
+theme_type_variation = &"DimLabel"
+theme_override_font_sizes/font_size = 12
+text = "방장만 바꿀 수 있습니다"
+layout_mode = 2
+
+[node name="FriendBox" type="VBoxContainer" parent="SidePanel/Box/RoomView/Columns"]
+unique_name_in_owner = true
+theme_override_constants/separation = 8
+custom_minimum_size = Vector2(300, 0)
+layout_mode = 2
+
+[node name="Header" type="HBoxContainer" parent="SidePanel/Box/RoomView/Columns/FriendBox"]
+theme_override_constants/separation = 8
+layout_mode = 2
+
+[node name="FriendCaption" type="Label" parent="SidePanel/Box/RoomView/Columns/FriendBox/Header"]
+theme_type_variation = &"CaptionLabel"
+text = "친구 초대"
+size_flags_horizontal = 3
+layout_mode = 2
+
+[node name="RefreshFriendsButton" type="Button" parent="SidePanel/Box/RoomView/Columns/FriendBox/Header"]
+unique_name_in_owner = true
+focus_mode = 0
+mouse_default_cursor_shape = 2
+theme_type_variation = &"GhostButton"
+theme_override_font_sizes/font_size = 13
+text = "새로고침"
+layout_mode = 2
+
+[node name="Scroll" type="ScrollContainer" parent="SidePanel/Box/RoomView/Columns/FriendBox"]
+custom_minimum_size = Vector2(0, 210)
+horizontal_scroll_mode = 0
+layout_mode = 2
+
+[node name="FriendList" type="VBoxContainer" parent="SidePanel/Box/RoomView/Columns/FriendBox/Scroll"]
+unique_name_in_owner = true
+theme_override_constants/separation = 4
+size_flags_horizontal = 3
+layout_mode = 2
+
+[node name="FriendHint" type="Label" parent="SidePanel/Box/RoomView/Columns/FriendBox"]
+theme_type_variation = &"DimLabel"
+theme_override_font_sizes/font_size = 12
+text = "게임을 켜 둔 친구에게는 게임 안에 알림이 갑니다."
+autowrap_mode = 2
+layout_mode = 2
+
+[node name="RoomButtons" type="HBoxContainer" parent="SidePanel/Box/RoomView"]
+theme_override_constants/separation = 10
+layout_mode = 2
+
+[node name="StartButton" type="Button" parent="SidePanel/Box/RoomView/RoomButtons"]
+unique_name_in_owner = true
+focus_mode = 0
+mouse_default_cursor_shape = 2
+theme_type_variation = &"PrimaryButton"
+theme_override_font_sizes/font_size = 18
+text = "게임 시작"
+custom_minimum_size = Vector2(0, 48)
+size_flags_horizontal = 3
+layout_mode = 2
+
+[node name="EndGameButton" type="Button" parent="SidePanel/Box/RoomView/RoomButtons"]
+unique_name_in_owner = true
+focus_mode = 0
+mouse_default_cursor_shape = 2
+theme_type_variation = &"SecondaryButton"
+theme_override_font_sizes/font_size = 16
+text = "게임 끝내기"
+custom_minimum_size = Vector2(130, 48)
+layout_mode = 2
+
+[node name="LeaveRoomButton" type="Button" parent="SidePanel/Box/RoomView/RoomButtons"]
+unique_name_in_owner = true
+focus_mode = 0
+mouse_default_cursor_shape = 2
+theme_type_variation = &"DangerButton"
+theme_override_font_sizes/font_size = 16
+text = "방 나가기"
+custom_minimum_size = Vector2(120, 48)
+layout_mode = 2
+
+[node name="LobbyStatus" type="Label" parent="SidePanel/Box"]
+unique_name_in_owner = true
+theme_type_variation = &"DimLabel"
+theme_override_font_sizes/font_size = 13
+text = ""
+custom_minimum_size = Vector2(420, 0)
+autowrap_mode = 2
+layout_mode = 2
+
+[node name="Version" type="Label" parent="."]
+unique_name_in_owner = true
+theme_type_variation = &"DimLabel"
+theme_override_font_sizes/font_size = 12
+text = "v0.0.0"
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -80.0
+offset_top = -36.0
+offset_right = -20.0
+offset_bottom = -16.0
+grow_horizontal = 0
+grow_vertical = 0
+horizontal_alignment = 2
+modulate = Color(1, 1, 1, 0.7)

@@ -1,12 +1,501 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=20 format=3]
 
-[ext_resource type="Script" path="res://scripts/UI/GameController.cs" id="1_game"]
+[ext_resource type="Script" path="res://scripts/UI/GameController.cs" id="1_r"]
+[ext_resource type="Theme" path="res://assets/ui/ui_theme.tres" id="2_r"]
+[ext_resource type="Texture2D" path="res://assets/textures/felt.jpg" id="3_r"]
+[ext_resource type="PackedScene" path="res://scenes/ui/Seat.tscn" id="4_r"]
+[ext_resource type="Script" path="res://scripts/UI/DirectionRing.cs" id="5_r"]
+[ext_resource type="Script" path="res://scripts/UI/CardView.cs" id="6_r"]
+[ext_resource type="Script" path="res://scripts/UI/AvatarView.cs" id="7_r"]
+[ext_resource type="Script" path="res://scripts/UI/HandView.cs" id="8_r"]
+[ext_resource type="PackedScene" path="res://scenes/screens/ColorPicker.tscn" id="9_r"]
+[ext_resource type="PackedScene" path="res://scenes/ui/ChoiceOverlay.tscn" id="10_r"]
+[ext_resource type="PackedScene" path="res://scenes/screens/GameOver.tscn" id="11_r"]
+[ext_resource type="PackedScene" path="res://scenes/screens/MainMenu.tscn" id="12_r"]
+[ext_resource type="Script" path="res://scripts/UI/FxLayer.cs" id="13_r"]
+[ext_resource type="PackedScene" path="res://scenes/ui/InviteBanner.tscn" id="14_r"]
+[ext_resource type="PackedScene" path="res://scenes/screens/Settings.tscn" id="15_r"]
+[ext_resource type="Script" path="res://scripts/UI/HoverPopup.cs" id="16_r"]
+
+[sub_resource type="Gradient" id="Gradient_1"]
+offsets = PackedFloat32Array(0, 1)
+colors = PackedColorArray(0, 0, 0, 0, 0, 0, 0, 0.78)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_2"]
+gradient = SubResource("Gradient_1")
+fill = 1
+fill_from = Vector2(0.5, 0.45)
+fill_to = Vector2(1.05, 1.1)
+width = 256
+height = 256
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_3"]
+content_margin_left = 8.0
+content_margin_top = 8.0
+content_margin_right = 8.0
+content_margin_bottom = 8.0
+bg_color = Color(0.3, 0.05, 0.06, 0.95)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.8980, 0.3255, 0.2941, 1.0000)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
 
 [node name="Game" type="Control"]
+script = ExtResource("1_r")
+theme = ExtResource("2_r")
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-script = ExtResource("1_game")
+
+[node name="Floor" type="ColorRect" parent="."]
+color = Color(0.0392, 0.0471, 0.0627, 1.0000)
+mouse_filter = 2
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Felt" type="TextureRect" parent="."]
+mouse_filter = 2
+modulate = Color(0.36, 0.62, 0.5, 1.0)
+texture = ExtResource("3_r")
+expand_mode = 1
+stretch_mode = 1
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Vignette" type="TextureRect" parent="."]
+mouse_filter = 2
+texture = SubResource("GradientTexture2D_2")
+expand_mode = 1
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Layout" type="MarginContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_top = 14
+theme_override_constants/margin_right = 14
+theme_override_constants/margin_bottom = 14
+
+[node name="Root" type="HBoxContainer" parent="Layout"]
+theme_override_constants/separation = 14
+layout_mode = 2
+
+[node name="Left" type="VBoxContainer" parent="Layout/Root"]
+theme_override_constants/separation = 8
+size_flags_horizontal = 3
+layout_mode = 2
+
+[node name="TopBar" type="HBoxContainer" parent="Layout/Root/Left"]
+theme_override_constants/separation = 12
+layout_mode = 2
+
+[node name="InfoLabel" type="Label" parent="Layout/Root/Left/TopBar"]
+unique_name_in_owner = true
+theme_type_variation = &"BoldLabel"
+theme_override_font_sizes/font_size = 14
+text = ""
+size_flags_horizontal = 3
+size_flags_vertical = 4
+theme_override_colors/font_color = Color(0.5451, 0.5765, 0.6314, 1.0000)
+layout_mode = 2
+
+[node name="SettingsButton" type="Button" parent="Layout/Root/Left/TopBar"]
+unique_name_in_owner = true
+focus_mode = 0
+mouse_default_cursor_shape = 2
+theme_type_variation = &"GhostButton"
+theme_override_font_sizes/font_size = 14
+text = "설정"
+layout_mode = 2
+
+[node name="LogButton" type="Button" parent="Layout/Root/Left/TopBar"]
+unique_name_in_owner = true
+focus_mode = 0
+mouse_default_cursor_shape = 2
+theme_type_variation = &"GhostButton"
+theme_override_font_sizes/font_size = 14
+text = "로그"
+layout_mode = 2
+
+[node name="NewGameButton" type="Button" parent="Layout/Root/Left/TopBar"]
+unique_name_in_owner = true
+focus_mode = 0
+mouse_default_cursor_shape = 2
+theme_type_variation = &"GhostButton"
+theme_override_font_sizes/font_size = 14
+text = "새 게임"
+layout_mode = 2
+
+[node name="LeaveButton" type="Button" parent="Layout/Root/Left/TopBar"]
+unique_name_in_owner = true
+focus_mode = 0
+mouse_default_cursor_shape = 2
+theme_type_variation = &"DangerButton"
+theme_override_font_sizes/font_size = 14
+text = "나가기"
+layout_mode = 2
+
+[node name="Seats" type="HBoxContainer" parent="Layout/Root/Left"]
+theme_override_constants/separation = 12
+layout_mode = 2
+
+[node name="Seat1" parent="Layout/Root/Left/Seats" instance=ExtResource("4_r")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="Seat2" parent="Layout/Root/Left/Seats" instance=ExtResource("4_r")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="Seat3" parent="Layout/Root/Left/Seats" instance=ExtResource("4_r")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="Table" type="Control" parent="Layout/Root/Left"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 180)
+size_flags_vertical = 3
+mouse_filter = 1
+layout_mode = 2
+
+[node name="Ring" type="Control" parent="Layout/Root/Left/Table"]
+script = ExtResource("5_r")
+unique_name_in_owner = true
+layout_mode = 0
+mouse_filter = 2
+
+[node name="Draw0" type="Control" parent="Layout/Root/Left/Table"]
+script = ExtResource("6_r")
+unique_name_in_owner = true
+layout_mode = 0
+
+[node name="Draw1" type="Control" parent="Layout/Root/Left/Table"]
+script = ExtResource("6_r")
+unique_name_in_owner = true
+layout_mode = 0
+
+[node name="Draw2" type="Control" parent="Layout/Root/Left/Table"]
+script = ExtResource("6_r")
+unique_name_in_owner = true
+layout_mode = 0
+
+[node name="DrawLabel" type="Label" parent="Layout/Root/Left/Table"]
+unique_name_in_owner = true
+theme_type_variation = &"BoldLabel"
+theme_override_font_sizes/font_size = 14
+text = ""
+layout_mode = 0
+theme_override_colors/font_color = Color(0.5451, 0.5765, 0.6314, 1.0000)
+
+[node name="Pile0" type="Control" parent="Layout/Root/Left/Table"]
+script = ExtResource("6_r")
+unique_name_in_owner = true
+layout_mode = 0
+visible = false
+mouse_filter = 2
+modulate = Color(0.82, 0.82, 0.86, 1.0)
+
+[node name="Pile1" type="Control" parent="Layout/Root/Left/Table"]
+script = ExtResource("6_r")
+unique_name_in_owner = true
+layout_mode = 0
+visible = false
+mouse_filter = 2
+modulate = Color(0.82, 0.82, 0.86, 1.0)
+
+[node name="Pile2" type="Control" parent="Layout/Root/Left/Table"]
+script = ExtResource("6_r")
+unique_name_in_owner = true
+layout_mode = 0
+visible = false
+mouse_filter = 2
+modulate = Color(0.82, 0.82, 0.86, 1.0)
+
+[node name="Pile3" type="Control" parent="Layout/Root/Left/Table"]
+script = ExtResource("6_r")
+unique_name_in_owner = true
+layout_mode = 0
+visible = false
+mouse_filter = 2
+modulate = Color(0.82, 0.82, 0.86, 1.0)
+
+[node name="Pile4" type="Control" parent="Layout/Root/Left/Table"]
+script = ExtResource("6_r")
+unique_name_in_owner = true
+layout_mode = 0
+visible = false
+mouse_filter = 2
+modulate = Color(0.82, 0.82, 0.86, 1.0)
+
+[node name="Pile5" type="Control" parent="Layout/Root/Left/Table"]
+script = ExtResource("6_r")
+unique_name_in_owner = true
+layout_mode = 0
+visible = false
+mouse_filter = 2
+modulate = Color(0.82, 0.82, 0.86, 1.0)
+
+[node name="Discard" type="Control" parent="Layout/Root/Left/Table"]
+script = ExtResource("6_r")
+unique_name_in_owner = true
+layout_mode = 0
+
+[node name="ColorPill" type="PanelContainer" parent="Layout/Root/Left/Table"]
+unique_name_in_owner = true
+layout_mode = 0
+mouse_filter = 2
+
+[node name="ColorPillLabel" type="Label" parent="Layout/Root/Left/Table/ColorPill"]
+unique_name_in_owner = true
+theme_type_variation = &"BoldLabel"
+theme_override_font_sizes/font_size = 15
+text = ""
+layout_mode = 2
+
+[node name="PenaltyBadge" type="PanelContainer" parent="Layout/Root/Left/Table"]
+unique_name_in_owner = true
+layout_mode = 0
+visible = false
+z_index = 5
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_3")
+
+[node name="PenaltyLabel" type="Label" parent="Layout/Root/Left/Table/PenaltyBadge"]
+unique_name_in_owner = true
+theme_type_variation = &"BoldLabel"
+theme_override_font_sizes/font_size = 24
+text = ""
+layout_mode = 2
+
+[node name="PromptPanel" type="PanelContainer" parent="Layout/Root/Left"]
+unique_name_in_owner = true
+size_flags_horizontal = 4
+layout_mode = 2
+
+[node name="PromptLabel" type="Label" parent="Layout/Root/Left/PromptPanel"]
+unique_name_in_owner = true
+theme_type_variation = &"BoldLabel"
+theme_override_font_sizes/font_size = 15
+text = ""
+horizontal_alignment = 1
+layout_mode = 2
+
+[node name="MyBar" type="PanelContainer" parent="Layout/Root/Left"]
+theme_type_variation = &"CardPanel"
+layout_mode = 2
+
+[node name="Row" type="HBoxContainer" parent="Layout/Root/Left/MyBar"]
+theme_override_constants/separation = 12
+layout_mode = 2
+
+[node name="MyAvatar" type="Control" parent="Layout/Root/Left/MyBar/Row"]
+script = ExtResource("7_r")
+unique_name_in_owner = true
+custom_minimum_size = Vector2(44, 44)
+size_flags_vertical = 4
+mouse_filter = 2
+layout_mode = 2
+
+[node name="NameBox" type="VBoxContainer" parent="Layout/Root/Left/MyBar/Row"]
+theme_override_constants/separation = 0
+layout_mode = 2
+
+[node name="MyName" type="Label" parent="Layout/Root/Left/MyBar/Row/NameBox"]
+unique_name_in_owner = true
+theme_type_variation = &"BoldLabel"
+theme_override_font_sizes/font_size = 17
+text = "나"
+layout_mode = 2
+
+[node name="MyCount" type="Label" parent="Layout/Root/Left/MyBar/Row/NameBox"]
+unique_name_in_owner = true
+theme_type_variation = &"DimLabel"
+theme_override_font_sizes/font_size = 13
+text = ""
+layout_mode = 2
+
+[node name="Middle" type="VBoxContainer" parent="Layout/Root/Left/MyBar/Row"]
+theme_override_constants/separation = 2
+alignment = 1
+size_flags_horizontal = 3
+layout_mode = 2
+
+[node name="MyAugments" type="HBoxContainer" parent="Layout/Root/Left/MyBar/Row/Middle"]
+unique_name_in_owner = true
+theme_override_constants/separation = 6
+layout_mode = 2
+
+[node name="MyProgress" type="Label" parent="Layout/Root/Left/MyBar/Row/Middle"]
+unique_name_in_owner = true
+theme_type_variation = &"BoldLabel"
+theme_override_font_sizes/font_size = 13
+text = ""
+autowrap_mode = 2
+theme_override_colors/font_color = Color(0.5451, 0.5765, 0.6314, 1.0000)
+layout_mode = 2
+
+[node name="CancelButton" type="Button" parent="Layout/Root/Left/MyBar/Row"]
+unique_name_in_owner = true
+focus_mode = 0
+mouse_default_cursor_shape = 2
+theme_type_variation = &"GhostButton"
+theme_override_font_sizes/font_size = 15
+text = "취소"
+layout_mode = 2
+
+[node name="DrawButton" type="Button" parent="Layout/Root/Left/MyBar/Row"]
+unique_name_in_owner = true
+focus_mode = 0
+mouse_default_cursor_shape = 2
+theme_type_variation = &"SecondaryButton"
+theme_override_font_sizes/font_size = 15
+text = "카드 뽑기"
+custom_minimum_size = Vector2(120, 42)
+layout_mode = 2
+
+[node name="PassButton" type="Button" parent="Layout/Root/Left/MyBar/Row"]
+unique_name_in_owner = true
+focus_mode = 0
+mouse_default_cursor_shape = 2
+theme_type_variation = &"SecondaryButton"
+theme_override_font_sizes/font_size = 15
+text = "턴 넘기기"
+custom_minimum_size = Vector2(120, 42)
+layout_mode = 2
+
+[node name="Hand" type="Control" parent="Layout/Root/Left"]
+script = ExtResource("8_r")
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 166)
+mouse_filter = 1
+layout_mode = 2
+
+[node name="LogPanel" type="PanelContainer" parent="Layout/Root"]
+unique_name_in_owner = true
+theme_type_variation = &"CardPanel"
+custom_minimum_size = Vector2(290, 0)
+layout_mode = 2
+
+[node name="Box" type="VBoxContainer" parent="Layout/Root/LogPanel"]
+theme_override_constants/separation = 8
+layout_mode = 2
+
+[node name="Caption" type="Label" parent="Layout/Root/LogPanel/Box"]
+theme_type_variation = &"CaptionLabel"
+text = "진행 로그"
+layout_mode = 2
+
+[node name="LogLabel" type="RichTextLabel" parent="Layout/Root/LogPanel/Box"]
+unique_name_in_owner = true
+size_flags_vertical = 3
+bbcode_enabled = true
+scroll_following = true
+selection_enabled = true
+theme_override_font_sizes/normal_font_size = 13
+layout_mode = 2
+
+[node name="ColorPicker" parent="." instance=ExtResource("9_r")]
+unique_name_in_owner = true
+layout_mode = 1
+
+[node name="AbilityOverlay" parent="." instance=ExtResource("10_r")]
+unique_name_in_owner = true
+layout_mode = 1
+Title = "각성"
+TitleColor = Color(0.9412, 0.7216, 0.2863, 1.0000)
+Subtitle = "능력 하나를 골라 바로 발동합니다"
+RowSeparation = 24
+
+[node name="AugmentOverlay" parent="." instance=ExtResource("10_r")]
+unique_name_in_owner = true
+layout_mode = 1
+Title = "특수 증강"
+TitleColor = Color(0.7647, 0.6078, 1.0000, 1.0000)
+Subtitle = "이번 판 동안 계속 적용됩니다"
+RowSeparation = 24
+
+[node name="GambleOverlay" parent="." instance=ExtResource("10_r")]
+unique_name_in_owner = true
+layout_mode = 1
+Title = "도박사"
+TitleColor = Color(0.7255, 0.7647, 0.8196, 1.0000)
+Subtitle = "2장 중 1장을 가져갑니다. 나머지는 덱 맨 아래로 돌아갑니다."
+RowSeparation = 40
+
+[node name="GameOver" parent="." instance=ExtResource("11_r")]
+unique_name_in_owner = true
+layout_mode = 1
+
+[node name="Toast" type="PanelContainer" parent="."]
+unique_name_in_owner = true
+visible = false
+mouse_filter = 2
+layout_mode = 0
+
+[node name="ToastLabel" type="Label" parent="Toast"]
+unique_name_in_owner = true
+theme_type_variation = &"TitleLabel"
+theme_override_font_sizes/font_size = 26
+text = ""
+horizontal_alignment = 1
+layout_mode = 2
+
+[node name="MainMenu" parent="." instance=ExtResource("12_r")]
+unique_name_in_owner = true
+layout_mode = 1
+
+[node name="FxCanvas" type="CanvasLayer" parent="."]
+layer = 5
+
+[node name="Fx" type="Control" parent="FxCanvas"]
+script = ExtResource("13_r")
+unique_name_in_owner = true
+theme = ExtResource("2_r")
+mouse_filter = 2
+layout_mode = 0
+
+[node name="InviteCanvas" type="CanvasLayer" parent="."]
+layer = 11
+
+[node name="InviteBanner" parent="InviteCanvas" instance=ExtResource("14_r")]
+unique_name_in_owner = true
+
+[node name="SettingsCanvas" type="CanvasLayer" parent="."]
+layer = 12
+
+[node name="Settings" parent="SettingsCanvas" instance=ExtResource("15_r")]
+unique_name_in_owner = true
+
+[node name="PopupCanvas" type="CanvasLayer" parent="."]
+layer = 10
+
+[node name="HoverPopup" type="PanelContainer" parent="PopupCanvas"]
+script = ExtResource("16_r")
+theme = ExtResource("2_r")
+layout_mode = 0

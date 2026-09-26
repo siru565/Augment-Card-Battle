@@ -250,11 +250,22 @@ public partial class CardView : Control
         var band = new[] { a - normal, b - normal, b + normal, a + normal };
         foreach (var piece in Geometry2D.IntersectPolygons(band, face))
         {
-            // 잘린 조각이 너무 얇거나 점이 겹치면 삼각형으로 나눌 수 없어서 오류가 나므로, 미리 나눠 보고 안 되면 건너뜁니다.
-            if (piece.Length >= 3 && PolygonArea(piece) > 0.5f && Geometry2D.TriangulatePolygon(piece).Length > 0)
+            // 잘린 조각이 너무 얇거나 점이 겹치면 엔진의 삼각분할이 실패해서 오류가 나므로,
+            // 직접 삼각형으로 나눈 뒤 삼각형 배열로 그립니다. 나눌 수 없는 조각은 건너뜁니다.
+            if (piece.Length < 3 || PolygonArea(piece) <= 0.5f)
             {
-                DrawColoredPolygon(piece, color);
+                continue;
             }
+
+            int[] indices = Geometry2D.TriangulatePolygon(piece);
+            if (indices.Length == 0)
+            {
+                continue;
+            }
+
+            var colors = new Color[piece.Length];
+            Array.Fill(colors, color);
+            RenderingServer.CanvasItemAddTriangleArray(GetCanvasItem(), indices, piece, colors);
         }
     }
 

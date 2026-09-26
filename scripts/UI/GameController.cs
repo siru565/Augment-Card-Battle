@@ -248,7 +248,7 @@ public partial class GameController : Control
         SteamRuntime.InviteReceived += (from, lobby) => Callable.From(() => ShowInvite(from, lobby)).CallDeferred();
         SteamRuntime.AvatarLoaded += OnAvatarLoaded;
 
-        BuildUi();
+        BindUi();
         ShowLobbyMenu("");
 
         // 배포한 exe가 제대로 도는지 확인하는 자가 진단입니다. (실행: 게임.exe -- --selftest)
@@ -897,7 +897,7 @@ public partial class GameController : Control
                 _toast.Visible = false;
                 _fx.ClearTransient();
 
-                var panel = _gameOverOverlay.GetChild(0).GetChild<Control>(0);
+                var panel = _gameOverPanel;
                 panel.PivotOffset = panel.Size / 2;
                 panel.Scale = new Vector2(0.6f, 0.6f);
                 CreateTween().TweenProperty(panel, "scale", Vector2.One, 0.35)
@@ -1778,6 +1778,289 @@ public partial class GameController : Control
     /// <summary>카드 이름의 대괄호가 BBCode 태그로 해석되지 않도록 바꿉니다.</summary>
     private static string Escape(string text) => text.Replace("[", "[lb]");
 
+    // ───────────── 씬 연결 ─────────────
+
+    /// <summary>
+    /// Game.tscn(과 그 안의 화면 씬)에 있는 노드를 찾아 필드에 넣고 버튼 이벤트를 연결합니다.
+    /// 화면 배치와 모양은 모두 씬 파일에 있고, 여기서는 동작만 붙입니다. (%이름 = 씬 고유 이름)
+    /// </summary>
+    private void BindUi()
+    {
+        // 게임 화면 (Game.tscn)
+        _shakeRoot = GetNode<Control>("%Layout");
+        _infoLabel = GetNode<Label>("%InfoLabel");
+        GetNode<Button>("%SettingsButton").Pressed += ToggleSettings;
+        GetNode<Button>("%LogButton").Pressed += () => _logPanel.Visible = !_logPanel.Visible;
+        _newGameButton = GetNode<Button>("%NewGameButton");
+        _newGameButton.Pressed += () =>
+        {
+            if (_session?.IsSolo == true)
+            {
+                _session.Restart();
+            }
+            else
+            {
+                _session?.ReturnToRoom();
+            }
+        };
+        GetNode<Button>("%LeaveButton").Pressed += LeavePressed;
+
+        for (int k = 1; k < SeatCount; k++)
+        {
+            _seats[k] = GetNode<SeatView>($"%Seat{k}");
+            _seats[k].Assign(k, $"P{k}");
+            _seats[k].Clicked += OnSeatClicked;
+        }
+
+        // 테이블 (배치는 LayoutTable에서 매 프레임 가운데 기준으로 잡습니다)
+        _table = GetNode<Control>("%Table");
+        _ring = GetNode<DirectionRing>("%Ring");
+        for (int i = 0; i < _drawStack.Length; i++)
+        {
+            _drawStack[i] = GetNode<CardView>($"%Draw{i}");
+            _drawStack[i].FaceDown = true;
+            _drawStack[i].MouseFilter = MouseFilterEnum.Ignore;
+        }
+
+        // 맨 위 카드만 클릭을 받습니다.
+        _drawStack[^1].MouseFilter = MouseFilterEnum.Stop;
+        _drawStack[^1].Clicked += OnDrawPileClicked;
+        _drawLabel = GetNode<Label>("%DrawLabel");
+        for (int i = 0; i < _discardPile.Length; i++)
+        {
+            _discardPile[i] = GetNode<CardView>($"%Pile{i}");
+        }
+
+        _discard = GetNode<CardView>("%Discard");
+        _colorPill = GetNode<PanelContainer>("%ColorPill");
+        _colorPillLabel = GetNode<Label>("%ColorPillLabel");
+        _penaltyBadge = GetNode<PanelContainer>("%PenaltyBadge");
+        _penaltyLabel = GetNode<Label>("%PenaltyLabel");
+        _promptPanel = GetNode<PanelContainer>("%PromptPanel");
+        _promptLabel = GetNode<Label>("%PromptLabel");
+
+        // 내 정보 줄
+        _myAvatar = GetNode<AvatarView>("%MyAvatar");
+        _myAvatar.Letter = "나";
+        _myNameLabel = GetNode<Label>("%MyName");
+        _myCountLabel = GetNode<Label>("%MyCount");
+        _myAugments = GetNode<HBoxContainer>("%MyAugments");
+        _myProgress = GetNode<Label>("%MyProgress");
+        _cancelButton = GetNode<Button>("%CancelButton");
+        _cancelButton.Pressed += () => { ClearPending(); Refresh(); };
+        _drawButton = GetNode<Button>("%DrawButton");
+        _drawButton.Pressed += DrawPressed;
+        _passButton = GetNode<Button>("%PassButton");
+        _passButton.Pressed += () => Submit(PlayerAction.Pass());
+        _hand = GetNode<HandView>("%Hand");
+        _logPanel = GetNode<PanelContainer>("%LogPanel");
+        _logLabel = GetNode<RichTextLabel>("%LogLabel");
+
+        // 선택 창들
+        _colorOverlay = GetNode<Control>("%ColorPicker");
+        var suitRow = _colorOverlay.GetNode<HBoxContainer>("%SuitRow");
+        foreach (var color in Deck.Colors)
+        {
+            var c = color;
+            var button = new SuitButton(c) { CustomMinimumSize = new Vector2(116, 130) };
+            button.Pressed += () => OnColorPicked(c);
+            suitRow.AddChild(button);
+        }
+
+        _colorOverlay.GetNode<Button>("%CancelButton").Pressed += () => { ClearPending(); Refresh(); };
+
+        var ability = GetNode<ChoiceOverlay>("%AbilityOverlay");
+        _abilityOverlay = ability;
+        _abilityRow = ability.Row;
+        var augment = GetNode<ChoiceOverlay>("%AugmentOverlay");
+        _augmentOverlay = augment;
+        _augmentRow = augment.Row;
+        augment.SubtitleLabel.Text = $"이번 판 동안 계속 적용됩니다  ·  최대 {SpecialAugments.MaxPerPlayer}개";
+        var gamble = GetNode<ChoiceOverlay>("%GambleOverlay");
+        _gambleOverlay = gamble;
+        _gambleRow = gamble.Row;
+
+        // 결과 화면 (screens/GameOver.tscn)
+        _gameOverOverlay = GetNode<Control>("%GameOver");
+        _gameOverPanel = _gameOverOverlay.GetNode<PanelContainer>("%Panel");
+        _rankEmblem = _gameOverOverlay.GetNode<RankEmblem>("%RankEmblem");
+        _gameOverLabel = _gameOverOverlay.GetNode<Label>("%ResultTitle");
+        _rankList = _gameOverOverlay.GetNode<VBoxContainer>("%RankList");
+        _roomButton = _gameOverOverlay.GetNode<Button>("%RoomButton");
+        _roomButton.Pressed += () =>
+        {
+            if (_session?.IsHost == true)
+            {
+                _session.ReturnToRoom();
+            }
+            else
+            {
+                _session?.LeaveGame();
+            }
+        };
+        _againButton = _gameOverOverlay.GetNode<Button>("%AgainButton");
+        _againButton.Pressed += () => _session?.Restart();
+        _mainMenuButton = _gameOverOverlay.GetNode<Button>("%MainMenuButton");
+        _mainMenuButton.Pressed += () => BackToLobby("");
+
+        _toast = GetNode<PanelContainer>("%Toast");
+        _toastLabel = GetNode<Label>("%ToastLabel");
+
+        BindLobby();
+        BindSettings();
+
+        // 초대 알림 (ui/InviteBanner.tscn)
+        _inviteBanner = GetNode<PanelContainer>("%InviteBanner");
+        _inviteLabel = _inviteBanner.GetNode<Label>("%InviteLabel");
+        _inviteBanner.GetNode<Button>("%InviteJoinButton").Pressed += () =>
+        {
+            _inviteBanner.Visible = false;
+            JoinSteamLobby(_inviteLobby);
+        };
+        _inviteBanner.GetNode<Button>("%InviteCloseButton").Pressed += () => _inviteBanner.Visible = false;
+
+        // 연출은 게임 화면과 선택 창보다 위(CanvasLayer 5)에 그립니다.
+        _fx = GetNode<FxLayer>("%Fx");
+        _fx.SetShakeTarget(_shakeRoot);
+    }
+
+    /// <summary>메인 메뉴와 대기방(screens/MainMenu.tscn)을 연결합니다.</summary>
+    private void BindLobby()
+    {
+        var menu = GetNode<Control>("%MainMenu");
+        _lobbyOverlay = menu;
+        _lobbyMenu = menu.GetNode<Control>("%MenuView");
+        _lobbyRoom = menu.GetNode<Control>("%RoomView");
+        _lobbyStatus = menu.GetNode<Label>("%LobbyStatus");
+        menu.GetNode<Label>("%Version").Text = $"v{GameVersion.Current}";
+
+        _nameEdit = menu.GetNode<LineEdit>("%NameEdit");
+        _nameEdit.Text = SteamRuntime.IsReady && SteamRuntime.PersonaName.Length > 0
+            ? SteamRuntime.PersonaName
+            : $"플레이어{GD.Randi() % 90 + 10}";
+
+        menu.GetNode<Button>("%SoloButton").Pressed += StartSolo;
+        _soloAugmentToggle = menu.GetNode<CheckButton>("%SoloAugmentToggle");
+        _steamHostButton = menu.GetNode<Button>("%SteamHostButton");
+        _steamHostButton.Pressed += StartSteamHosting;
+        _codeEdit = menu.GetNode<LineEdit>("%CodeEdit");
+        _steamJoinButton = menu.GetNode<Button>("%SteamJoinButton");
+        _steamJoinButton.Pressed += JoinSteamByCode;
+        _steamStatus = menu.GetNode<Label>("%SteamStatus");
+        _addressEdit = menu.GetNode<LineEdit>("%AddressEdit");
+        _portEdit = menu.GetNode<LineEdit>("%PortEdit");
+        _portEdit.Text = NetBridge.DefaultPort.ToString();
+        menu.GetNode<Button>("%IpHostButton").Pressed += StartHosting;
+        menu.GetNode<Button>("%IpJoinButton").Pressed += StartJoining;
+        menu.GetNode<Button>("%MenuSettingsButton").Pressed += ToggleSettings;
+
+        // 대기방입니다. 방은 게임이 끝나도 그대로 남아서 같은 코드로 계속 모일 수 있습니다.
+        _steamRoomBox = menu.GetNode<Control>("%SteamRoomBox");
+        _roomCodeLabel = menu.GetNode<Label>("%RoomCodeLabel");
+        menu.GetNode<Button>("%CopyCodeButton").Pressed += () =>
+        {
+            DisplayServer.ClipboardSet(_roomCode);
+            _lobbyStatus.Text = "방 코드를 복사했습니다.";
+        };
+        menu.GetNode<Button>("%OverlayInviteButton").Pressed += SteamRuntime.OpenInviteDialog;
+        _roomPlayers = menu.GetNode<VBoxContainer>("%RoomPlayers");
+        _augmentToggle = menu.GetNode<CheckButton>("%AugmentToggle");
+        _augmentToggle.Toggled += pressed =>
+        {
+            if (!_updatingToggle && _session is HostSession host)
+            {
+                host.SetOptions(host.RoomOptions with { SpecialAugments = pressed });
+            }
+        };
+        _friendBox = menu.GetNode<Control>("%FriendBox");
+        _friendList = menu.GetNode<VBoxContainer>("%FriendList");
+        menu.GetNode<Button>("%RefreshFriendsButton").Pressed += RefreshFriends;
+        _startButton = menu.GetNode<Button>("%StartButton");
+        _startButton.Pressed += () => (_session as HostSession)?.StartGame();
+        _endGameButton = menu.GetNode<Button>("%EndGameButton");
+        _endGameButton.Pressed += () => _session?.ReturnToRoom();
+        menu.GetNode<Button>("%LeaveRoomButton").Pressed += () => BackToLobby("");
+    }
+
+    /// <summary>설정 창(screens/Settings.tscn)을 연결합니다.</summary>
+    private void BindSettings()
+    {
+        var settings = GetNode<Control>("%Settings");
+        _settingsOverlay = settings;
+
+        _windowModeOption = settings.GetNode<OptionButton>("%WindowModeOption");
+        _windowModeOption.ItemSelected += index =>
+        {
+            if (_syncingSettings)
+            {
+                return;
+            }
+
+            GameSettings.WindowMode = (int)index;
+            _resolutionOption.Disabled = index != 0;
+            GameSettings.ApplyDisplay();
+            GameSettings.Save();
+        };
+
+        // 해상도 목록은 GameSettings에 있어서 코드로 채웁니다.
+        _resolutionOption = settings.GetNode<OptionButton>("%ResolutionOption");
+        for (int i = 0; i < GameSettings.Resolutions.Length; i++)
+        {
+            _resolutionOption.AddItem(GameSettings.ResolutionName(i));
+        }
+
+        _resolutionOption.ItemSelected += index =>
+        {
+            if (_syncingSettings)
+            {
+                return;
+            }
+
+            GameSettings.ResolutionIndex = (int)index;
+            GameSettings.ApplyDisplay();
+            GameSettings.Save();
+        };
+
+        _masterSlider = settings.GetNode<HSlider>("%MasterSlider");
+        _masterValue = settings.GetNode<Label>("%MasterValue");
+        WireVolumeSlider(_masterSlider, _masterValue, value =>
+        {
+            GameSettings.MasterVolume = value;
+            GameSettings.ApplyAudio();
+        });
+        _sfxSlider = settings.GetNode<HSlider>("%SfxSlider");
+        _sfxValue = settings.GetNode<Label>("%SfxValue");
+        WireVolumeSlider(_sfxSlider, _sfxValue, value =>
+        {
+            GameSettings.SfxVolume = value;
+            GameSettings.ApplyAudio();
+            Audio.Sfx.Play("play", -2f, 1f, 0.04f, 120);
+        });
+        _musicSlider = settings.GetNode<HSlider>("%MusicSlider");
+        _musicValue = settings.GetNode<Label>("%MusicValue");
+        WireVolumeSlider(_musicSlider, _musicValue, value =>
+        {
+            GameSettings.MusicVolume = value;
+            GameSettings.ApplyAudio();
+        });
+
+        _muteToggle = settings.GetNode<CheckButton>("%MuteToggle");
+        _muteToggle.Toggled += pressed =>
+        {
+            if (_syncingSettings)
+            {
+                return;
+            }
+
+            GameSettings.Muted = pressed;
+            GameSettings.ApplyAudio();
+        };
+        settings.GetNode<Button>("%SfxTestButton").Pressed += () => Audio.Sfx.Play("awaken", 0f, 1f, 0f);
+        settings.GetNode<Button>("%CloseButton").Pressed += ToggleSettings;
+        settings.GetNode<Label>("%Credit").Text = Audio.Music.Credit
+            + "\n글꼴: Pretendard, Black Han Sans (SIL OFL 1.1)  ·  효과음·테두리: Kenney (CC0)  ·  천 텍스처: ambientCG (CC0)";
+    }
+
     // ───────────── 레이아웃 ─────────────
 
     /// <summary>
@@ -1824,392 +2107,11 @@ public partial class GameController : Control
 
     // ───────────── UI 생성 ─────────────
 
-    private void BuildUi()
-    {
-        // 테이블 바닥입니다. 펠트 천 텍스처(ambientCG Fabric031, CC0)를 짙은 초록으로 물들여 타일로 깝니다.
-        AddChild(new ColorRect { Color = UiTheme.TableEdge, AnchorRight = 1, AnchorBottom = 1, MouseFilter = MouseFilterEnum.Ignore });
-        if (ResourceLoader.Exists("res://assets/textures/felt.jpg"))
-        {
-            var felt = new TextureRect
-            {
-                Texture = GD.Load<Texture2D>("res://assets/textures/felt.jpg"),
-                StretchMode = TextureRect.StretchModeEnum.Tile,
-                ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
-                Modulate = new Color(0.36f, 0.62f, 0.5f),
-                MouseFilter = MouseFilterEnum.Ignore,
-            };
-            felt.SetAnchorsPreset(LayoutPreset.FullRect);
-            AddChild(felt);
-        }
-
-        // 가장자리를 어둡게 눌러서 조명이 테이블 가운데를 비추는 느낌을 줍니다.
-        var gradient = new Gradient();
-        gradient.SetColor(0, new Color(0, 0, 0, 0f));
-        gradient.SetColor(1, new Color(0, 0, 0, 0.78f));
-        var bg = new TextureRect
-        {
-            Texture = new GradientTexture2D
-            {
-                Gradient = gradient,
-                Fill = GradientTexture2D.FillEnum.Radial,
-                FillFrom = new Vector2(0.5f, 0.45f),
-                FillTo = new Vector2(1.05f, 1.1f),
-                Width = 256,
-                Height = 256,
-            },
-            ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
-            StretchMode = TextureRect.StretchModeEnum.Scale,
-            MouseFilter = MouseFilterEnum.Ignore,
-        };
-        bg.SetAnchorsPreset(LayoutPreset.FullRect);
-        AddChild(bg);
-
-        var margin = new MarginContainer();
-        margin.SetAnchorsPreset(LayoutPreset.FullRect);
-        foreach (var side in new[] { "left", "right", "top", "bottom" })
-        {
-            margin.AddThemeConstantOverride($"margin_{side}", 14);
-        }
-
-        AddChild(margin);
-        _shakeRoot = margin;
-
-        var root = new HBoxContainer();
-        root.AddThemeConstantOverride("separation", 14);
-        margin.AddChild(root);
-
-        var left = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        left.AddThemeConstantOverride("separation", 8);
-        root.AddChild(left);
-
-        left.AddChild(BuildTopBar());
-
-        var seats = new HBoxContainer();
-        seats.AddThemeConstantOverride("separation", 12);
-        left.AddChild(seats);
-        for (int k = 1; k < SeatCount; k++)
-        {
-            _seats[k] = SeatView.Create(k, $"P{k}");
-            _seats[k].Clicked += OnSeatClicked;
-            seats.AddChild(_seats[k]);
-        }
-
-        left.AddChild(BuildTable());
-
-        _promptPanel = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ShrinkCenter };
-        _promptLabel = UiTheme.MakeLabel("", 15, UiTheme.Gold, bold: true);
-        _promptLabel.HorizontalAlignment = HorizontalAlignment.Center;
-        _promptPanel.AddChild(_promptLabel);
-        left.AddChild(_promptPanel);
-
-        left.AddChild(BuildMyBar());
-
-        _hand = new HandView { CustomMinimumSize = new Vector2(0, 166) };
-        left.AddChild(_hand);
-
-        root.AddChild(BuildLogPanel());
-
-        _colorOverlay = BuildColorOverlay();
-        AddChild(_colorOverlay);
-
-        _abilityOverlay = BuildAbilityOverlay();
-        AddChild(_abilityOverlay);
-
-        _augmentOverlay = BuildAugmentOverlay();
-        AddChild(_augmentOverlay);
-
-        _gambleOverlay = BuildGambleOverlay();
-        AddChild(_gambleOverlay);
-
-        _gameOverOverlay = BuildGameOverOverlay();
-        AddChild(_gameOverOverlay);
-
-        _toast = new PanelContainer { Visible = false, MouseFilter = MouseFilterEnum.Ignore };
-        _toastLabel = UiTheme.MakeTitle("", 26, UiTheme.Text);
-        _toastLabel.HorizontalAlignment = HorizontalAlignment.Center;
-        _toast.AddChild(_toastLabel);
-        AddChild(_toast);
-
-        _lobbyOverlay = BuildLobby();
-        AddChild(_lobbyOverlay);
-
-        // 연출은 게임 화면과 선택 창보다 위에 그립니다.
-        var fxLayer = new CanvasLayer { Layer = 5 };
-        AddChild(fxLayer);
-        _fx = new FxLayer();
-        fxLayer.AddChild(_fx);
-        _fx.SetShakeTarget(_shakeRoot);
-
-        var inviteLayer = new CanvasLayer { Layer = 11 };
-        AddChild(inviteLayer);
-        inviteLayer.AddChild(BuildInviteBanner());
-
-        var settingsLayer = new CanvasLayer { Layer = 12 };
-        AddChild(settingsLayer);
-        _settingsOverlay = BuildSettingsOverlay();
-        _settingsOverlay.Theme = Theme;
-        settingsLayer.AddChild(_settingsOverlay);
-
-        // 팝업은 항상 맨 위에 보이도록 별도 캔버스 레이어에 둡니다.
-        var popupLayer = new CanvasLayer { Layer = 10 };
-        AddChild(popupLayer);
-        popupLayer.AddChild(new HoverPopup { Theme = Theme });
-    }
-
-    private Control BuildTopBar()
-    {
-        var bar = new HBoxContainer();
-        bar.AddThemeConstantOverride("separation", 12);
-
-        // 게임 중에는 제목 대신 모드와 라운드만 작게 보여 줍니다.
-        _infoLabel = UiTheme.MakeLabel("", 14, UiTheme.TextDim, bold: true);
-        _infoLabel.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-        _infoLabel.HorizontalAlignment = HorizontalAlignment.Left;
-        _infoLabel.SizeFlagsVertical = SizeFlags.ShrinkCenter;
-        bar.AddChild(_infoLabel);
-
-        var settingsButton = new Button { Text = "설정" };
-        UiTheme.StyleButton(settingsButton, UiTheme.ButtonKind.Ghost, 14);
-        settingsButton.Pressed += ToggleSettings;
-        bar.AddChild(settingsButton);
-
-        var logToggle = new Button { Text = "로그" };
-        UiTheme.StyleButton(logToggle, UiTheme.ButtonKind.Ghost, 14);
-        logToggle.Pressed += () => _logPanel.Visible = !_logPanel.Visible;
-        bar.AddChild(logToggle);
-
-        _newGameButton = new Button { Text = "새 게임" };
-        UiTheme.StyleButton(_newGameButton, UiTheme.ButtonKind.Ghost, 14);
-        _newGameButton.Pressed += () =>
-        {
-            if (_session?.IsSolo == true)
-            {
-                _session.Restart();
-            }
-            else
-            {
-                _session?.ReturnToRoom();
-            }
-        };
-        bar.AddChild(_newGameButton);
-
-        var leave = new Button { Text = "나가기" };
-        UiTheme.StyleButton(leave, UiTheme.ButtonKind.Danger, 14);
-        leave.Pressed += LeavePressed;
-        bar.AddChild(leave);
-
-        return bar;
-    }
-
-    private Control BuildTable()
-    {
-        _table = new Control
-        {
-            SizeFlagsVertical = SizeFlags.ExpandFill,
-            CustomMinimumSize = new Vector2(0, 180),
-            MouseFilter = MouseFilterEnum.Pass,
-        };
-
-        _ring = new DirectionRing();
-        _table.AddChild(_ring);
-
-        for (int i = 0; i < _drawStack.Length; i++)
-        {
-            _drawStack[i] = new CardView { FaceDown = true, MouseFilter = MouseFilterEnum.Ignore };
-            _table.AddChild(_drawStack[i]);
-        }
-
-        // 맨 위 카드만 클릭을 받습니다.
-        _drawStack[^1].MouseFilter = MouseFilterEnum.Stop;
-        _drawStack[^1].Clicked += OnDrawPileClicked;
-
-        _drawLabel = UiTheme.MakeLabel("", 14, UiTheme.TextDim, bold: true);
-        _table.AddChild(_drawLabel);
-
-        for (int i = 0; i < _discardPile.Length; i++)
-        {
-            _discardPile[i] = new CardView { MouseFilter = MouseFilterEnum.Ignore, Visible = false, Modulate = new Color(0.82f, 0.82f, 0.86f) };
-            _table.AddChild(_discardPile[i]);
-        }
-
-        _discard = new CardView();
-        _table.AddChild(_discard);
-
-        _colorPill = new PanelContainer { MouseFilter = MouseFilterEnum.Ignore };
-        _colorPillLabel = UiTheme.MakeLabel("", 15, Colors.White, bold: true);
-        _colorPill.AddChild(_colorPillLabel);
-        _table.AddChild(_colorPill);
-
-        _penaltyBadge = new PanelContainer { MouseFilter = MouseFilterEnum.Ignore, Visible = false, ZIndex = 5 };
-        _penaltyBadge.AddThemeStyleboxOverride("panel", UiTheme.Box(new Color(0.3f, 0.05f, 0.06f, 0.95f), UiTheme.Danger, 1, 6, 8));
-        _penaltyLabel = UiTheme.MakeLabel("", 24, Colors.White, bold: true);
-        _penaltyBadge.AddChild(_penaltyLabel);
-        _table.AddChild(_penaltyBadge);
-
-        return _table;
-    }
-
-    private Control BuildMyBar()
-    {
-        var panel = new PanelContainer();
-        panel.ThemeTypeVariation = "CardPanel";
-
-        var bar = new HBoxContainer();
-        bar.AddThemeConstantOverride("separation", 12);
-        panel.AddChild(bar);
-
-        _myAvatar = new AvatarView("나") { CustomMinimumSize = new Vector2(44, 44) };
-        bar.AddChild(_myAvatar);
-
-        var nameBox = new VBoxContainer();
-        nameBox.AddThemeConstantOverride("separation", 0);
-        _myNameLabel = UiTheme.MakeLabel("나", 17, Colors.White, bold: true);
-        nameBox.AddChild(_myNameLabel);
-        _myCountLabel = UiTheme.MakeLabel("", 13, UiTheme.TextDim);
-        nameBox.AddChild(_myCountLabel);
-        bar.AddChild(nameBox);
-
-        var middle = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill, Alignment = BoxContainer.AlignmentMode.Center };
-        middle.AddThemeConstantOverride("separation", 2);
-        bar.AddChild(middle);
-
-        _myAugments = new HBoxContainer { Alignment = BoxContainer.AlignmentMode.Begin };
-        _myAugments.AddThemeConstantOverride("separation", 6);
-        middle.AddChild(_myAugments);
-
-        _myProgress = UiTheme.MakeLabel("", 13, UiTheme.TextDim, bold: true);
-        _myProgress.AutowrapMode = TextServer.AutowrapMode.Word;
-        middle.AddChild(_myProgress);
-
-        _cancelButton = new Button { Text = "취소" };
-        UiTheme.StyleButton(_cancelButton, UiTheme.ButtonKind.Ghost);
-        _cancelButton.Pressed += () => { ClearPending(); Refresh(); };
-        bar.AddChild(_cancelButton);
-
-        _drawButton = new Button { Text = "카드 뽑기", CustomMinimumSize = new Vector2(120, 42) };
-        UiTheme.StyleButton(_drawButton, UiTheme.ButtonKind.Secondary);
-        _drawButton.Pressed += DrawPressed;
-        bar.AddChild(_drawButton);
-
-        _passButton = new Button { Text = "턴 넘기기", CustomMinimumSize = new Vector2(120, 42) };
-        UiTheme.StyleButton(_passButton, UiTheme.ButtonKind.Secondary);
-        _passButton.Pressed += () => Submit(PlayerAction.Pass());
-        bar.AddChild(_passButton);
-
-        return panel;
-    }
-
-    private Control BuildLogPanel()
-    {
-        _logPanel = new PanelContainer { CustomMinimumSize = new Vector2(290, 0) };
-        _logPanel.ThemeTypeVariation = "CardPanel";
-
-        var box = new VBoxContainer();
-        box.AddThemeConstantOverride("separation", 8);
-        _logPanel.AddChild(box);
-
-        box.AddChild(UiTheme.Caption("진행 로그"));
-
-        _logLabel = new RichTextLabel
-        {
-            BbcodeEnabled = true,
-            ScrollFollowing = true,
-            SelectionEnabled = true,
-            SizeFlagsVertical = SizeFlags.ExpandFill,
-        };
-        _logLabel.AddThemeFontSizeOverride("normal_font_size", 13);
-        _logLabel.AddThemeFontOverride("normal_font", UiTheme.Regular);
-        box.AddChild(_logLabel);
-
-        return _logPanel;
-    }
-
-    private Control BuildColorOverlay()
-    {
-        var overlay = MakeDimOverlay();
-
-        var panel = new PanelContainer();
-        panel.ThemeTypeVariation = "ModalPanel";
-        CenterIn(overlay, panel);
-
-        var box = new VBoxContainer();
-        box.AddThemeConstantOverride("separation", 18);
-        panel.AddChild(box);
-
-        var title = UiTheme.MakeTitle("문양 선택", 26, UiTheme.Text);
-        title.HorizontalAlignment = HorizontalAlignment.Center;
-        box.AddChild(title);
-
-        var row = new HBoxContainer();
-        row.AddThemeConstantOverride("separation", 14);
-        box.AddChild(row);
-
-        foreach (var color in Deck.Colors)
-        {
-            var c = color;
-            var button = new SuitButton(c) { CustomMinimumSize = new Vector2(116, 130) };
-            button.Pressed += () => OnColorPicked(c);
-            row.AddChild(button);
-        }
-
-        var cancel = new Button { Text = "취소" };
-        UiTheme.StyleButton(cancel, UiTheme.ButtonKind.Ghost);
-        cancel.Pressed += () => { ClearPending(); Refresh(); };
-        box.AddChild(cancel);
-
-        return overlay;
-    }
-
-    private Control BuildAbilityOverlay()
-    {
-        var overlay = MakeDimOverlay();
-        ((ColorRect)overlay).Color = new Color(0.02f, 0.025f, 0.035f, 0.82f);
-
-        var box = new VBoxContainer();
-        box.AddThemeConstantOverride("separation", 22);
-        CenterIn(overlay, box);
-
-        var title = UiTheme.MakeTitle("각성", 40, UiTheme.Gold);
-        title.HorizontalAlignment = HorizontalAlignment.Center;
-        box.AddChild(title);
-
-        var subtitle = UiTheme.MakeLabel("능력 하나를 골라 바로 발동합니다", 16, UiTheme.TextDim);
-        subtitle.HorizontalAlignment = HorizontalAlignment.Center;
-        box.AddChild(subtitle);
-
-        _abilityRow = new HBoxContainer { Alignment = BoxContainer.AlignmentMode.Center };
-        _abilityRow.AddThemeConstantOverride("separation", 24);
-        box.AddChild(_abilityRow);
-
-        return overlay;
-    }
-
     // ───────────── 도박사 선택 창 ─────────────
 
     private Control _gambleOverlay = null!;
     private HBoxContainer _gambleRow = null!;
     private string _gambleSignature = "";
-
-    private Control BuildGambleOverlay()
-    {
-        var overlay = MakeDimOverlay();
-        ((ColorRect)overlay).Color = new Color(0.02f, 0.025f, 0.035f, 0.85f);
-        var box = new VBoxContainer();
-        box.AddThemeConstantOverride("separation", 20);
-        CenterIn(overlay, box);
-
-        var title = UiTheme.MakeTitle("도박사", 36, UiTheme.Silver);
-        title.HorizontalAlignment = HorizontalAlignment.Center;
-        box.AddChild(title);
-        var sub = UiTheme.MakeLabel("2장 중 1장을 가져갑니다. 나머지는 덱 맨 아래로 돌아갑니다.", 15, UiTheme.TextDim);
-        sub.HorizontalAlignment = HorizontalAlignment.Center;
-        box.AddChild(sub);
-
-        _gambleRow = new HBoxContainer { Alignment = BoxContainer.AlignmentMode.Center };
-        _gambleRow.AddThemeConstantOverride("separation", 40);
-        box.AddChild(_gambleRow);
-        return overlay;
-    }
 
     private void RefreshGambleOverlay(PlayerView view)
     {
@@ -2244,32 +2146,6 @@ public partial class GameController : Control
         }
 
         _gambleOverlay.Visible = show;
-    }
-
-    private Control BuildAugmentOverlay()
-    {
-        var overlay = MakeDimOverlay();
-        ((ColorRect)overlay).Color = new Color(0.02f, 0.025f, 0.035f, 0.85f);
-
-        var box = new VBoxContainer();
-        box.AddThemeConstantOverride("separation", 20);
-        CenterIn(overlay, box);
-
-        var title = UiTheme.MakeTitle("특수 증강", 40, UiTheme.Prism);
-        title.HorizontalAlignment = HorizontalAlignment.Center;
-        box.AddChild(title);
-
-        var subtitle = UiTheme.MakeLabel(
-            $"이번 판 동안 계속 적용됩니다  ·  최대 {SpecialAugments.MaxPerPlayer}개",
-            16, UiTheme.TextDim);
-        subtitle.HorizontalAlignment = HorizontalAlignment.Center;
-        box.AddChild(subtitle);
-
-        _augmentRow = new HBoxContainer { Alignment = BoxContainer.AlignmentMode.Center };
-        _augmentRow.AddThemeConstantOverride("separation", 24);
-        box.AddChild(_augmentRow);
-
-        return overlay;
     }
 
     // ───────────── 설정 창 ─────────────
@@ -2316,156 +2192,9 @@ public partial class GameController : Control
         _syncingSettings = false;
     }
 
-    private Control BuildSettingsOverlay()
+    /// <summary>볼륨 슬라이더를 옆 숫자 라벨과 설정 값에 연결합니다.</summary>
+    private void WireVolumeSlider(HSlider slider, Label value, Action<float> changed)
     {
-        var overlay = MakeDimOverlay();
-        ((ColorRect)overlay).Color = new Color(0, 0, 0, 0.6f);
-
-        var panel = new PanelContainer { CustomMinimumSize = new Vector2(520, 0) };
-        panel.ThemeTypeVariation = "ModalPanel";
-        CenterIn(overlay, panel);
-
-        var box = new VBoxContainer();
-        box.AddThemeConstantOverride("separation", 14);
-        panel.AddChild(box);
-
-        var title = UiTheme.MakeTitle("설정", 30, UiTheme.Text);
-        box.AddChild(title);
-
-        // 화면
-        box.AddChild(UiTheme.Caption("화면"));
-
-        _windowModeOption = MakeOption(new[] { "창 모드", "전체 화면 (테두리 없음)", "전체 화면 (독점)" });
-        _windowModeOption.ItemSelected += index =>
-        {
-            if (_syncingSettings)
-            {
-                return;
-            }
-
-            GameSettings.WindowMode = (int)index;
-            _resolutionOption.Disabled = index != 0;
-            GameSettings.ApplyDisplay();
-            GameSettings.Save();
-        };
-        box.AddChild(SettingsRow("화면 모드", _windowModeOption));
-
-        var resolutionNames = new string[GameSettings.Resolutions.Length];
-        for (int i = 0; i < resolutionNames.Length; i++)
-        {
-            resolutionNames[i] = GameSettings.ResolutionName(i);
-        }
-
-        _resolutionOption = MakeOption(resolutionNames);
-        _resolutionOption.ItemSelected += index =>
-        {
-            if (_syncingSettings)
-            {
-                return;
-            }
-
-            GameSettings.ResolutionIndex = (int)index;
-            GameSettings.ApplyDisplay();
-            GameSettings.Save();
-        };
-        box.AddChild(SettingsRow("해상도 (창 모드)", _resolutionOption));
-
-        box.AddChild(new ColorRect { Color = new Color(0, 0, 0, 0.35f), CustomMinimumSize = new Vector2(0, 1) });
-
-        // 소리
-        box.AddChild(UiTheme.Caption("소리"));
-
-        (_masterSlider, _masterValue) = MakeVolumeSlider(value =>
-        {
-            GameSettings.MasterVolume = value;
-            GameSettings.ApplyAudio();
-        });
-        box.AddChild(SettingsRow("전체 볼륨", _masterSlider, _masterValue));
-
-        (_sfxSlider, _sfxValue) = MakeVolumeSlider(value =>
-        {
-            GameSettings.SfxVolume = value;
-            GameSettings.ApplyAudio();
-            Audio.Sfx.Play("play", -2f, 1f, 0.04f, 120);
-        });
-        box.AddChild(SettingsRow("효과음", _sfxSlider, _sfxValue));
-
-        (_musicSlider, _musicValue) = MakeVolumeSlider(value =>
-        {
-            GameSettings.MusicVolume = value;
-            GameSettings.ApplyAudio();
-        });
-        box.AddChild(SettingsRow("배경음악", _musicSlider, _musicValue));
-
-        _muteToggle = MakeToggle("모든 소리 끄기");
-        _muteToggle.Toggled += pressed =>
-        {
-            if (_syncingSettings)
-            {
-                return;
-            }
-
-            GameSettings.Muted = pressed;
-            GameSettings.ApplyAudio();
-        };
-        box.AddChild(_muteToggle);
-
-        var test = new Button { Text = "효과음 테스트", CustomMinimumSize = new Vector2(0, 40) };
-        UiTheme.StyleButton(test, UiTheme.ButtonKind.Secondary, 15);
-        test.Pressed += () => Audio.Sfx.Play("awaken", 0f, 1f, 0f);
-        box.AddChild(test);
-
-        var close = new Button { Text = "닫기", CustomMinimumSize = new Vector2(0, 46) };
-        UiTheme.StyleButton(close, UiTheme.ButtonKind.Primary, 17);
-        close.Pressed += ToggleSettings;
-        box.AddChild(close);
-
-        var credit = UiTheme.MakeLabel(Audio.Music.Credit
-            + "\n글꼴: Pretendard, Black Han Sans (SIL OFL 1.1)  ·  효과음·테두리: Kenney (CC0)  ·  천 텍스처: ambientCG (CC0)", 11, UiTheme.TextDim);
-        credit.HorizontalAlignment = HorizontalAlignment.Center;
-        credit.AutowrapMode = TextServer.AutowrapMode.Word;
-        box.AddChild(credit);
-
-        return overlay;
-    }
-
-    private static Control SettingsRow(string label, Control input, Control? trailing = null)
-    {
-        var row = new HBoxContainer();
-        row.AddThemeConstantOverride("separation", 12);
-        var name = UiTheme.MakeLabel(label, 15, UiTheme.Text);
-        name.CustomMinimumSize = new Vector2(150, 0);
-        name.SizeFlagsVertical = SizeFlags.ShrinkCenter;
-        row.AddChild(name);
-        input.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-        input.SizeFlagsVertical = SizeFlags.ShrinkCenter;
-        row.AddChild(input);
-        if (trailing != null)
-        {
-            row.AddChild(trailing);
-        }
-
-        return row;
-    }
-
-    private static OptionButton MakeOption(string[] items)
-    {
-        var option = new OptionButton { CustomMinimumSize = new Vector2(0, 38), FocusMode = FocusModeEnum.None };
-        foreach (string item in items)
-        {
-            option.AddItem(item);
-        }
-
-        UiTheme.StyleButton(option, UiTheme.ButtonKind.Secondary, 15);
-        return option;
-    }
-
-    private (HSlider Slider, Label Value) MakeVolumeSlider(Action<float> changed)
-    {
-        var slider = new HSlider { MinValue = 0, MaxValue = 100, Step = 1, CustomMinimumSize = new Vector2(0, 28), FocusMode = FocusModeEnum.None };
-        var value = UiTheme.MakeLabel("80", 15, UiTheme.Text, bold: true);
-        value.CustomMinimumSize = new Vector2(40, 0);
-        value.HorizontalAlignment = HorizontalAlignment.Right;
         slider.ValueChanged += v =>
         {
             value.Text = $"{(int)v}";
@@ -2475,45 +2204,6 @@ public partial class GameController : Control
             }
         };
         slider.DragEnded += _ => GameSettings.Save();
-        return (slider, value);
-    }
-
-    private Control BuildInviteBanner()
-    {
-        _inviteBanner = new PanelContainer { Visible = false };
-        _inviteBanner.AddThemeStyleboxOverride("panel", UiTheme.Shadowed(UiTheme.Box(Color.FromHtml("#171b23"), UiTheme.PanelBorder, 1, 8, 16), 16));
-        _inviteBanner.SetAnchorsPreset(LayoutPreset.TopRight);
-        _inviteBanner.Position = new Vector2(1280 - 380, 16);
-        _inviteBanner.CustomMinimumSize = new Vector2(360, 0);
-
-        var box = new VBoxContainer();
-        box.AddThemeConstantOverride("separation", 10);
-        _inviteBanner.AddChild(box);
-
-        box.AddChild(UiTheme.Caption("STEAM 초대"));
-        _inviteLabel = UiTheme.MakeLabel("", 17, Colors.White, bold: true);
-        _inviteLabel.AutowrapMode = TextServer.AutowrapMode.Word;
-        box.AddChild(_inviteLabel);
-
-        var row = new HBoxContainer();
-        row.AddThemeConstantOverride("separation", 10);
-        box.AddChild(row);
-
-        var join = new Button { Text = "참가하기", SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        UiTheme.StyleButton(join, UiTheme.ButtonKind.Primary, 16);
-        join.Pressed += () =>
-        {
-            _inviteBanner.Visible = false;
-            JoinSteamLobby(_inviteLobby);
-        };
-        row.AddChild(join);
-
-        var close = new Button { Text = "닫기" };
-        UiTheme.StyleButton(close, UiTheme.ButtonKind.Ghost, 16);
-        close.Pressed += () => _inviteBanner.Visible = false;
-        row.AddChild(close);
-
-        return _inviteBanner;
     }
 
     /// <summary>게임 안에 친구의 초대 알림을 띄웁니다.</summary>
@@ -2530,286 +2220,7 @@ public partial class GameController : Control
             .SetTrans(Tween.TransitionType.Back).SetEase(Tween.EaseType.Out);
     }
 
-    private Control BuildGameOverOverlay()
-    {
-        var overlay = MakeDimOverlay();
-
-        var panel = new PanelContainer { CustomMinimumSize = new Vector2(520, 0) };
-        panel.ThemeTypeVariation = "ModalPanel";
-        _gameOverPanel = panel;
-        CenterIn(overlay, panel);
-
-        var box = new VBoxContainer();
-        box.AddThemeConstantOverride("separation", 12);
-        panel.AddChild(box);
-
-        _rankEmblem = new RankEmblem();
-        box.AddChild(_rankEmblem);
-
-        _gameOverLabel = UiTheme.MakeTitle("", 44, UiTheme.Text);
-        _gameOverLabel.HorizontalAlignment = HorizontalAlignment.Center;
-        box.AddChild(_gameOverLabel);
-
-        var caption = UiTheme.Caption("최종 순위");
-        caption.HorizontalAlignment = HorizontalAlignment.Center;
-        box.AddChild(caption);
-
-        _rankList = new VBoxContainer();
-        _rankList.AddThemeConstantOverride("separation", 6);
-        box.AddChild(_rankList);
-        box.AddChild(new Control { CustomMinimumSize = new Vector2(0, 6) });
-
-        _roomButton = new Button { Text = "대기방으로", CustomMinimumSize = new Vector2(280, 52) };
-        UiTheme.StyleButton(_roomButton, UiTheme.ButtonKind.Primary, 20);
-        _roomButton.Pressed += () =>
-        {
-            if (_session?.IsHost == true)
-            {
-                _session.ReturnToRoom();
-            }
-            else
-            {
-                _session?.LeaveGame();
-            }
-        };
-        box.AddChild(_roomButton);
-
-        _againButton = new Button { Text = "다시 하기", CustomMinimumSize = new Vector2(280, 48) };
-        UiTheme.StyleButton(_againButton, UiTheme.ButtonKind.Secondary, 17);
-        _againButton.Pressed += () => _session?.Restart();
-        box.AddChild(_againButton);
-
-        _mainMenuButton = new Button { Text = "메인으로 나가기", CustomMinimumSize = new Vector2(280, 44) };
-        UiTheme.StyleButton(_mainMenuButton, UiTheme.ButtonKind.Ghost, 16);
-        _mainMenuButton.Pressed += () => BackToLobby("");
-        box.AddChild(_mainMenuButton);
-
-        return overlay;
-    }
-
     // ───────────── 로비 ─────────────
-
-    private Control BuildLobby()
-    {
-        // 메인 화면입니다. 게임 테이블 대신 전용 배경(떠다니는 카드, 빛)을 깔고 그 위에 메뉴 창을 띄웁니다.
-        var overlay = new ColorRect { Color = UiTheme.TableEdge, MouseFilter = MouseFilterEnum.Stop };
-        overlay.SetAnchorsPreset(LayoutPreset.FullRect);
-        overlay.AddChild(new MenuBackground());
-
-        // 메뉴는 왼쪽 세로 패널에 둡니다. (오른쪽은 배경이 보이도록 비워 둡니다)
-        var panel = new PanelContainer { CustomMinimumSize = new Vector2(540, 0) };
-        panel.SetAnchorsPreset(LayoutPreset.LeftWide);
-        panel.ThemeTypeVariation = "SidePanel";
-        overlay.AddChild(panel);
-
-        var version = UiTheme.MakeLabel($"v{GameVersion.Current}", 12, new Color(UiTheme.TextDim, 0.7f));
-        version.SetAnchorsPreset(LayoutPreset.BottomRight);
-        version.GrowHorizontal = GrowDirection.Begin;
-        version.GrowVertical = GrowDirection.Begin;
-        version.Position -= new Vector2(20, 16);
-        overlay.AddChild(version);
-
-        var box = new VBoxContainer { Alignment = BoxContainer.AlignmentMode.Center };
-        box.AddThemeConstantOverride("separation", 14);
-        panel.AddChild(box);
-
-        var title = UiTheme.MakeTitle("증강 카드 배틀", 52, UiTheme.Text);
-        box.AddChild(title);
-        box.AddChild(new ColorRect { Color = UiTheme.Gold, CustomMinimumSize = new Vector2(44, 3), SizeFlagsHorizontal = SizeFlags.ShrinkBegin });
-        box.AddChild(new Control { CustomMinimumSize = new Vector2(0, 18) });
-
-        _nameEdit = MakeEdit(SteamRuntime.IsReady && SteamRuntime.PersonaName.Length > 0
-            ? SteamRuntime.PersonaName
-            : $"플레이어{GD.Randi() % 90 + 10}");
-        box.AddChild(MakeField("플레이어 이름", _nameEdit));
-
-        // 첫 화면: 모드 고르기입니다.
-        var menu = new VBoxContainer();
-        menu.AddThemeConstantOverride("separation", 10);
-        _lobbyMenu = menu;
-        box.AddChild(menu);
-
-        var solo = new Button { Text = "혼자 하기", CustomMinimumSize = new Vector2(0, 50) };
-        UiTheme.StyleButton(solo, UiTheme.ButtonKind.Primary, 18);
-        solo.Pressed += StartSolo;
-        solo.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-
-        var soloRow = new HBoxContainer();
-        soloRow.AddThemeConstantOverride("separation", 12);
-        soloRow.AddChild(solo);
-        _soloAugmentToggle = MakeToggle("특수 증강");
-        _soloAugmentToggle.ButtonPressed = true;
-        soloRow.AddChild(_soloAugmentToggle);
-        menu.AddChild(soloRow);
-
-        menu.AddChild(new Control { CustomMinimumSize = new Vector2(0, 10) });
-        menu.AddChild(UiTheme.Caption("STEAM 멀티플레이"));
-
-        var steamRow = new HBoxContainer();
-        steamRow.AddThemeConstantOverride("separation", 10);
-        menu.AddChild(steamRow);
-
-        _steamHostButton = new Button { Text = "방 만들기", CustomMinimumSize = new Vector2(120, 44) };
-        UiTheme.StyleButton(_steamHostButton, UiTheme.ButtonKind.Secondary, 15);
-        _steamHostButton.Pressed += StartSteamHosting;
-        steamRow.AddChild(_steamHostButton);
-
-        _codeEdit = MakeEdit("");
-        _codeEdit.PlaceholderText = "방 코드";
-        _codeEdit.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-        steamRow.AddChild(_codeEdit);
-
-        _steamJoinButton = new Button { Text = "참가", CustomMinimumSize = new Vector2(80, 44) };
-        UiTheme.StyleButton(_steamJoinButton, UiTheme.ButtonKind.Secondary, 15);
-        _steamJoinButton.Pressed += JoinSteamByCode;
-        steamRow.AddChild(_steamJoinButton);
-
-        _steamStatus = UiTheme.MakeLabel("", 12, UiTheme.TextDim);
-        _steamStatus.AutowrapMode = TextServer.AutowrapMode.Word;
-        menu.AddChild(_steamStatus);
-
-        menu.AddChild(new Control { CustomMinimumSize = new Vector2(0, 10) });
-        menu.AddChild(UiTheme.Caption("직접 연결 (LAN)"));
-
-        var netRow = new HBoxContainer();
-        netRow.AddThemeConstantOverride("separation", 10);
-        menu.AddChild(netRow);
-        _addressEdit = MakeEdit("127.0.0.1");
-        _portEdit = MakeEdit(NetBridge.DefaultPort.ToString());
-        _portEdit.CustomMinimumSize = new Vector2(110, 40);
-        netRow.AddChild(MakeField("주소", _addressEdit, expand: true));
-        netRow.AddChild(MakeField("포트", _portEdit));
-
-        var buttons = new HBoxContainer();
-        buttons.AddThemeConstantOverride("separation", 10);
-        menu.AddChild(buttons);
-
-        var host = new Button { Text = "방 만들기", CustomMinimumSize = new Vector2(0, 42), SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        UiTheme.StyleButton(host, UiTheme.ButtonKind.Secondary, 15);
-        host.Pressed += StartHosting;
-        host.Text = "방 만들기";
-        buttons.AddChild(host);
-
-        var join = new Button { Text = "참가하기", CustomMinimumSize = new Vector2(0, 42), SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        UiTheme.StyleButton(join, UiTheme.ButtonKind.Secondary, 15);
-        join.Pressed += StartJoining;
-        join.Text = "참가하기";
-        buttons.AddChild(join);
-
-        menu.AddChild(new Control { CustomMinimumSize = new Vector2(0, 6) });
-        var menuSettings = new Button { Text = "설정", CustomMinimumSize = new Vector2(0, 40), SizeFlagsHorizontal = SizeFlags.ShrinkBegin };
-        UiTheme.StyleButton(menuSettings, UiTheme.ButtonKind.Ghost, 15);
-        menuSettings.Pressed += ToggleSettings;
-        menu.AddChild(menuSettings);
-
-        // 대기방 화면입니다. 방은 게임이 끝나도 그대로 남아서 같은 코드로 계속 모일 수 있습니다.
-        var room = new VBoxContainer();
-        room.AddThemeConstantOverride("separation", 12);
-        _lobbyRoom = room;
-        box.AddChild(room);
-
-        var steamRoom = new HBoxContainer();
-        steamRoom.AddThemeConstantOverride("separation", 10);
-        _steamRoomBox = steamRoom;
-        room.AddChild(steamRoom);
-
-        _roomCodeLabel = UiTheme.MakeLabel("", 22, UiTheme.Text, bold: true);
-        _roomCodeLabel.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-        steamRoom.AddChild(_roomCodeLabel);
-
-        var copy = new Button { Text = "코드 복사" };
-        UiTheme.StyleButton(copy, UiTheme.ButtonKind.Secondary, 14);
-        copy.Pressed += () =>
-        {
-            DisplayServer.ClipboardSet(_roomCode);
-            _lobbyStatus.Text = "방 코드를 복사했습니다.";
-        };
-        steamRoom.AddChild(copy);
-
-        var overlayInvite = new Button { Text = "Steam 오버레이" };
-        UiTheme.StyleButton(overlayInvite, UiTheme.ButtonKind.Ghost, 14);
-        overlayInvite.Pressed += SteamRuntime.OpenInviteDialog;
-        steamRoom.AddChild(overlayInvite);
-
-        var columns = new HBoxContainer();
-        columns.AddThemeConstantOverride("separation", 18);
-        room.AddChild(columns);
-
-        var left = new VBoxContainer { CustomMinimumSize = new Vector2(340, 0) };
-        left.AddThemeConstantOverride("separation", 8);
-        columns.AddChild(left);
-
-        left.AddChild(UiTheme.Caption($"참가자  ·  빈자리는 봇"));
-        _roomPlayers = new VBoxContainer();
-        _roomPlayers.AddThemeConstantOverride("separation", 6);
-        left.AddChild(_roomPlayers);
-
-        left.AddChild(new Control { CustomMinimumSize = new Vector2(0, 8) });
-        left.AddChild(UiTheme.Caption("게임 설정"));
-        _augmentToggle = MakeToggle("특수 증강");
-        _augmentToggle.Toggled += pressed =>
-        {
-            if (!_updatingToggle && _session is HostSession host)
-            {
-                host.SetOptions(host.RoomOptions with { SpecialAugments = pressed });
-            }
-        };
-        left.AddChild(_augmentToggle);
-        var hint = UiTheme.MakeLabel("방장만 바꿀 수 있습니다", 12, UiTheme.TextDim);
-        left.AddChild(hint);
-
-        var friends = new VBoxContainer { CustomMinimumSize = new Vector2(300, 0) };
-        friends.AddThemeConstantOverride("separation", 8);
-        _friendBox = friends;
-        columns.AddChild(friends);
-
-        var friendHeader = new HBoxContainer();
-        friendHeader.AddThemeConstantOverride("separation", 8);
-        friends.AddChild(friendHeader);
-        var friendTitle = UiTheme.Caption("친구 초대");
-        friendTitle.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-        friendHeader.AddChild(friendTitle);
-        var refresh = new Button { Text = "새로고침" };
-        UiTheme.StyleButton(refresh, UiTheme.ButtonKind.Ghost, 13);
-        refresh.Pressed += RefreshFriends;
-        friendHeader.AddChild(refresh);
-
-        var scroll = new ScrollContainer { CustomMinimumSize = new Vector2(0, 210), HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled };
-        friends.AddChild(scroll);
-        _friendList = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        _friendList.AddThemeConstantOverride("separation", 4);
-        scroll.AddChild(_friendList);
-
-        var friendHint = UiTheme.MakeLabel("게임을 켜 둔 친구에게는 게임 안에 알림이 갑니다.", 12, UiTheme.TextDim);
-        friendHint.AutowrapMode = TextServer.AutowrapMode.Word;
-        friends.AddChild(friendHint);
-
-        var roomButtons = new HBoxContainer();
-        roomButtons.AddThemeConstantOverride("separation", 10);
-        room.AddChild(roomButtons);
-
-        _startButton = new Button { Text = "게임 시작", CustomMinimumSize = new Vector2(0, 48), SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        UiTheme.StyleButton(_startButton, UiTheme.ButtonKind.Primary, 18);
-        _startButton.Pressed += () => (_session as HostSession)?.StartGame();
-        roomButtons.AddChild(_startButton);
-
-        _endGameButton = new Button { Text = "게임 끝내기", CustomMinimumSize = new Vector2(130, 48) };
-        UiTheme.StyleButton(_endGameButton, UiTheme.ButtonKind.Secondary, 16);
-        _endGameButton.Pressed += () => _session?.ReturnToRoom();
-        roomButtons.AddChild(_endGameButton);
-
-        var back = new Button { Text = "방 나가기", CustomMinimumSize = new Vector2(120, 48) };
-        UiTheme.StyleButton(back, UiTheme.ButtonKind.Danger, 16);
-        back.Pressed += () => BackToLobby("");
-        roomButtons.AddChild(back);
-
-        _lobbyStatus = UiTheme.MakeLabel("", 13, UiTheme.TextDim);
-        _lobbyStatus.AutowrapMode = TextServer.AutowrapMode.Word;
-        _lobbyStatus.CustomMinimumSize = new Vector2(420, 0);
-        box.AddChild(_lobbyStatus);
-
-        return overlay;
-    }
 
     private void ShowLobbyMenu(string status)
     {
@@ -2857,45 +2268,4 @@ public partial class GameController : Control
         }
     }
 
-    private static CheckButton MakeToggle(string text)
-    {
-        var toggle = new CheckButton { Text = text, FocusMode = FocusModeEnum.None };
-        toggle.MouseDefaultCursorShape = CursorShape.PointingHand;
-        return toggle;
-    }
-
-    private static LineEdit MakeEdit(string text)
-    {
-        var edit = new LineEdit { Text = text, CustomMinimumSize = new Vector2(0, 42) };
-        return edit;
-    }
-
-    private static Control MakeField(string label, Control input, bool expand = false)
-    {
-        var box = new VBoxContainer();
-        box.AddThemeConstantOverride("separation", 4);
-        if (expand)
-        {
-            box.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-        }
-
-        box.AddChild(UiTheme.Caption(label));
-        box.AddChild(input);
-        return box;
-    }
-
-    private static Control MakeDimOverlay()
-    {
-        var overlay = new ColorRect { Color = new Color(0.02f, 0.025f, 0.035f, 0.7f), Visible = false, MouseFilter = MouseFilterEnum.Stop };
-        overlay.SetAnchorsPreset(LayoutPreset.FullRect);
-        return overlay;
-    }
-
-    private static void CenterIn(Control parent, Control child)
-    {
-        var center = new CenterContainer();
-        center.SetAnchorsPreset(LayoutPreset.FullRect);
-        parent.AddChild(center);
-        center.AddChild(child);
-    }
 }

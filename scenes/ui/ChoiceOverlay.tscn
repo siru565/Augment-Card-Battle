@@ -1,0 +1,49 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/UI/ChoiceOverlay.cs" id="1_r"]
+
+[node name="ChoiceOverlay" type="ColorRect"]
+script = ExtResource("1_r")
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+visible = false
+color = Color(0.02, 0.025, 0.035, 0.85)
+mouse_filter = 0
+
+[node name="Center" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Box" type="VBoxContainer" parent="Center"]
+theme_override_constants/separation = 20
+layout_mode = 2
+
+[node name="Title" type="Label" parent="Center/Box"]
+unique_name_in_owner = true
+theme_type_variation = &"TitleLabel"
+theme_override_font_sizes/font_size = 40
+text = "제목"
+horizontal_alignment = 1
+layout_mode = 2
+
+[node name="Subtitle" type="Label" parent="Center/Box"]
+unique_name_in_owner = true
+theme_type_variation = &"DimLabel"
+theme_override_font_sizes/font_size = 16
+text = "설명"
+horizontal_alignment = 1
+layout_mode = 2
+
+[node name="Row" type="HBoxContainer" parent="Center/Box"]
+unique_name_in_owner = true
+theme_override_constants/separation = 24
+alignment = 1
+layout_mode = 2

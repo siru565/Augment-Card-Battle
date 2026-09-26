@@ -69,7 +69,6 @@ public partial class AvatarView : Control
     public AvatarView(string letter)
     {
         _letter = letter;
-        CustomMinimumSize = new Vector2(56, 56);
         SizeFlagsVertical = SizeFlags.ShrinkCenter;
         MouseFilter = MouseFilterEnum.Ignore;
     }
