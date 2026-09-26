@@ -294,6 +294,14 @@ public partial class GameController : Control
     public override void _Process(double delta)
     {
         LayoutTable();
+
+        // 연출 대기가 끝난 순간 화면을 갱신해서 선택 창(증강·각성)이 바로 뜨게 합니다.
+        if (_holdPending && !OverlaysHeld)
+        {
+            _holdPending = false;
+            Refresh();
+        }
+
         (_transport as IPollingTransport)?.Poll();
         _session?.Tick(delta);
         RunAutoPlay(delta);
@@ -717,10 +725,13 @@ public partial class GameController : Control
     private void HoldOverlays(float seconds)
     {
         _overlayHoldUntil = Time.GetTicksMsec() + (ulong)(seconds * 1000);
-        GetTree().CreateTimer(seconds + 0.02).Timeout += Refresh;
+        _holdPending = true;
     }
 
     private bool OverlaysHeld => Time.GetTicksMsec() < _overlayHoldUntil;
+
+    /// <summary>연출 대기가 끝나면 선택 창을 띄우도록 화면을 한 번 더 갱신해야 하는지 표시합니다.</summary>
+    private bool _holdPending;
 
     private void RefreshAugmentOverlay(PlayerView view)
     {
@@ -833,6 +844,11 @@ public partial class GameController : Control
 
             if (!wasVisible)
             {
+                // 순위표를 가리지 않도록 떠 있던 알림과 글자 연출을 치웁니다.
+                _toastTween?.Kill();
+                _toast.Visible = false;
+                _fx.ClearTransient();
+
                 var panel = _gameOverOverlay.GetChild(0).GetChild<Control>(0);
                 panel.PivotOffset = panel.Size / 2;
                 panel.Scale = new Vector2(0.6f, 0.6f);
@@ -1532,7 +1548,16 @@ public partial class GameController : Control
             {
                 var tier = SpecialAugments.All.Where(id => SpecialAugments.NameOf(id) == e.Text).Select(SpecialAugments.TierOf).FirstOrDefault();
                 var color = UiTheme.TierColor(tier);
-                ShowToast(me ? $"✦ 특수 증강 획득 ✦\n{e.Text}" : $"{who}\n특수 증강 [{e.Text}]", color);
+                // 남의 증강은 알림 창 대신 자리 위 글자로만 보여 줍니다. (선택 창을 가리지 않게)
+                if (me)
+                {
+                    ShowToast($"✦ 특수 증강 획득 ✦\n{e.Text}", color);
+                }
+                else
+                {
+                    _fx.FloatText(SeatAnchor(e.Player) + new Vector2(0, 40), $"✦ {e.Text}", color, 24, 0.9f);
+                }
+
                 _fx.Burst(SeatAnchor(e.Player), color, 50, 460, 5f, 150f);
                 _fx.Ring(SeatAnchor(e.Player), color, 220, 0.7f);
                 break;
@@ -2691,6 +2716,8 @@ public partial class GameController : Control
 
     private void ShowLobbyMenu(string status)
     {
+        _fx.ClearTransient();
+        _toast.Visible = false;
         Audio.Music.SetInGame(false);
         bool steam = SteamRuntime.IsReady;
         _steamHostButton.Disabled = !steam;
@@ -2712,6 +2739,8 @@ public partial class GameController : Control
 
     private void ShowLobbyRoom(string status)
     {
+        _fx.ClearTransient();
+        _toast.Visible = false;
         Audio.Music.SetInGame(false);
         _lobbyOverlay.Visible = true;
         _lobbyMenu.Visible = false;

@@ -190,6 +190,24 @@ public partial class FxLayer : Control
         tween.TweenCallback(Callable.From(view.QueueFree));
     }
 
+    /// <summary>
+    /// 떠 있는 글자·날아가는 카드·빛줄기를 모두 치웁니다. (대기방으로 돌아가거나 순위표를 띄울 때 씁니다)
+    /// 색종이 같은 파티클은 그대로 둡니다.
+    /// </summary>
+    public void ClearTransient()
+    {
+        foreach (var child in GetChildren())
+        {
+            if (child is Label or CardView)
+            {
+                child.QueueFree();
+            }
+        }
+
+        _effects.Clear();
+        _flash.Color = _flash.Color with { A = 0f };
+    }
+
     // ───────────── 매 프레임 ─────────────
 
     public override void _Process(double delta)
