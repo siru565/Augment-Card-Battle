@@ -1,0 +1,4 @@
+# itch 앱이 어떤 파일을 실행할지 알려 주는 설정입니다.
+[[actions]]
+name = "play"
+path = "AugmentCardBattle.exe"

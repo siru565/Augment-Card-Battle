@@ -1,0 +1,12 @@
+# Normalize EOL for all files that Git considers text files.
+* text=auto eol=lf
+
+# 윈도우 배치 파일은 CRLF여야 goto/라벨이 제대로 동작합니다.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# 바이너리
+*.png binary
+*.ogg binary
+*.dll binary

@@ -1,0 +1,28 @@
+# Godot 4+
+.godot/
+/android/
+*.translation
+
+# .NET 빌드 결과물
+bin/
+obj/
+.vs/
+*.user
+mono_crash.*
+
+# 내보내기 결과물
+build/
+
+# 개발 도구 (로그·임시 파일·외부 바이너리)
+tools/shots/
+tools/sfx_preview/
+tools/butler/
+tools/*.zip
+tools/*.txt
+tools/rel.json
+
+# Steam 네이티브 라이브러리 (README의 빌드 방법 참고)
+steam_api64.dll
+steam_api.dll
+libsteam_api.so
+libsteam_api.dylib
