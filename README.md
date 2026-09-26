@@ -63,4 +63,3 @@ scripts/
 - 배경음악: "Backbay Lounge" Kevin MacLeod (incompetech.com) · Licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)
 - 효과음: 코드로 직접 합성 (`scripts/Audio/SfxSynth.cs`)
 - [Steamworks.NET](https://github.com/rlabrecque/Steamworks.NET) (MIT)
-- 개발 도구: [GoPeak Godot MCP](addons/) 에디터 플러그인, Claude
