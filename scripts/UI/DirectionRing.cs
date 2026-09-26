@@ -38,12 +38,13 @@ public partial class DirectionRing : Control
         var center = Size / 2;
         float r = Mathf.Min(Size.X, Size.Y) / 2 - 8;
 
-        DrawCircle(center, r + 6, new Color(_color, 0.12f));
+        DrawCircle(center, r + 4, new Color(_color, 0.05f));
+        DrawArc(center, r, 0, Mathf.Tau, 64, new Color(_color, 0.12f), 2f, true);
         for (int i = 0; i < 3; i++)
         {
             float start = _angle + i * Mathf.Tau / 3;
             float end = start + Mathf.Tau / 3 * 0.72f;
-            DrawArc(center, r, start, end, 32, _color, 6f, true);
+            DrawArc(center, r, start, end, 32, new Color(_color, 0.85f), 3f, true);
 
             // 호 끝에 진행 방향 화살촉을 그립니다.
             float tipAngle = _direction > 0 ? end : start;
@@ -52,10 +53,10 @@ public partial class DirectionRing : Control
             var normal = new Vector2(Mathf.Cos(tipAngle), Mathf.Sin(tipAngle));
             DrawColoredPolygon(new[]
             {
-                tip + tangent * 14,
-                tip - tangent * 2 + normal * 10,
-                tip - tangent * 2 - normal * 10,
-            }, _color);
+                tip + tangent * 10,
+                tip - tangent * 2 + normal * 7,
+                tip - tangent * 2 - normal * 7,
+            }, new Color(_color, 0.85f));
         }
     }
 }

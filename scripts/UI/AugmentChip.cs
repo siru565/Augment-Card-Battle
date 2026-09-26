@@ -23,10 +23,12 @@ public partial class AugmentChip : PanelContainer
         MouseDefaultCursorShape = CursorShape.Help;
 
         var tier = UiTheme.TierColor(info.Tier);
-        AddThemeStyleboxOverride("panel", UiTheme.Box(new Color(tier, 0.18f), tier, 2, 14, 6));
+        var style = UiTheme.Box(new Color(tier, 0.12f), new Color(tier, 0.35f), 1, 4, 4);
+        style.ContentMarginLeft = style.ContentMarginRight = 8;
+        AddThemeStyleboxOverride("panel", style);
 
         string cooldown = info.Cooldown > 0 ? $" ({info.Cooldown})" : "";
-        AddChild(UiTheme.MakeLabel($"◆ {info.Name}{cooldown}", fontSize, tier, bold: true));
+        AddChild(UiTheme.MakeLabel($"{info.Name}{cooldown}", fontSize, tier, bold: true));
     }
 
     public override void _Ready()

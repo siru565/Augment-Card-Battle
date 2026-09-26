@@ -50,8 +50,8 @@ public partial class SeatView : PanelContainer
         header.AddThemeConstantOverride("separation", 8);
         col.AddChild(header);
 
-        _name = UiTheme.MakeLabel(name, 18, Colors.White, bold: true);
-        _count = UiTheme.MakeLabel("", 15, UiTheme.TextDim);
+        _name = UiTheme.MakeLabel(name, 17, UiTheme.Text, bold: true);
+        _count = UiTheme.MakeLabel("", 14, UiTheme.TextDim);
         _badges = UiTheme.MakeLabel("", 13, UiTheme.Danger, bold: true);
         header.AddChild(_name);
         header.AddChild(_count);
@@ -101,7 +101,7 @@ public partial class SeatView : PanelContainer
         var badges = new List<string>();
         if (handCount == 1)
         {
-            badges.Add("우노!");
+            badges.Add("1장 남음");
         }
 
         if (sealedNow)
@@ -132,9 +132,10 @@ public partial class SeatView : PanelContainer
             RebuildAugments(augments);
         }
 
-        var border = targetable ? UiTheme.Gold : isTurn ? Colors.White : UiTheme.PanelBorder;
-        var bg = targetable ? new Color(0.25f, 0.2f, 0.05f, 0.9f) : UiTheme.Panel;
-        AddThemeStyleboxOverride("panel", UiTheme.Box(bg, border, isTurn || targetable ? 3 : 1, 16, 9));
+        // 차례인 자리는 강조색 테두리, 대상으로 고를 수 있는 자리는 강조색 배경을 옅게 깝니다.
+        var border = targetable || isTurn ? UiTheme.Gold : UiTheme.PanelBorder;
+        var bg = targetable ? new Color(UiTheme.Gold, 0.12f) : UiTheme.Panel;
+        AddThemeStyleboxOverride("panel", UiTheme.Box(bg, border, 1, 8, 10));
     }
 
     private void RebuildAugments(IReadOnlyList<AugmentInfo> augments)
@@ -146,7 +147,7 @@ public partial class SeatView : PanelContainer
 
         if (augments.Count == 0)
         {
-            _augments.AddChild(UiTheme.MakeLabel("증강 없음", 13, new Color(UiTheme.TextDim, 0.6f)));
+            _augments.AddChild(UiTheme.MakeLabel("증강 없음", 12, new Color(UiTheme.TextDim, 0.5f)));
         }
 
         foreach (var augment in augments)

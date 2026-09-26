@@ -25,7 +25,7 @@ public partial class AbilityCardView : PanelContainer
 
     /// <summary>특수 증강 선택지로 만듭니다. 승리 조건을 바꾸는 증강은 아래에 따로 표시합니다.</summary>
     public AbilityCardView(AugmentInfo augment)
-        : this(augment.Name, augment.Tier, augment.Description, augment.AltWin ? "★ 승리 조건 추가" : "규칙 변경 · 영구 효과")
+        : this(augment.Name, augment.Tier, augment.Description, augment.AltWin ? "승리 조건 추가" : "영구 효과")
     {
     }
 
@@ -48,24 +48,24 @@ public partial class AbilityCardView : PanelContainer
         box.AddThemeConstantOverride("separation", 10);
         AddChild(box);
 
-        var tierLabel = UiTheme.MakeLabel($"◆ {Augment.TierName(tierValue)}", 14, tier, bold: true);
+        var tierLabel = UiTheme.MakeLabel(Augment.TierName(tierValue), 13, tier, bold: true);
         tierLabel.HorizontalAlignment = HorizontalAlignment.Center;
         box.AddChild(tierLabel);
 
         box.AddChild(new AbilityEmblem(tierValue) { CustomMinimumSize = new Vector2(0, 90) });
 
-        var name = UiTheme.MakeLabel(title, 24, Colors.White, bold: true);
+        var name = UiTheme.MakeLabel(title, 22, UiTheme.Text, bold: true);
         name.HorizontalAlignment = HorizontalAlignment.Center;
         box.AddChild(name);
 
-        var description = UiTheme.MakeLabel(text, 15, Color.FromHtml("#d7dcea"));
+        var description = UiTheme.MakeLabel(text, 15, Color.FromHtml("#b9bfca"));
         description.AutowrapMode = TextServer.AutowrapMode.Word;
         description.HorizontalAlignment = HorizontalAlignment.Center;
         description.CustomMinimumSize = new Vector2(220, 0);
         description.SizeFlagsVertical = SizeFlags.ExpandFill;
         box.AddChild(description);
 
-        var footer = UiTheme.MakeLabel(needs, 13, tier, bold: true);
+        var footer = UiTheme.MakeLabel(needs, 12, UiTheme.TextDim, bold: true);
         footer.HorizontalAlignment = HorizontalAlignment.Center;
         box.AddChild(footer);
 
@@ -94,13 +94,16 @@ public partial class AbilityCardView : PanelContainer
         ApplyStyle();
         PivotOffset = Size / 2;
         var tween = CreateTween();
-        tween.TweenProperty(this, "scale", hovered ? new Vector2(1.06f, 1.06f) : Vector2.One, 0.12);
+        tween.TweenProperty(this, "scale", hovered ? new Vector2(1.03f, 1.03f) : Vector2.One, 0.1);
     }
 
     private void ApplyStyle()
     {
         var tier = UiTheme.TierColor(_tier);
-        var bg = _hovered ? Color.FromHtml("#232042") : Color.FromHtml("#17152c");
-        AddThemeStyleboxOverride("panel", UiTheme.Box(bg, tier, _hovered ? 4 : 2, 18, 18));
+        var bg = _hovered ? Color.FromHtml("#1d212a") : Color.FromHtml("#14171d");
+        var style = UiTheme.Box(bg, _hovered ? tier : new Color(tier, 0.35f), 1, 8, 18);
+        // 위쪽에만 등급 색 굵은 선을 둬서 등급을 구분합니다.
+        style.BorderWidthTop = 3;
+        AddThemeStyleboxOverride("panel", style);
     }
 }

@@ -109,7 +109,7 @@ public sealed class GameEngine
         State.JobSalt = Rng.Next();
 
         string mode = State.Options.SpecialAugments ? $" · 특수 증강 켜짐 (시작할 때 + {SpecialAugments.OfferEveryTurns}턴마다)" : "";
-        Emit($"게임 시작! 덱 {DeckSize}장{mode}");
+        Emit($"게임 시작 · 덱 {DeckSize}장{mode}");
 
         for (int round = 0; round < Rules.StartingHandSize; round++)
         {
@@ -488,7 +488,7 @@ public sealed class GameEngine
             int back = amount / 2;
             amount -= back;
             AddDebt(attacker, back, null, $"반사된 +{back}");
-            Emit($"    → [반사의 거울] {back}장을 {NameOf(attacker)}에게 되돌려 보냅니다!");
+            Emit($"    → [반사의 거울] {back}장을 {NameOf(attacker)}에게 되돌려 보냅니다.");
             Raise(new GameEvent(GameEventType.Attack, playerId, attacker, Amount: back));
         }
 
@@ -686,7 +686,7 @@ public sealed class GameEngine
                 State.FrenzyActive = true;
                 State.FrenzyColor = color;
                 State.FrenzyRemaining = int.MaxValue;
-                Emit($"    → 폭주! {Card.ColorName(color)} 숫자 카드를 연달아 낼 수 있습니다.");
+                Emit($"    → [폭주] {Card.ColorName(color)} 숫자 카드를 연달아 낼 수 있습니다.");
                 return null;
 
             case CardKind.StealAugment:
@@ -702,7 +702,7 @@ public sealed class GameEngine
                 State.AwakenSecondPick = false;
                 int abilityChoices = State.Players[current].Has(SpecialAugmentId.Foresight) ? 4 : AbilityPool.ChoiceCount;
                 State.PendingAbilities.AddRange(AbilityPool.RollChoices(Rng, abilityChoices));
-                Emit($"    → 각성! {NameOf(current)}가 능력 {abilityChoices}가지 중 하나를 고르는 중입니다.");
+                Emit($"    → [각성] {NameOf(current)}가 능력 {abilityChoices}가지 중 하나를 고르는 중입니다.");
                 Raise(new GameEvent(GameEventType.Awaken, current));
                 return null;
 
@@ -795,13 +795,13 @@ public sealed class GameEngine
         var stolen = candidates[Rng.Next(candidates.Count)];
         victim.Augments.Remove(stolen);
         GainAugment(thief, stolen);
-        Emit($"    → {NameOf(thief)}가 {NameOf(target)}의 [{SpecialAugments.NameOf(stolen)}]을 빼앗았습니다!");
+        Emit($"    → {NameOf(thief)}가 {NameOf(target)}의 [{SpecialAugments.NameOf(stolen)}]을 빼앗았습니다.");
     }
 
     /// <summary>모두의 특수 증강을 1개씩 없앱니다. (현재 덱에는 없는 카드입니다)</summary>
     private void Purify()
     {
-        Emit("    → 정화! 모두의 증강이 1개씩 사라집니다.");
+        Emit("    → [정화] 모두의 증강이 1개씩 사라집니다.");
         foreach (var player in State.Players.Where(p => p.Augments.Count > 0))
         {
             var removed = player.Augments[Rng.Next(player.Augments.Count)];
@@ -833,7 +833,7 @@ public sealed class GameEngine
 
         State.PendingAugments.Clear();
         State.PendingAugments.AddRange(choices);
-        Emit($"  ✦ {NameOf(playerId)}의 {player.TurnsStarted}번째 차례! 특수 증강을 고르는 중입니다.");
+        Emit($"  ✦ {NameOf(playerId)}의 {player.TurnsStarted}번째 차례 · 특수 증강을 고르는 중입니다.");
         Raise(new GameEvent(GameEventType.AugmentOffered, playerId));
     }
 
@@ -849,7 +849,7 @@ public sealed class GameEngine
         GainAugment(playerId, id);
 
         var tier = Augment.TierName(SpecialAugments.TierOf(id));
-        Emit($"  ★ {NameOf(playerId)}: 특수 증강 [{tier}] {SpecialAugments.NameOf(id)} 획득!");
+        Emit($"  ★ {NameOf(playerId)}: 특수 증강 [{tier}] {SpecialAugments.NameOf(id)} 획득");
         return ActionResult.Success();
     }
 
@@ -867,11 +867,11 @@ public sealed class GameEngine
         GainAugment(playerId, id);
 
         var tier = Augment.TierName(SpecialAugments.TierOf(id));
-        Emit($"  ★ {NameOf(playerId)}: 특수 증강 [{tier}] {SpecialAugments.NameOf(id)} 획득!");
+        Emit($"  ★ {NameOf(playerId)}: 특수 증강 [{tier}] {SpecialAugments.NameOf(id)} 획득");
 
         if (!State.Drafting)
         {
-            Emit($"  모두 골랐습니다! {NameOf(State.CurrentPlayer)}부터 시작합니다.");
+            Emit($"  모두 골랐습니다. {NameOf(State.CurrentPlayer)}부터 시작합니다.");
         }
 
         return ActionResult.Success();
@@ -934,7 +934,7 @@ public sealed class GameEngine
             State.AwakenSecondPick = true;
             State.PendingAbilities.AddRange(AbilityPool.RollChoices(Rng)
                 .Where(a => a != ability.Id));
-            Emit($"    → [지배자] {NameOf(playerId)}가 능력을 하나 더 고릅니다!");
+            Emit($"    → [지배자] {NameOf(playerId)}가 능력을 하나 더 고릅니다.");
             return ActionResult.Success();
         }
 
@@ -971,7 +971,7 @@ public sealed class GameEngine
                     receiver.AddRange(hands[i]);
                 }
 
-                Emit("    → 모든 손패가 다음 자리로 넘어갔습니다!");
+                Emit("    → 모든 손패가 다음 자리로 넘어갔습니다.");
                 Raise(new GameEvent(GameEventType.HandsShuffled, caster, Text: "대회전"));
                 return 1;
             }
@@ -983,7 +983,7 @@ public sealed class GameEngine
                 players[caster].Hand.AddRange(players[target].Hand);
                 players[target].Hand.Clear();
                 players[target].Hand.AddRange(mine);
-                Emit($"    → {NameOf(caster)}와 {NameOf(target)}가 손패를 통째로 바꿨습니다!");
+                Emit($"    → {NameOf(caster)}와 {NameOf(target)}가 손패를 통째로 바꿨습니다.");
                 Raise(new GameEvent(GameEventType.HandsShuffled, caster, target, Text: "운명 교환"));
                 return 1;
             }
@@ -999,7 +999,7 @@ public sealed class GameEngine
                     AddDebt(other.Id, 2, null, "카드 폭풍");
                 }
 
-                Emit("    → 카드 폭풍! 나를 뺀 모두가 2장씩 직접 뽑아야 합니다.");
+                Emit("    → [카드 폭풍] 나를 뺀 모두가 2장씩 직접 뽑아야 합니다.");
                 return 1;
 
             case AbilityId.Purge:
@@ -1020,7 +1020,7 @@ public sealed class GameEngine
             }
 
             case AbilityId.TimeStop:
-                Emit($"    → 시간 정지! {NameOf(caster)}의 차례가 한 번 더 옵니다.");
+                Emit($"    → [시간 정지] {NameOf(caster)}의 차례가 한 번 더 옵니다.");
                 return 0;
 
             case AbilityId.MassSeal:
@@ -1029,7 +1029,7 @@ public sealed class GameEngine
                     player.Sealed = true;
                 }
 
-                Emit("    → 대봉인! 모든 상대가 다음 차례에 숫자 카드만 낼 수 있습니다.");
+                Emit("    → [대봉인] 모든 상대가 다음 차례에 숫자 카드만 낼 수 있습니다.");
                 return 1;
 
             case AbilityId.Equalize:
@@ -1049,7 +1049,7 @@ public sealed class GameEngine
                     seat = State.SeatAfter(seat);
                 }
 
-                Emit($"    → 균형의 저울! 카드 {pool.Count}장을 모두에게 똑같이 나눴습니다.");
+                Emit($"    → [균형의 저울] 카드 {pool.Count}장을 모두에게 똑같이 나눴습니다.");
                 Raise(new GameEvent(GameEventType.HandsShuffled, caster, Text: "균형의 저울"));
                 return 1;
             }
@@ -1201,7 +1201,7 @@ public sealed class GameEngine
 
         State.DrawQueue.RemoveAll(d => d.Player == playerId);
 
-        string title = eliminated ? $"탈락! ({player.Rank}등)" : player.Rank == 1 ? "1등!" : $"{player.Rank}등!";
+        string title = eliminated ? $"탈락 ({player.Rank}등)" : $"{player.Rank}등";
         Emit($"★★ {NameOf(playerId)} {title} ★★ ({reason}, {State.TurnCount + 1}턴)");
         Raise(new GameEvent(player.Rank == 1 ? GameEventType.Win : GameEventType.Placed, playerId,
             Amount: player.Rank, Text: eliminated ? $"탈락 — {reason}" : reason));
@@ -1232,7 +1232,7 @@ public sealed class GameEngine
         State.PendingAbilities.Clear();
         State.PendingAugments.Clear();
         State.GambleCards.Clear();
-        Emit($"게임 종료! 최종 순위: {string.Join(", ", State.Players.OrderBy(p => p.Rank).Select(p => $"{p.Rank}등 {NameOf(p.Id)}"))}");
+        Emit($"게임 종료 · 최종 순위: {string.Join(", ", State.Players.OrderBy(p => p.Rank).Select(p => $"{p.Rank}등 {NameOf(p.Id)}"))}");
     }
 
     /// <summary>

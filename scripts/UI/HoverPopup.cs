@@ -87,7 +87,7 @@ public partial class HoverPopup : PanelContainer
         _body.Text = body;
         _footer.Text = footer;
         _footer.Visible = !string.IsNullOrEmpty(footer);
-        AddThemeStyleboxOverride("panel", UiTheme.Box(new Color(0.05f, 0.06f, 0.09f, 0.96f), accent, 2, 12, 14));
+        AddThemeStyleboxOverride("panel", UiTheme.Box(new Color(0.055f, 0.063f, 0.082f, 0.97f), new Color(accent, 0.5f), 1, 6, 14));
         ResetSize();
         Visible = true;
         _Process(0);

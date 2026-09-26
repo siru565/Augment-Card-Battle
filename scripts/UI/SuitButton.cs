@@ -18,9 +18,9 @@ public partial class SuitButton : Button
         _suit = suit;
         var color = UiTheme.CardColor(suit);
         UiTheme.StyleButton(this, color.Darkened(0.55f), Colors.White, 18);
-        AddThemeStyleboxOverride("normal", UiTheme.Box(color.Darkened(0.6f), color, 2, 14, 8));
-        AddThemeStyleboxOverride("hover", UiTheme.Box(color.Darkened(0.4f), Colors.White, 3, 14, 8));
-        AddThemeStyleboxOverride("pressed", UiTheme.Box(color.Darkened(0.3f), Colors.White, 3, 14, 8));
+        AddThemeStyleboxOverride("normal", UiTheme.Box(color.Darkened(0.7f), new Color(color, 0.5f), 1, 6, 8));
+        AddThemeStyleboxOverride("hover", UiTheme.Box(color.Darkened(0.55f), color, 1, 6, 8));
+        AddThemeStyleboxOverride("pressed", UiTheme.Box(color.Darkened(0.45f), color, 1, 6, 8));
     }
 
     public override void _Draw()

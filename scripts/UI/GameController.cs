@@ -86,6 +86,14 @@ public partial class GameController : Control
     private Control _table = null!;
     private DirectionRing _ring = null!;
     private CardView _discard = null!;
+
+    /// <summary>버린 더미 아래에 흐트러져 깔린 지난 카드들입니다. (진짜 테이블처럼 보이게 합니다)</summary>
+    private readonly CardView[] _discardPile = new CardView[6];
+
+    /// <summary>깔린 카드마다의 어긋난 위치와 각도입니다.</summary>
+    private readonly (Vector2 Offset, float Rotation)[] _pileJitter = new (Vector2, float)[6];
+
+    private Card? _previousTop;
     private readonly CardView[] _drawStack = new CardView[3];
     private Label _drawLabel = null!;
     private PanelContainer _colorPill = null!;
@@ -109,7 +117,9 @@ public partial class GameController : Control
     private Control _colorOverlay = null!;
     private Control _gameOverOverlay = null!;
     private Label _gameOverLabel = null!;
-    private Label _gameOverReason = null!;
+    private VBoxContainer _rankList = null!;
+    private RankEmblem _rankEmblem = null!;
+    private PanelContainer _gameOverPanel = null!;
     private Button _againButton = null!;
     private Button _roomButton = null!;
     private Button _mainMenuButton = null!;
@@ -495,6 +505,8 @@ public partial class GameController : Control
         _notice = "";
         _lastAction = "";
         _lastTopCardId = -1;
+        _previousTop = null;
+        PushDiscardPile(null);
         _handSignature = "";
         _myAugmentSignature = "";
 
@@ -856,9 +868,14 @@ public partial class GameController : Control
             bool wasVisible = _gameOverOverlay.Visible;
             _gameOverOverlay.Visible = true;
             int myRank = view.Ranks[view.PlayerId];
-            _gameOverLabel.Text = myRank == 1 ? "1등! 우승!" : myRank > 0 ? $"{myRank}등" : "게임 종료";
-            _gameOverReason.Text = RankingText(view);
-            _gameOverReason.Visible = true;
+            _gameOverLabel.Text = myRank == 1 ? "우승" : myRank > 0 ? $"{myRank}등" : "게임 종료";
+            _gameOverLabel.AddThemeColorOverride("font_color", myRank is > 0 and <= 3 ? RankEmblem.MedalColor(myRank).Lightened(0.15f) : UiTheme.Text);
+            _rankEmblem.Rank = myRank;
+            var modal = UiTheme.Modal(32);
+            modal.BorderWidthTop = 3;
+            modal.BorderColor = RankEmblem.MedalColor(myRank);
+            _gameOverPanel.AddThemeStyleboxOverride("panel", modal);
+            RebuildRankList(view);
 
             // 혼자 하기: 다시 하기 / 메인으로
             // 방장: 모두 대기방으로 / 바로 한 판 더 (대기방에 있는 사람까지 모두 모읍니다)
@@ -868,9 +885,9 @@ public partial class GameController : Control
             _roomButton.Visible = !solo;
             _roomButton.Text = host ? "모두 대기방으로" : "대기방으로";
             _againButton.Disabled = !host;
-            _againButton.Text = !host ? "방장이 다음 판을 준비하는 중..."
+            _againButton.Text = !host ? "방장 대기 중"
                 : solo ? "다시 하기"
-                : "바로 한 판 더 (대기방 인원 모두)";
+                : "한 판 더";
             _mainMenuButton.Visible = solo;
 
             if (!wasVisible)
@@ -903,19 +920,67 @@ public partial class GameController : Control
     private static bool HasBlackHole(PlayerView view, int seat) =>
         view.Augments[seat].Any(a => a.Name == SpecialAugments.NameOf(SpecialAugmentId.BlackHole));
 
-    /// <summary>최종 순위표 문구입니다.</summary>
-    private string RankingText(PlayerView view)
+    /// <summary>결과 화면의 순위 줄들을 만듭니다. 메달 색 띠, 아바타, 이름, 순위가 정해진 이유를 보여 줍니다.</summary>
+    private void RebuildRankList(PlayerView view)
     {
-        var lines = Enumerable.Range(0, view.PlayerCount)
-            .Where(i => view.Ranks[i] > 0)
-            .OrderBy(i => view.Ranks[i])
-            .Select(i =>
+        foreach (var child in _rankList.GetChildren())
+        {
+            child.QueueFree();
+        }
+
+        var seats = Enumerable.Range(0, view.PlayerCount).Where(i => view.Ranks[i] > 0).OrderBy(i => view.Ranks[i]).ToList();
+        for (int n = 0; n < seats.Count; n++)
+        {
+            int seat = seats[n];
+            int rank = view.Ranks[seat];
+            bool me = seat == view.PlayerId;
+            var medal = RankEmblem.MedalColor(rank);
+
+            var row = new PanelContainer();
+            var style = UiTheme.Box(new Color(medal, me ? 0.16f : 0.08f), new Color(medal, me ? 0.6f : 0.18f), 1, 6, 10);
+            style.BorderWidthLeft = 4;
+            style.BorderColor = new Color(medal, me ? 0.9f : 0.5f);
+            row.AddThemeStyleboxOverride("panel", style);
+            _rankList.AddChild(row);
+
+            var line = new HBoxContainer();
+            line.AddThemeConstantOverride("separation", 12);
+            row.AddChild(line);
+
+            var number = UiTheme.MakeLabel($"{rank}", 26, medal.Lightened(0.2f), bold: true);
+            number.CustomMinimumSize = new Vector2(30, 0);
+            number.HorizontalAlignment = HorizontalAlignment.Center;
+            number.SizeFlagsVertical = SizeFlags.ShrinkCenter;
+            line.AddChild(number);
+
+            string name = _session!.NameOf(seat);
+            var avatar = new AvatarView(SeatView.AvatarLetter(name)) { CustomMinimumSize = new Vector2(40, 40) };
+            avatar.SetSteamId(_session.SteamIdOf(seat));
+            avatar.Active = rank == 1;
+            line.AddChild(avatar);
+
+            var texts = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill, Alignment = BoxContainer.AlignmentMode.Center };
+            texts.AddThemeConstantOverride("separation", 0);
+            line.AddChild(texts);
+            texts.AddChild(UiTheme.MakeLabel(me ? $"{name}  (나)" : name, 17, UiTheme.Text, bold: true));
+            if (_placeReasons.TryGetValue(seat, out var reason))
             {
-                string reason = _placeReasons.TryGetValue(i, out var r) ? $"  —  {r}" : "";
-                string mark = i == view.PlayerId ? "  ◀ 나" : "";
-                return $"{view.Ranks[i]}등  {_session!.NameOf(i)}{mark}{reason}";
-            });
-        return string.Join("\n", lines);
+                texts.AddChild(UiTheme.MakeLabel(reason, 12, UiTheme.TextDim));
+            }
+
+            if (view.Eliminated[seat])
+            {
+                var tag = UiTheme.MakeLabel("탈락", 12, UiTheme.Danger, bold: true);
+                tag.SizeFlagsVertical = SizeFlags.ShrinkCenter;
+                line.AddChild(tag);
+            }
+
+            // 위에서부터 차례로 미끄러져 들어옵니다.
+            row.Modulate = new Color(1, 1, 1, 0);
+            var tween = row.CreateTween();
+            tween.TweenInterval(0.25 + n * 0.12);
+            tween.TweenProperty(row, "modulate:a", 1f, 0.25);
+        }
     }
 
     /// <summary>상대 자리에 붙일 상태 문구입니다. (억지 뽑기 중, 다른 승리 조건 진행도)</summary>
@@ -923,7 +988,7 @@ public partial class GameController : Control
     {
         if (view.Ranks[seat] > 0)
         {
-            return view.Eliminated[seat] ? $"탈락 · {view.Ranks[seat]}등" : view.Ranks[seat] == 1 ? "★ 1등 ★" : $"{view.Ranks[seat]}등";
+            return view.Eliminated[seat] ? $"탈락 · {view.Ranks[seat]}등" : view.Ranks[seat] == 1 ? "1등" : $"{view.Ranks[seat]}등";
         }
 
         if (view.HandCounts[seat] >= Rules.EliminationLimit - 4 && !HasBlackHole(view, seat))
@@ -977,6 +1042,8 @@ public partial class GameController : Control
         if (view.TopCard.Id != _lastTopCardId)
         {
             _lastTopCardId = view.TopCard.Id;
+            PushDiscardPile(_previousTop);
+            _previousTop = view.TopCard;
             PlayDiscardPop();
         }
 
@@ -984,23 +1051,23 @@ public partial class GameController : Control
         _drawStack[^1].Playable = canDraw;
         bool penaltyOnMe = view.PendingPenalty > 0 && view.IsMyTurn && !view.PayingDebt;
         _drawStack[^1].Alert = view.MustDraw || penaltyOnMe;
-        _drawLabel.Text = view.MustDraw ? "▼ 눌러서 뽑기! (Space)"
-            : penaltyOnMe ? $"▼ 눌러서 +{view.PendingPenalty} 받기"
-            : canDraw ? $"클릭해서 뽑기 ({view.DrawPileCount})"
+        _drawLabel.Text = view.MustDraw ? "덱을 눌러 뽑기  Space"
+            : penaltyOnMe ? $"덱을 눌러 +{view.PendingPenalty} 받기"
+            : canDraw ? $"뽑기  {view.DrawPileCount}"
             : $"덱 {view.DrawPileCount}장";
         _drawLabel.AddThemeColorOverride("font_color", view.MustDraw || penaltyOnMe ? UiTheme.Danger : canDraw ? UiTheme.Gold : UiTheme.TextDim);
 
         // 쌓인 공격 장수를 버린 더미 위에 크게 보여 줍니다.
         _penaltyBadge.Visible = view.PendingPenalty > 0 && !view.Winner.HasValue;
-        _penaltyLabel.Text = $"누적 +{view.PendingPenalty}";
+        _penaltyLabel.Text = $"+{view.PendingPenalty}";
 
-        _colorPillLabel.Text = $"현재 문양  {Card.ColorName(view.CurrentColor)}\n" +
-                               $"{(view.Direction == 1 ? "시계 방향 ↻" : "반시계 방향 ↺")}";
-        _colorPill.AddThemeStyleboxOverride("panel", UiTheme.Box(new Color(colorValue, 0.3f), colorValue, 2, 14, 10));
+        _colorPillLabel.Text = $"{Card.ColorName(view.CurrentColor)}\n" +
+                               $"{(view.Direction == 1 ? "시계 방향" : "반시계 방향")}";
+        _colorPill.AddThemeStyleboxOverride("panel", UiTheme.Box(new Color(colorValue, 0.14f), new Color(colorValue, 0.6f), 1, 6, 10));
 
-        string mode = _session is ClientSession ? "참가자" : _net.IsOnline ? "호스트" : "혼자 하기";
-        string augmentMode = view.Options.SpecialAugments ? "  ·  특수 증강 ON" : "";
-        _infoLabel.Text = $"{mode}  ·  {view.Round}라운드 (턴 {view.TurnCount + 1})  ·  직전 효과: {Card.KindName(view.LastEffect)}{augmentMode}";
+        // 혼자 하기는 전송 계층이 없는 방장뿐입니다. Steam 방장도 멀티로 표시합니다.
+        string mode = _session!.IsSolo ? "혼자 하기" : _session is ClientSession ? "멀티 · 참가자" : "멀티 · 방장";
+        _infoLabel.Text = $"{mode}     {view.Round}라운드  ·  턴 {view.TurnCount + 1}";
     }
 
     private void RefreshMyArea(PlayerView view)
@@ -1023,7 +1090,7 @@ public partial class GameController : Control
         bool choosing = _awaitingColor || _awaitingTarget;
         _drawButton.Disabled = !(view.CanDraw || view.MustDraw) || choosing;
         _drawButton.Text = view.MustDraw
-            ? view.DebtRemaining < 0 ? "뽑기! (찾을 때까지)" : $"뽑기! ({view.DebtRemaining}장 남음)"
+            ? view.DebtRemaining < 0 ? "뽑기 (찾을 때까지)" : $"뽑기 ({view.DebtRemaining}장 남음)"
             : view.PendingPenalty > 0 && view.IsMyTurn ? $"+{view.PendingPenalty} 받기"
             : "카드 뽑기";
         _passButton.Disabled = !view.CanPass || choosing;
@@ -1168,7 +1235,7 @@ public partial class GameController : Control
 
         if (view.IsMyTurn)
         {
-            lines.Add(playable ? "▶ 클릭해서 낼 수 있어요." : "지금은 낼 수 없어요.");
+            lines.Add(playable ? "클릭해서 내기" : "지금은 낼 수 없어요.");
         }
 
         return string.Join("\n", lines);
@@ -1181,14 +1248,14 @@ public partial class GameController : Control
 
         if (view.Winner.HasValue)
         {
-            prompt = "게임이 끝났어요.";
+            prompt = "게임 종료";
         }
         else if (!view.IsActive(view.PlayerId))
         {
             int rank = view.Ranks[view.PlayerId];
             int left = Enumerable.Range(0, view.PlayerCount).Count(view.IsActive);
-            prompt = (view.Eliminated[view.PlayerId] ? $"탈락했어요 ({rank}등). " : $"{rank}등 확정! ")
-                     + $"남은 {left}명이 순위를 가리는 중이에요... (관전 중)";
+            prompt = (view.Eliminated[view.PlayerId] ? $"탈락 ({rank}등)  ·  " : $"{rank}등 확정  ·  ")
+                     + $"남은 {left}명이 순위를 가리는 중 (관전)";
         }
         else if (view.DrawChoices.Count > 0)
         {
@@ -1199,7 +1266,7 @@ public partial class GameController : Control
             string goal = view.DebtRemaining < 0
                 ? $"{Card.ColorName(view.DebtSuit)} 카드가 나올 때까지 (지금 {view.DebtDrawn}장)"
                 : $"{view.DebtDrawn}/{view.DebtDrawn + view.DebtRemaining}장";
-            prompt = $"‼ [{view.DebtReason}] 덱을 눌러 직접 뽑으세요! {goal}";
+            prompt = $"[{view.DebtReason}] 덱을 눌러 뽑으세요  {goal}";
         }
         else if (view.PayingDebt)
         {
@@ -1211,16 +1278,16 @@ public partial class GameController : Control
         else if (view.PendingPenalty > 0 && view.IsMyTurn && view.AugmentChoices.Count == 0)
         {
             prompt = view.PlayableCardIds.Count > 0
-                ? $"‼ 누적 +{view.PendingPenalty} 공격! {StackHint(view)}를 얹어 다음 사람에게 넘기거나, 덱을 눌러 {view.PendingPenalty}장을 받으세요."
-                : $"‼ 누적 +{view.PendingPenalty} 공격! 넘길 카드가 없어요. 덱을 눌러 {view.PendingPenalty}장을 받으세요.";
+                ? $"+{view.PendingPenalty} 공격  ·  {StackHint(view)}로 넘기거나 {view.PendingPenalty}장 받기"
+                : $"+{view.PendingPenalty} 공격  ·  덱을 눌러 {view.PendingPenalty}장 받기";
         }
         else if (view.PendingPenalty > 0 && !view.IsMyTurn)
         {
-            prompt = $"누적 +{view.PendingPenalty} 공격이 {turnName}에게 넘어갔어요... 받아칠까요?";
+            prompt = $"+{view.PendingPenalty} 공격이 {turnName}에게 넘어갔습니다";
         }
         else if (view.AugmentChoices.Count > 0)
         {
-            prompt = "✦ 특수 증강! 하나를 골라 규칙을 바꾸세요.";
+            prompt = "특수 증강을 하나 고르세요";
         }
         else if (view.DraftPending.Any(d => d))
         {
@@ -1252,7 +1319,7 @@ public partial class GameController : Control
         }
         else if (view.AbilityChoices.Count > 0)
         {
-            prompt = "각성! 능력 하나를 고르세요.";
+            prompt = "각성 능력을 하나 고르세요";
         }
         else if (!view.IsMyTurn)
         {
@@ -1262,21 +1329,21 @@ public partial class GameController : Control
         {
             prompt = view.FrenzyNumber >= 0
                 ? $"[쌍둥이] 숫자 {view.FrenzyNumber} 카드를 문양 상관없이 이어서 내거나 '연속 내기 끝'을 누르세요."
-                : $"연속 내기! {Card.ColorName(view.FrenzyColor)} 숫자 카드를 계속 내거나 '연속 내기 끝'을 누르세요.";
+                : $"연속 내기  ·  {Card.ColorName(view.FrenzyColor)} 숫자 카드를 계속 낼 수 있습니다";
         }
         else if (view.HasDrawnThisTurn)
         {
-            prompt = "뽑은 카드(하늘색)를 낼 수 있어요. 내거나 '턴 넘기기'를 누르세요.";
+            prompt = "뽑은 카드를 내거나 턴을 넘기세요";
         }
         else if (view.PlayableCardIds.Count == 0)
         {
-            prompt = "낼 카드가 없어요. 덱을 클릭하거나 '카드 뽑기'를 누르세요.";
+            prompt = "낼 카드가 없습니다. 덱에서 뽑으세요";
         }
         else
         {
             prompt = view.Sealed[view.PlayerId]
-                ? "봉인 상태예요. 이번 차례에는 숫자 카드만 낼 수 있어요."
-                : "내 차례예요! 빛나는 카드를 내세요.";
+                ? "봉인  ·  숫자 카드만 낼 수 있습니다"
+                : "내 차례";
         }
 
         _promptLabel.Text = string.IsNullOrEmpty(_notice) ? prompt : $"{_notice}\n{prompt}";
@@ -1284,8 +1351,8 @@ public partial class GameController : Control
         bool urgent = view.MustDraw;
         bool active = view.IsMyTurn || urgent;
         var accent = urgent ? UiTheme.Danger : active || _awaitingTarget ? UiTheme.Gold : UiTheme.PanelBorder;
-        _promptPanel.AddThemeStyleboxOverride("panel", UiTheme.Box(urgent ? new Color(0.25f, 0.04f, 0.05f, 0.9f) : UiTheme.Panel, accent, active ? 2 : 1, 20, 7));
-        _promptLabel.AddThemeColorOverride("font_color", urgent ? Color.FromHtml("#ffb3a8") : active ? UiTheme.Gold : Colors.White);
+        _promptPanel.AddThemeStyleboxOverride("panel", UiTheme.Box(urgent ? new Color(0.22f, 0.05f, 0.06f, 0.92f) : UiTheme.Panel, accent, 1, 6, 8));
+        _promptLabel.AddThemeColorOverride("font_color", urgent ? Color.FromHtml("#ffb3a8") : active ? UiTheme.Gold : UiTheme.Text);
     }
 
     private void RefreshLobby()
@@ -1308,8 +1375,8 @@ public partial class GameController : Control
             var row = new PanelContainer();
             bool filled = i < names.Length;
             row.AddThemeStyleboxOverride("panel", UiTheme.Box(
-                filled ? new Color(1, 1, 1, 0.06f) : new Color(1, 1, 1, 0.02f),
-                i == 0 ? UiTheme.Gold : UiTheme.PanelBorder, 1, 10, 6));
+                filled ? new Color(1, 1, 1, 0.045f) : new Color(1, 1, 1, 0.015f),
+                UiTheme.PanelBorder, 1, 6, 8));
             _roomPlayers.AddChild(row);
 
             var line = new HBoxContainer();
@@ -1321,22 +1388,22 @@ public partial class GameController : Control
             rowAvatar.SetSteamId(filled && i < _session.LobbySteamIds.Length ? _session.LobbySteamIds[i] : 0);
             line.AddChild(rowAvatar);
 
-            var name = UiTheme.MakeLabel(filled ? names[i] : "빈자리 → 봇이 앉아요", 16,
-                filled ? Colors.White : UiTheme.TextDim, bold: filled);
+            var name = UiTheme.MakeLabel(filled ? names[i] : "빈자리 (봇)", 15,
+                filled ? UiTheme.Text : new Color(UiTheme.TextDim, 0.7f), bold: filled);
             name.SizeFlagsHorizontal = SizeFlags.ExpandFill;
             name.SizeFlagsVertical = SizeFlags.ShrinkCenter;
             line.AddChild(name);
 
             if (filled && i < _session.LobbyBusy.Length && _session.LobbyBusy[i])
             {
-                var busy = UiTheme.MakeLabel("게임 중", 12, Color.FromHtml("#9fe3ff"), bold: true);
+                var busy = UiTheme.MakeLabel("게임 중", 12, UiTheme.TextDim, bold: true);
                 busy.SizeFlagsVertical = SizeFlags.ShrinkCenter;
                 line.AddChild(busy);
             }
 
             if (i == 0)
             {
-                var crown = UiTheme.MakeLabel("★ 방장", 13, UiTheme.Gold, bold: true);
+                var crown = UiTheme.MakeLabel("방장", 12, UiTheme.Gold, bold: true);
                 crown.SizeFlagsVertical = SizeFlags.ShrinkCenter;
                 line.AddChild(crown);
             }
@@ -1344,7 +1411,7 @@ public partial class GameController : Control
             {
                 int index = i;
                 var kick = new Button { Text = "강퇴" };
-                UiTheme.StyleButton(kick, Color.FromHtml("#8a3440"), Colors.White, 13);
+                UiTheme.StyleButton(kick, UiTheme.ButtonKind.Danger, 13);
                 kick.Pressed += () => host.Kick(index);
                 line.AddChild(kick);
             }
@@ -1358,7 +1425,7 @@ public partial class GameController : Control
         _augmentToggle.Disabled = !isHost || running;
         _startButton.Visible = isHost;
         _startButton.Disabled = running;
-        _startButton.Text = running ? "다른 사람들이 게임 중..." : "게임 시작";
+        _startButton.Text = running ? "게임 진행 중" : "게임 시작";
         _endGameButton.Visible = isHost && running;
 
         if (!_session.Playing && names.Length > 0)
@@ -1379,13 +1446,13 @@ public partial class GameController : Control
         {
             int playing = _session.LobbyBusy.Count(b => b);
             return _session.IsHost
-                ? $"지금 {playing}명이 게임 중이에요. 판이 끝나면 새 게임을 시작할 수 있고, '게임 끝내기'로 모두 부를 수도 있어요."
-                : $"지금 {playing}명이 게임 중이에요. 판이 끝나고 방장이 새 게임을 시작하면 함께해요.";
+                ? $"{playing}명이 게임 중입니다. '게임 끝내기'로 모두 대기방으로 부를 수 있습니다."
+                : $"{playing}명이 게임 중입니다. 판이 끝나면 함께할 수 있습니다.";
         }
 
         return _session.IsHost
-            ? "대기방이에요. 방 코드는 게임이 끝나도 그대로예요. 준비되면 게임을 시작하세요."
-            : "대기방이에요. 방장이 게임을 시작하길 기다리는 중...";
+            ? "준비되면 게임을 시작하세요."
+            : "방장이 게임을 시작하기를 기다리는 중";
     }
 
     /// <summary>Steam 친구 목록을 다시 불러와서 초대 버튼을 만듭니다.</summary>
@@ -1413,7 +1480,7 @@ public partial class GameController : Control
             friendAvatar.SetSteamId(friend.Id.m_SteamID);
             row.AddChild(friendAvatar);
 
-            var color = friend.InThisGame ? UiTheme.Gold : friend.Online ? Colors.White : UiTheme.TextDim;
+            var color = friend.InThisGame ? UiTheme.Gold : friend.Online ? UiTheme.Text : UiTheme.TextDim;
             var name = UiTheme.MakeLabel(friend.Name, 14, color, bold: friend.Online);
             name.SizeFlagsHorizontal = SizeFlags.ExpandFill;
             name.ClipText = true;
@@ -1425,7 +1492,7 @@ public partial class GameController : Control
             row.AddChild(state);
 
             var invite = new Button { Text = "초대", Disabled = !friend.Online };
-            UiTheme.StyleButton(invite, Color.FromHtml("#1b6fb8"), Colors.White, 13);
+            UiTheme.StyleButton(invite, UiTheme.ButtonKind.Secondary, 13);
             var id = friend.Id;
             invite.Pressed += () =>
             {
@@ -1531,12 +1598,12 @@ public partial class GameController : Control
             }
 
             case GameEventType.Skip:
-                _fx.FloatText(SeatAnchor(e.Target), "✖ 건너뜀", Color.FromHtml("#ffb070"), 34, 0.6f);
+                _fx.FloatText(SeatAnchor(e.Target), "건너뜀", Color.FromHtml("#ffb070"), 34, 0.6f);
                 _fx.Shake(6f, 0.25f);
                 break;
 
             case GameEventType.Reverse:
-                _fx.FloatText(_ring.GetGlobalRect().GetCenter() + new Vector2(0, -90), "↺ 방향 전환!", Color.FromHtml("#9fe3ff"), 32, 0.5f);
+                _fx.FloatText(_ring.GetGlobalRect().GetCenter() + new Vector2(0, -90), "방향 전환", Color.FromHtml("#9fe3ff"), 32, 0.5f);
                 _fx.Ring(_ring.GetGlobalRect().GetCenter(), Color.FromHtml("#9fe3ff"), 220, 0.6f);
                 break;
 
@@ -1549,12 +1616,12 @@ public partial class GameController : Control
                 _fx.Burst(DiscardCenter, UiTheme.Prism, 70, 560, 6f, 120f);
                 _fx.Burst(DiscardCenter, UiTheme.Gold, 50, 420, 5f, 120f);
                 _fx.Shake(22f, 1.0f);
-                _fx.FloatText(DiscardCenter + new Vector2(0, -120), me ? "✦ 각성 ✦" : $"✦ {who}의 각성 ✦", UiTheme.Gold, 58, 0.9f);
+                _fx.FloatText(DiscardCenter + new Vector2(0, -120), me ? "각성" : $"{who} 각성", UiTheme.Gold, 58, 0.9f);
                 HoldOverlays(1.1f);
                 break;
 
             case GameEventType.AbilityUsed:
-                ShowToast($"{who}의 각성!\n{e.Text}", UiTheme.Prism);
+                ShowToast($"{who} 각성\n{e.Text}", UiTheme.Prism);
                 _fx.Flash(UiTheme.Prism, 0.3f, 0.5f);
                 _fx.Shake(12f, 0.5f);
                 _fx.Burst(SeatAnchor(e.Player), UiTheme.Prism, 40, 420, 5f);
@@ -1568,15 +1635,14 @@ public partial class GameController : Control
             case GameEventType.AugmentOffered:
                 if (me)
                 {
-                    _fx.Flash(UiTheme.Prism, 0.4f, 0.6f);
-                    _fx.Rays(_table.GetGlobalRect().GetCenter(), UiTheme.Prism, 520, 1.2f);
-                    _fx.FloatText(_table.GetGlobalRect().GetCenter(), "✦ 특수 증강 ✦", UiTheme.Prism, 54, 0.6f);
-                    _fx.Shake(8f, 0.4f);
+                    // 선택 창 제목과 겹치지 않도록 글자 없이 짧은 번쩍임만 줍니다.
+                    _fx.Flash(UiTheme.Prism, 0.2f, 0.4f);
+                    _fx.Shake(4f, 0.3f);
                     HoldOverlays(0.45f);
                 }
                 else
                 {
-                    _fx.FloatText(SeatAnchor(e.Player), "✦ 증강 선택 중", UiTheme.Prism, 24, 0.8f);
+                    _fx.FloatText(SeatAnchor(e.Player), "증강 선택 중", UiTheme.TextDim, 18, 0.8f);
                 }
 
                 break;
@@ -1588,11 +1654,11 @@ public partial class GameController : Control
                 // 남의 증강은 알림 창 대신 자리 위 글자로만 보여 줍니다. (선택 창을 가리지 않게)
                 if (me)
                 {
-                    ShowToast($"✦ 특수 증강 획득 ✦\n{e.Text}", color);
+                    ShowToast($"특수 증강 획득\n{e.Text}", color);
                 }
                 else
                 {
-                    _fx.FloatText(SeatAnchor(e.Player) + new Vector2(0, 40), $"✦ {e.Text}", color, 24, 0.9f);
+                    _fx.FloatText(SeatAnchor(e.Player) + new Vector2(0, 40), $"{e.Text}", color, 24, 0.9f);
                 }
 
                 _fx.Burst(SeatAnchor(e.Player), color, 50, 460, 5f, 150f);
@@ -1601,7 +1667,7 @@ public partial class GameController : Control
             }
 
             case GameEventType.HandsShuffled:
-                ShowToast($"{e.Text}!", UiTheme.Prism);
+                ShowToast(e.Text, UiTheme.Prism);
                 _fx.Shake(16f, 0.7f);
                 _fx.Flash(Color.FromHtml("#8a5cff"), 0.35f, 0.6f);
                 foreach (var seat in Enumerable.Range(0, SeatCount))
@@ -1612,7 +1678,7 @@ public partial class GameController : Control
                 break;
 
             case GameEventType.Immune:
-                _fx.FloatText(SeatAnchor(e.Target), "◈ 무효!", Color.FromHtml("#9fe3ff"), 34, 0.6f);
+                _fx.FloatText(SeatAnchor(e.Target), "무효", Color.FromHtml("#9fe3ff"), 34, 0.6f);
                 _fx.Ring(SeatAnchor(e.Target), Color.FromHtml("#9fe3ff"), 150, 0.5f);
                 break;
 
@@ -1621,8 +1687,8 @@ public partial class GameController : Control
                 _placeReasons[e.Player] = e.Text;
                 bool eliminated = e.Text.StartsWith("탈락");
                 var color = eliminated ? UiTheme.Danger : UiTheme.Silver;
-                ShowToast(eliminated ? $"{who} 탈락!\n{e.Amount}등" : $"{who}\n{e.Amount}등 확정!", color);
-                _fx.FloatText(SeatAnchor(e.Player), eliminated ? "탈락!" : $"{e.Amount}등!", color, me ? 56 : 40, 0.9f);
+                ShowToast(eliminated ? $"{who} 탈락\n{e.Amount}등" : $"{who}\n{e.Amount}등 확정", color);
+                _fx.FloatText(SeatAnchor(e.Player), eliminated ? "탈락" : $"{e.Amount}등", color, me ? 56 : 40, 0.9f);
                 if (eliminated)
                 {
                     _fx.Flash(UiTheme.Danger, me ? 0.4f : 0.2f, 0.6f);
@@ -1639,7 +1705,7 @@ public partial class GameController : Control
             case GameEventType.Win:
                 _winReason = e.Text;
                 _placeReasons[e.Player] = e.Text;
-                ShowToast(me ? "1등! 우승!" : $"{who}\n1등!", UiTheme.Gold);
+                ShowToast(me ? "우승" : $"{who}\n1등", UiTheme.Gold);
                 _fx.Confetti(me ? 260 : 140);
                 _fx.Flash(UiTheme.Gold, me ? 0.6f : 0.3f, 0.9f);
                 _fx.Shake(me ? 14f : 6f, 0.6f);
@@ -1704,7 +1770,7 @@ public partial class GameController : Control
     {
         _toastLabel.Text = text;
         _toastLabel.AddThemeColorOverride("font_color", color);
-        _toast.AddThemeStyleboxOverride("panel", UiTheme.Box(new Color(0.05f, 0.06f, 0.09f, 0.92f), color, 3, 18, 18));
+        _toast.AddThemeStyleboxOverride("panel", UiTheme.Box(new Color(0.05f, 0.06f, 0.08f, 0.94f), new Color(color, 0.7f), 1, 8, 18));
         _toast.Visible = true;
         _toast.Modulate = Colors.White;
         _toast.Size = _toast.GetCombinedMinimumSize();
@@ -1721,11 +1787,44 @@ public partial class GameController : Control
         tween.TweenCallback(Callable.From(() => _toast.Visible = false));
     }
 
+    /// <summary>
+    /// 방금 덮인 카드를 버린 더미 아래로 밀어 넣습니다. 새 판이 시작되면(card가 null) 더미를 비웁니다.
+    /// 가장 오래된 카드가 맨 아래에 있고, 장마다 위치와 각도를 무작위로 어긋나게 둡니다.
+    /// </summary>
+    private void PushDiscardPile(Card? card)
+    {
+        if (card == null)
+        {
+            foreach (var pile in _discardPile)
+            {
+                pile.Visible = false;
+                pile.Card = null;
+            }
+
+            return;
+        }
+
+        // 한 칸씩 아래로 내립니다. (0번이 맨 아래)
+        for (int i = 0; i < _discardPile.Length - 1; i++)
+        {
+            _discardPile[i].Card = _discardPile[i + 1].Card;
+            _discardPile[i].Visible = _discardPile[i + 1].Visible;
+            _pileJitter[i] = _pileJitter[i + 1];
+        }
+
+        int top = _discardPile.Length - 1;
+        _discardPile[top].Card = card;
+        _discardPile[top].Visible = true;
+        _pileJitter[top] = (
+            new Vector2((float)GD.RandRange(-18.0, 18.0), (float)GD.RandRange(-12.0, 12.0)),
+            (float)GD.RandRange(-0.45, 0.45));
+    }
+
     private void PlayDiscardPop()
     {
         _discard.PivotOffset = _discard.Size / 2;
         _discard.Scale = new Vector2(1.25f, 1.25f);
-        _discard.Rotation = (float)GD.RandRange(-0.09, 0.09);
+        _discard.Rotation = (float)GD.RandRange(-0.14, 0.14);
         var tween = CreateTween();
         tween.TweenProperty(_discard, "scale", Vector2.One, 0.22)
             .SetTrans(Tween.TransitionType.Back).SetEase(Tween.EaseType.Out);
@@ -1744,17 +1843,20 @@ public partial class GameController : Control
         string prefix = indent >= 4 ? "      " : indent >= 2 ? "  " : "";
         string myName = _session?.NameOf(_session.MySeat) ?? "";
 
-        if (message.Contains('★'))
+        // 엔진 로그의 ★·✦ 표시는 색으로만 강조하고 기호는 지웁니다.
+        bool highlight = message.Contains('★');
+        escaped = escaped.Replace("★", "").Replace("✦", "").Trim();
+        if (highlight)
         {
-            escaped = $"[color=#ffd54a]{escaped}[/color]";
+            escaped = $"[color=#f0b849]{escaped}[/color]";
         }
         else if (!string.IsNullOrEmpty(myName) && trimmed.StartsWith(myName + ":"))
         {
-            escaped = $"[color=#9fe3ff]{escaped}[/color]";
+            escaped = $"[color=#9cc4ff]{escaped}[/color]";
         }
         else if (indent >= 4)
         {
-            escaped = $"[color=#a9b4c2]{escaped}[/color]";
+            escaped = $"[color=#8b93a1]{escaped}[/color]";
         }
 
         _logLabel.AppendText(prefix + escaped + "\n");
@@ -1779,12 +1881,23 @@ public partial class GameController : Control
 
         _discard.Size = new Vector2(112, 162);
         _discard.Position = center - _discard.Size / 2;
+        for (int i = 0; i < _discardPile.Length; i++)
+        {
+            var pile = _discardPile[i];
+            pile.Size = _discard.Size;
+            pile.PivotOffset = pile.Size / 2;
+            pile.Position = center - pile.Size / 2 + _pileJitter[i].Offset;
+            pile.Rotation = _pileJitter[i].Rotation;
+        }
 
+        // 덱도 반듯하게 쌓지 않고 장마다 조금씩 어긋나게 둡니다.
         var drawBase = center + new Vector2(-250, 0);
         for (int i = 0; i < _drawStack.Length; i++)
         {
             _drawStack[i].Size = new Vector2(96, 138);
-            _drawStack[i].Position = drawBase - _drawStack[i].Size / 2 + new Vector2(-i * 3, -i * 4);
+            _drawStack[i].PivotOffset = _drawStack[i].Size / 2;
+            _drawStack[i].Rotation = Mathf.Sin(i * 2.3f + 0.7f) * 0.045f;
+            _drawStack[i].Position = drawBase - _drawStack[i].Size / 2 + new Vector2(-i * 3 + Mathf.Sin(i * 1.7f) * 2.5f, -i * 4);
         }
 
         _drawLabel.Position = drawBase + new Vector2(-_drawLabel.Size.X / 2, 78);
@@ -1883,7 +1996,7 @@ public partial class GameController : Control
         AddChild(_gameOverOverlay);
 
         _toast = new PanelContainer { Visible = false, MouseFilter = MouseFilterEnum.Ignore };
-        _toastLabel = UiTheme.MakeLabel("", 26, UiTheme.Gold, bold: true);
+        _toastLabel = UiTheme.MakeLabel("", 24, UiTheme.Text, bold: true);
         _toastLabel.HorizontalAlignment = HorizontalAlignment.Center;
         _toast.AddChild(_toastLabel);
         AddChild(_toast);
@@ -1919,29 +2032,25 @@ public partial class GameController : Control
         var bar = new HBoxContainer();
         bar.AddThemeConstantOverride("separation", 12);
 
-        bar.AddChild(UiTheme.MakeLabel("증강 카드 배틀", 24, UiTheme.Gold, bold: true));
-        var sub = UiTheme.MakeLabel($"PROTOTYPE v{GameVersion.Current}", 12, UiTheme.TextDim, bold: true);
-        sub.SizeFlagsVertical = SizeFlags.ShrinkCenter;
-        bar.AddChild(sub);
-
-        _infoLabel = UiTheme.MakeLabel("", 14, UiTheme.TextDim);
+        // 게임 중에는 제목 대신 모드와 라운드만 작게 보여 줍니다.
+        _infoLabel = UiTheme.MakeLabel("", 14, UiTheme.TextDim, bold: true);
         _infoLabel.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-        _infoLabel.HorizontalAlignment = HorizontalAlignment.Right;
+        _infoLabel.HorizontalAlignment = HorizontalAlignment.Left;
         _infoLabel.SizeFlagsVertical = SizeFlags.ShrinkCenter;
         bar.AddChild(_infoLabel);
 
         var settingsButton = new Button { Text = "설정" };
-        UiTheme.StyleButton(settingsButton, Color.FromHtml("#34405a"), Colors.White, 14);
+        UiTheme.StyleButton(settingsButton, UiTheme.ButtonKind.Ghost, 14);
         settingsButton.Pressed += ToggleSettings;
         bar.AddChild(settingsButton);
 
         var logToggle = new Button { Text = "로그" };
-        UiTheme.StyleButton(logToggle, Color.FromHtml("#34405a"), Colors.White, 14);
+        UiTheme.StyleButton(logToggle, UiTheme.ButtonKind.Ghost, 14);
         logToggle.Pressed += () => _logPanel.Visible = !_logPanel.Visible;
         bar.AddChild(logToggle);
 
         _newGameButton = new Button { Text = "새 게임" };
-        UiTheme.StyleButton(_newGameButton, Color.FromHtml("#34405a"), Colors.White, 14);
+        UiTheme.StyleButton(_newGameButton, UiTheme.ButtonKind.Ghost, 14);
         _newGameButton.Pressed += () =>
         {
             if (_session?.IsSolo == true)
@@ -1956,7 +2065,7 @@ public partial class GameController : Control
         bar.AddChild(_newGameButton);
 
         var leave = new Button { Text = "나가기" };
-        UiTheme.StyleButton(leave, Color.FromHtml("#5a3440"), Colors.White, 14);
+        UiTheme.StyleButton(leave, UiTheme.ButtonKind.Danger, 14);
         leave.Pressed += LeavePressed;
         bar.AddChild(leave);
 
@@ -1988,6 +2097,12 @@ public partial class GameController : Control
         _drawLabel = UiTheme.MakeLabel("", 14, UiTheme.TextDim, bold: true);
         _table.AddChild(_drawLabel);
 
+        for (int i = 0; i < _discardPile.Length; i++)
+        {
+            _discardPile[i] = new CardView { MouseFilter = MouseFilterEnum.Ignore, Visible = false, Modulate = new Color(0.82f, 0.82f, 0.86f) };
+            _table.AddChild(_discardPile[i]);
+        }
+
         _discard = new CardView();
         _table.AddChild(_discard);
 
@@ -1997,7 +2112,7 @@ public partial class GameController : Control
         _table.AddChild(_colorPill);
 
         _penaltyBadge = new PanelContainer { MouseFilter = MouseFilterEnum.Ignore, Visible = false, ZIndex = 5 };
-        _penaltyBadge.AddThemeStyleboxOverride("panel", UiTheme.Box(new Color(0.35f, 0.03f, 0.05f, 0.95f), UiTheme.Danger, 3, 14, 8));
+        _penaltyBadge.AddThemeStyleboxOverride("panel", UiTheme.Box(new Color(0.3f, 0.05f, 0.06f, 0.95f), UiTheme.Danger, 1, 6, 8));
         _penaltyLabel = UiTheme.MakeLabel("", 24, Colors.White, bold: true);
         _penaltyBadge.AddChild(_penaltyLabel);
         _table.AddChild(_penaltyBadge);
@@ -2008,7 +2123,7 @@ public partial class GameController : Control
     private Control BuildMyBar()
     {
         var panel = new PanelContainer();
-        panel.AddThemeStyleboxOverride("panel", UiTheme.Box(UiTheme.Panel, UiTheme.PanelBorder, 1, 16, 8));
+        panel.AddThemeStyleboxOverride("panel", UiTheme.Box(UiTheme.Panel, UiTheme.PanelBorder, 1, 8, 10));
 
         var bar = new HBoxContainer();
         bar.AddThemeConstantOverride("separation", 12);
@@ -2033,22 +2148,22 @@ public partial class GameController : Control
         _myAugments.AddThemeConstantOverride("separation", 6);
         middle.AddChild(_myAugments);
 
-        _myProgress = UiTheme.MakeLabel("", 13, Color.FromHtml("#e3c9ff"), bold: true);
+        _myProgress = UiTheme.MakeLabel("", 13, UiTheme.TextDim, bold: true);
         _myProgress.AutowrapMode = TextServer.AutowrapMode.Word;
         middle.AddChild(_myProgress);
 
         _cancelButton = new Button { Text = "취소" };
-        UiTheme.StyleButton(_cancelButton, Color.FromHtml("#5a3440"), Colors.White);
+        UiTheme.StyleButton(_cancelButton, UiTheme.ButtonKind.Ghost);
         _cancelButton.Pressed += () => { ClearPending(); Refresh(); };
         bar.AddChild(_cancelButton);
 
         _drawButton = new Button { Text = "카드 뽑기", CustomMinimumSize = new Vector2(120, 42) };
-        UiTheme.StyleButton(_drawButton, Color.FromHtml("#3a4fb8"), Colors.White);
+        UiTheme.StyleButton(_drawButton, UiTheme.ButtonKind.Secondary);
         _drawButton.Pressed += DrawPressed;
         bar.AddChild(_drawButton);
 
         _passButton = new Button { Text = "턴 넘기기", CustomMinimumSize = new Vector2(120, 42) };
-        UiTheme.StyleButton(_passButton, Color.FromHtml("#6b4fd8"), Colors.White);
+        UiTheme.StyleButton(_passButton, UiTheme.ButtonKind.Secondary);
         _passButton.Pressed += () => Submit(PlayerAction.Pass());
         bar.AddChild(_passButton);
 
@@ -2058,13 +2173,13 @@ public partial class GameController : Control
     private Control BuildLogPanel()
     {
         _logPanel = new PanelContainer { CustomMinimumSize = new Vector2(290, 0) };
-        _logPanel.AddThemeStyleboxOverride("panel", UiTheme.Box(UiTheme.Panel, UiTheme.PanelBorder, 1, 16, 12));
+        _logPanel.AddThemeStyleboxOverride("panel", UiTheme.Box(UiTheme.Panel, UiTheme.PanelBorder, 1, 8, 14));
 
         var box = new VBoxContainer();
         box.AddThemeConstantOverride("separation", 8);
         _logPanel.AddChild(box);
 
-        box.AddChild(UiTheme.MakeLabel("진행 로그", 16, UiTheme.Gold, bold: true));
+        box.AddChild(UiTheme.Caption("진행 로그"));
 
         _logLabel = new RichTextLabel
         {
@@ -2085,14 +2200,14 @@ public partial class GameController : Control
         var overlay = MakeDimOverlay();
 
         var panel = new PanelContainer();
-        panel.AddThemeStyleboxOverride("panel", UiTheme.Box(Color.FromHtml("#141326"), UiTheme.Gold, 2, 20, 24));
+        panel.AddThemeStyleboxOverride("panel", UiTheme.Modal(24));
         CenterIn(overlay, panel);
 
         var box = new VBoxContainer();
         box.AddThemeConstantOverride("separation", 18);
         panel.AddChild(box);
 
-        var title = UiTheme.MakeLabel("바꿀 문양을 고르세요", 22, UiTheme.Gold, bold: true);
+        var title = UiTheme.MakeLabel("문양 선택", 22, UiTheme.Text, bold: true);
         title.HorizontalAlignment = HorizontalAlignment.Center;
         box.AddChild(title);
 
@@ -2109,7 +2224,7 @@ public partial class GameController : Control
         }
 
         var cancel = new Button { Text = "취소" };
-        UiTheme.StyleButton(cancel, Color.FromHtml("#34405a"), Colors.White);
+        UiTheme.StyleButton(cancel, UiTheme.ButtonKind.Ghost);
         cancel.Pressed += () => { ClearPending(); Refresh(); };
         box.AddChild(cancel);
 
@@ -2119,17 +2234,17 @@ public partial class GameController : Control
     private Control BuildAbilityOverlay()
     {
         var overlay = MakeDimOverlay();
-        ((ColorRect)overlay).Color = new Color(0.02f, 0.01f, 0.06f, 0.75f);
+        ((ColorRect)overlay).Color = new Color(0.02f, 0.025f, 0.035f, 0.82f);
 
         var box = new VBoxContainer();
         box.AddThemeConstantOverride("separation", 22);
         CenterIn(overlay, box);
 
-        var title = UiTheme.MakeLabel("✦ 각성 ✦", 34, UiTheme.Gold, bold: true);
+        var title = UiTheme.MakeLabel("각성", 34, UiTheme.Text, bold: true);
         title.HorizontalAlignment = HorizontalAlignment.Center;
         box.AddChild(title);
 
-        var subtitle = UiTheme.MakeLabel("능력 하나를 골라 즉시 발동하세요", 16, UiTheme.TextDim);
+        var subtitle = UiTheme.MakeLabel("능력 하나를 골라 바로 발동합니다", 16, UiTheme.TextDim);
         subtitle.HorizontalAlignment = HorizontalAlignment.Center;
         box.AddChild(subtitle);
 
@@ -2149,15 +2264,15 @@ public partial class GameController : Control
     private Control BuildGambleOverlay()
     {
         var overlay = MakeDimOverlay();
-        ((ColorRect)overlay).Color = new Color(0.02f, 0.02f, 0.05f, 0.85f);
+        ((ColorRect)overlay).Color = new Color(0.02f, 0.025f, 0.035f, 0.85f);
         var box = new VBoxContainer();
         box.AddThemeConstantOverride("separation", 20);
         CenterIn(overlay, box);
 
-        var title = UiTheme.MakeLabel("◆ 도박사 ◆", 30, UiTheme.Silver, bold: true);
+        var title = UiTheme.MakeLabel("도박사", 30, UiTheme.Text, bold: true);
         title.HorizontalAlignment = HorizontalAlignment.Center;
         box.AddChild(title);
-        var sub = UiTheme.MakeLabel("뽑은 2장 중 한 장을 가지세요. 나머지는 덱 맨 아래로 돌아갑니다. (빛나는 카드는 바로 낼 수 있어요)", 15, UiTheme.TextDim);
+        var sub = UiTheme.MakeLabel("2장 중 1장을 가져갑니다. 나머지는 덱 맨 아래로 돌아갑니다.", 15, UiTheme.TextDim);
         sub.HorizontalAlignment = HorizontalAlignment.Center;
         box.AddChild(sub);
 
@@ -2205,18 +2320,18 @@ public partial class GameController : Control
     private Control BuildAugmentOverlay()
     {
         var overlay = MakeDimOverlay();
-        ((ColorRect)overlay).Color = new Color(0.04f, 0.0f, 0.08f, 0.8f);
+        ((ColorRect)overlay).Color = new Color(0.02f, 0.025f, 0.035f, 0.85f);
 
         var box = new VBoxContainer();
         box.AddThemeConstantOverride("separation", 20);
         CenterIn(overlay, box);
 
-        var title = UiTheme.MakeLabel("✦ 특수 증강 ✦", 34, UiTheme.Prism, bold: true);
+        var title = UiTheme.MakeLabel("특수 증강", 34, UiTheme.Text, bold: true);
         title.HorizontalAlignment = HorizontalAlignment.Center;
         box.AddChild(title);
 
         var subtitle = UiTheme.MakeLabel(
-            $"하나를 고르면 이번 판 동안 계속 적용돼요  ·  시작할 때 모두 1개, 이후 {SpecialAugments.OfferEveryTurns}턴마다 1개, 최대 {SpecialAugments.MaxPerPlayer}개",
+            $"이번 판 동안 계속 적용됩니다  ·  최대 {SpecialAugments.MaxPerPlayer}개",
             16, UiTheme.TextDim);
         subtitle.HorizontalAlignment = HorizontalAlignment.Center;
         box.AddChild(subtitle);
@@ -2278,19 +2393,18 @@ public partial class GameController : Control
         ((ColorRect)overlay).Color = new Color(0, 0, 0, 0.6f);
 
         var panel = new PanelContainer { CustomMinimumSize = new Vector2(520, 0) };
-        panel.AddThemeStyleboxOverride("panel", UiTheme.Box(Color.FromHtml("#141326"), UiTheme.Gold, 2, 22, 26));
+        panel.AddThemeStyleboxOverride("panel", UiTheme.Modal(26));
         CenterIn(overlay, panel);
 
         var box = new VBoxContainer();
         box.AddThemeConstantOverride("separation", 14);
         panel.AddChild(box);
 
-        var title = UiTheme.MakeLabel("설정", 28, UiTheme.Gold, bold: true);
-        title.HorizontalAlignment = HorizontalAlignment.Center;
+        var title = UiTheme.MakeLabel("설정", 26, UiTheme.Text, bold: true);
         box.AddChild(title);
 
         // 화면
-        box.AddChild(UiTheme.MakeLabel("화면", 16, UiTheme.TextDim, bold: true));
+        box.AddChild(UiTheme.Caption("화면"));
 
         _windowModeOption = MakeOption(new[] { "창 모드", "전체 화면 (테두리 없음)", "전체 화면 (독점)" });
         _windowModeOption.ItemSelected += index =>
@@ -2330,7 +2444,7 @@ public partial class GameController : Control
         box.AddChild(new HSeparator());
 
         // 소리
-        box.AddChild(UiTheme.MakeLabel("소리", 16, UiTheme.TextDim, bold: true));
+        box.AddChild(UiTheme.Caption("소리"));
 
         (_masterSlider, _masterValue) = MakeVolumeSlider(value =>
         {
@@ -2367,13 +2481,13 @@ public partial class GameController : Control
         };
         box.AddChild(_muteToggle);
 
-        var test = new Button { Text = "효과음 들어 보기 (각성)", CustomMinimumSize = new Vector2(0, 40) };
-        UiTheme.StyleButton(test, Color.FromHtml("#6b4fd8"), Colors.White, 15);
+        var test = new Button { Text = "효과음 테스트", CustomMinimumSize = new Vector2(0, 40) };
+        UiTheme.StyleButton(test, UiTheme.ButtonKind.Secondary, 15);
         test.Pressed += () => Audio.Sfx.Play("awaken", 0f, 1f, 0f);
         box.AddChild(test);
 
-        var close = new Button { Text = "닫기 (Esc)", CustomMinimumSize = new Vector2(0, 46) };
-        UiTheme.StyleButton(close, Color.FromHtml("#36a06a"), Colors.White, 17);
+        var close = new Button { Text = "닫기", CustomMinimumSize = new Vector2(0, 46) };
+        UiTheme.StyleButton(close, UiTheme.ButtonKind.Primary, 17);
         close.Pressed += ToggleSettings;
         box.AddChild(close);
 
@@ -2389,7 +2503,7 @@ public partial class GameController : Control
     {
         var row = new HBoxContainer();
         row.AddThemeConstantOverride("separation", 12);
-        var name = UiTheme.MakeLabel(label, 15, Colors.White);
+        var name = UiTheme.MakeLabel(label, 15, UiTheme.Text);
         name.CustomMinimumSize = new Vector2(150, 0);
         name.SizeFlagsVertical = SizeFlags.ShrinkCenter;
         row.AddChild(name);
@@ -2412,14 +2526,14 @@ public partial class GameController : Control
             option.AddItem(item);
         }
 
-        UiTheme.StyleButton(option, Color.FromHtml("#26304a"), Colors.White, 15);
+        UiTheme.StyleButton(option, UiTheme.ButtonKind.Secondary, 15);
         return option;
     }
 
     private (HSlider Slider, Label Value) MakeVolumeSlider(Action<float> changed)
     {
         var slider = new HSlider { MinValue = 0, MaxValue = 100, Step = 1, CustomMinimumSize = new Vector2(0, 28), FocusMode = FocusModeEnum.None };
-        var value = UiTheme.MakeLabel("80", 15, UiTheme.Gold, bold: true);
+        var value = UiTheme.MakeLabel("80", 15, UiTheme.Text, bold: true);
         value.CustomMinimumSize = new Vector2(40, 0);
         value.HorizontalAlignment = HorizontalAlignment.Right;
         slider.ValueChanged += v =>
@@ -2437,7 +2551,7 @@ public partial class GameController : Control
     private Control BuildInviteBanner()
     {
         _inviteBanner = new PanelContainer { Visible = false };
-        _inviteBanner.AddThemeStyleboxOverride("panel", UiTheme.Box(Color.FromHtml("#10233a"), Color.FromHtml("#66c0f4"), 2, 14, 14));
+        _inviteBanner.AddThemeStyleboxOverride("panel", UiTheme.Box(Color.FromHtml("#12151b"), new Color(1, 1, 1, 0.1f), 1, 8, 16));
         _inviteBanner.SetAnchorsPreset(LayoutPreset.TopRight);
         _inviteBanner.Position = new Vector2(1280 - 380, 16);
         _inviteBanner.CustomMinimumSize = new Vector2(360, 0);
@@ -2446,7 +2560,7 @@ public partial class GameController : Control
         box.AddThemeConstantOverride("separation", 10);
         _inviteBanner.AddChild(box);
 
-        box.AddChild(UiTheme.MakeLabel("Steam 초대", 13, Color.FromHtml("#66c0f4"), bold: true));
+        box.AddChild(UiTheme.Caption("STEAM 초대"));
         _inviteLabel = UiTheme.MakeLabel("", 17, Colors.White, bold: true);
         _inviteLabel.AutowrapMode = TextServer.AutowrapMode.Word;
         box.AddChild(_inviteLabel);
@@ -2456,7 +2570,7 @@ public partial class GameController : Control
         box.AddChild(row);
 
         var join = new Button { Text = "참가하기", SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        UiTheme.StyleButton(join, Color.FromHtml("#36a06a"), Colors.White, 16);
+        UiTheme.StyleButton(join, UiTheme.ButtonKind.Primary, 16);
         join.Pressed += () =>
         {
             _inviteBanner.Visible = false;
@@ -2465,7 +2579,7 @@ public partial class GameController : Control
         row.AddChild(join);
 
         var close = new Button { Text = "닫기" };
-        UiTheme.StyleButton(close, Color.FromHtml("#34405a"), Colors.White, 16);
+        UiTheme.StyleButton(close, UiTheme.ButtonKind.Ghost, 16);
         close.Pressed += () => _inviteBanner.Visible = false;
         row.AddChild(close);
 
@@ -2476,7 +2590,7 @@ public partial class GameController : Control
     private void ShowInvite(string from, Steamworks.CSteamID lobby)
     {
         _inviteLobby = lobby;
-        _inviteLabel.Text = $"{from}님이 방에 초대했어요!";
+        _inviteLabel.Text = $"{from}님의 초대";
         _inviteBanner.Visible = true;
         _inviteBanner.Size = _inviteBanner.GetCombinedMinimumSize();
         _inviteBanner.Position = new Vector2(GetViewportRect().Size.X - _inviteBanner.Size.X - 16, 16);
@@ -2490,24 +2604,33 @@ public partial class GameController : Control
     {
         var overlay = MakeDimOverlay();
 
-        var panel = new PanelContainer();
-        panel.AddThemeStyleboxOverride("panel", UiTheme.Box(Color.FromHtml("#141326"), UiTheme.Gold, 3, 24, 32));
+        var panel = new PanelContainer { CustomMinimumSize = new Vector2(520, 0) };
+        panel.AddThemeStyleboxOverride("panel", UiTheme.Modal(32));
+        _gameOverPanel = panel;
         CenterIn(overlay, panel);
 
         var box = new VBoxContainer();
-        box.AddThemeConstantOverride("separation", 16);
+        box.AddThemeConstantOverride("separation", 12);
         panel.AddChild(box);
 
-        _gameOverLabel = UiTheme.MakeLabel("", 44, UiTheme.Gold, bold: true);
+        _rankEmblem = new RankEmblem();
+        box.AddChild(_rankEmblem);
+
+        _gameOverLabel = UiTheme.MakeLabel("", 38, UiTheme.Text, bold: true);
         _gameOverLabel.HorizontalAlignment = HorizontalAlignment.Center;
         box.AddChild(_gameOverLabel);
 
-        _gameOverReason = UiTheme.MakeLabel("", 17, Colors.White, bold: true);
-        _gameOverReason.HorizontalAlignment = HorizontalAlignment.Left;
-        box.AddChild(_gameOverReason);
+        var caption = UiTheme.Caption("최종 순위");
+        caption.HorizontalAlignment = HorizontalAlignment.Center;
+        box.AddChild(caption);
+
+        _rankList = new VBoxContainer();
+        _rankList.AddThemeConstantOverride("separation", 6);
+        box.AddChild(_rankList);
+        box.AddChild(new Control { CustomMinimumSize = new Vector2(0, 6) });
 
         _roomButton = new Button { Text = "대기방으로", CustomMinimumSize = new Vector2(280, 52) };
-        UiTheme.StyleButton(_roomButton, Color.FromHtml("#1b6fb8"), Colors.White, 20);
+        UiTheme.StyleButton(_roomButton, UiTheme.ButtonKind.Primary, 20);
         _roomButton.Pressed += () =>
         {
             if (_session?.IsHost == true)
@@ -2522,12 +2645,12 @@ public partial class GameController : Control
         box.AddChild(_roomButton);
 
         _againButton = new Button { Text = "다시 하기", CustomMinimumSize = new Vector2(280, 48) };
-        UiTheme.StyleButton(_againButton, Color.FromHtml("#36a06a"), Colors.White, 17);
+        UiTheme.StyleButton(_againButton, UiTheme.ButtonKind.Secondary, 17);
         _againButton.Pressed += () => _session?.Restart();
         box.AddChild(_againButton);
 
         _mainMenuButton = new Button { Text = "메인으로 나가기", CustomMinimumSize = new Vector2(280, 44) };
-        UiTheme.StyleButton(_mainMenuButton, Color.FromHtml("#34405a"), Colors.White, 16);
+        UiTheme.StyleButton(_mainMenuButton, UiTheme.ButtonKind.Ghost, 16);
         _mainMenuButton.Pressed += () => BackToLobby("");
         box.AddChild(_mainMenuButton);
 
@@ -2543,25 +2666,37 @@ public partial class GameController : Control
         overlay.SetAnchorsPreset(LayoutPreset.FullRect);
         overlay.AddChild(new MenuBackground());
 
-        var panel = new PanelContainer { CustomMinimumSize = new Vector2(560, 0) };
-        panel.AddThemeStyleboxOverride("panel", UiTheme.Box(Color.FromHtml("#141326"), UiTheme.Gold, 2, 24, 28));
-        CenterIn(overlay, panel);
+        // 메뉴는 왼쪽 세로 패널에 둡니다. (오른쪽은 배경이 보이도록 비워 둡니다)
+        var panel = new PanelContainer { CustomMinimumSize = new Vector2(540, 0) };
+        panel.SetAnchorsPreset(LayoutPreset.LeftWide);
+        var panelStyle = UiTheme.Box(new Color(0.043f, 0.05f, 0.066f, 0.9f), Colors.Transparent, 0, 0, 0);
+        panelStyle.BorderWidthRight = 1;
+        panelStyle.BorderColor = new Color(1, 1, 1, 0.06f);
+        panelStyle.ContentMarginLeft = panelStyle.ContentMarginRight = 56;
+        panelStyle.ContentMarginTop = panelStyle.ContentMarginBottom = 48;
+        panel.AddThemeStyleboxOverride("panel", panelStyle);
+        overlay.AddChild(panel);
 
-        var box = new VBoxContainer();
+        var version = UiTheme.MakeLabel($"v{GameVersion.Current}", 12, new Color(UiTheme.TextDim, 0.7f));
+        version.SetAnchorsPreset(LayoutPreset.BottomRight);
+        version.GrowHorizontal = GrowDirection.Begin;
+        version.GrowVertical = GrowDirection.Begin;
+        version.Position -= new Vector2(20, 16);
+        overlay.AddChild(version);
+
+        var box = new VBoxContainer { Alignment = BoxContainer.AlignmentMode.Center };
         box.AddThemeConstantOverride("separation", 14);
         panel.AddChild(box);
 
-        var title = UiTheme.MakeLabel("증강 카드 배틀", 36, UiTheme.Gold, bold: true);
-        title.HorizontalAlignment = HorizontalAlignment.Center;
+        var title = UiTheme.MakeLabel("증강 카드 배틀", 42, UiTheme.Text, bold: true);
         box.AddChild(title);
-        var subtitle = UiTheme.MakeLabel($"불꽃 · 달빛 · 숲 · 물결    v{GameVersion.Current}", 15, UiTheme.TextDim);
-        subtitle.HorizontalAlignment = HorizontalAlignment.Center;
-        box.AddChild(subtitle);
+        box.AddChild(new ColorRect { Color = UiTheme.Gold, CustomMinimumSize = new Vector2(44, 3), SizeFlagsHorizontal = SizeFlags.ShrinkBegin });
+        box.AddChild(new Control { CustomMinimumSize = new Vector2(0, 18) });
 
         _nameEdit = MakeEdit(SteamRuntime.IsReady && SteamRuntime.PersonaName.Length > 0
             ? SteamRuntime.PersonaName
             : $"플레이어{GD.Randi() % 90 + 10}");
-        box.AddChild(MakeField("내 이름", _nameEdit));
+        box.AddChild(MakeField("플레이어 이름", _nameEdit));
 
         // 첫 화면: 모드 고르기입니다.
         var menu = new VBoxContainer();
@@ -2569,8 +2704,8 @@ public partial class GameController : Control
         _lobbyMenu = menu;
         box.AddChild(menu);
 
-        var solo = new Button { Text = "혼자 하기 (봇 3명)", CustomMinimumSize = new Vector2(0, 50) };
-        UiTheme.StyleButton(solo, Color.FromHtml("#36a06a"), Colors.White, 18);
+        var solo = new Button { Text = "혼자 하기", CustomMinimumSize = new Vector2(0, 50) };
+        UiTheme.StyleButton(solo, UiTheme.ButtonKind.Primary, 18);
         solo.Pressed += StartSolo;
         solo.SizeFlagsHorizontal = SizeFlags.ExpandFill;
 
@@ -2582,15 +2717,15 @@ public partial class GameController : Control
         soloRow.AddChild(_soloAugmentToggle);
         menu.AddChild(soloRow);
 
-        menu.AddChild(new HSeparator());
-        menu.AddChild(UiTheme.MakeLabel("Steam 멀티 (포트포워딩 필요 없음 · 최대 4명, 빈자리는 봇)", 15, UiTheme.TextDim, bold: true));
+        menu.AddChild(new Control { CustomMinimumSize = new Vector2(0, 10) });
+        menu.AddChild(UiTheme.Caption("STEAM 멀티플레이"));
 
         var steamRow = new HBoxContainer();
         steamRow.AddThemeConstantOverride("separation", 10);
         menu.AddChild(steamRow);
 
-        _steamHostButton = new Button { Text = "Steam 방 만들기", CustomMinimumSize = new Vector2(190, 44) };
-        UiTheme.StyleButton(_steamHostButton, Color.FromHtml("#1b6fb8"), Colors.White, 16);
+        _steamHostButton = new Button { Text = "방 만들기", CustomMinimumSize = new Vector2(120, 44) };
+        UiTheme.StyleButton(_steamHostButton, UiTheme.ButtonKind.Secondary, 15);
         _steamHostButton.Pressed += StartSteamHosting;
         steamRow.AddChild(_steamHostButton);
 
@@ -2599,17 +2734,17 @@ public partial class GameController : Control
         _codeEdit.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         steamRow.AddChild(_codeEdit);
 
-        _steamJoinButton = new Button { Text = "코드로 참가", CustomMinimumSize = new Vector2(120, 44) };
-        UiTheme.StyleButton(_steamJoinButton, Color.FromHtml("#2f5f8f"), Colors.White, 16);
+        _steamJoinButton = new Button { Text = "참가", CustomMinimumSize = new Vector2(80, 44) };
+        UiTheme.StyleButton(_steamJoinButton, UiTheme.ButtonKind.Secondary, 15);
         _steamJoinButton.Pressed += JoinSteamByCode;
         steamRow.AddChild(_steamJoinButton);
 
-        _steamStatus = UiTheme.MakeLabel("", 13, UiTheme.TextDim);
+        _steamStatus = UiTheme.MakeLabel("", 12, UiTheme.TextDim);
         _steamStatus.AutowrapMode = TextServer.AutowrapMode.Word;
         menu.AddChild(_steamStatus);
 
-        menu.AddChild(new HSeparator());
-        menu.AddChild(UiTheme.MakeLabel("직접 연결 (같은 PC · 같은 네트워크)", 15, UiTheme.TextDim, bold: true));
+        menu.AddChild(new Control { CustomMinimumSize = new Vector2(0, 10) });
+        menu.AddChild(UiTheme.Caption("직접 연결 (LAN)"));
 
         var netRow = new HBoxContainer();
         netRow.AddThemeConstantOverride("separation", 10);
@@ -2617,28 +2752,28 @@ public partial class GameController : Control
         _addressEdit = MakeEdit("127.0.0.1");
         _portEdit = MakeEdit(NetBridge.DefaultPort.ToString());
         _portEdit.CustomMinimumSize = new Vector2(110, 40);
-        netRow.AddChild(MakeField("주소 (참가할 때)", _addressEdit, expand: true));
+        netRow.AddChild(MakeField("주소", _addressEdit, expand: true));
         netRow.AddChild(MakeField("포트", _portEdit));
 
         var buttons = new HBoxContainer();
         buttons.AddThemeConstantOverride("separation", 10);
         menu.AddChild(buttons);
 
-        var host = new Button { Text = "방 만들기", CustomMinimumSize = new Vector2(0, 46), SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        UiTheme.StyleButton(host, Color.FromHtml("#6b4fd8"), Colors.White, 17);
+        var host = new Button { Text = "방 만들기", CustomMinimumSize = new Vector2(0, 42), SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        UiTheme.StyleButton(host, UiTheme.ButtonKind.Secondary, 15);
         host.Pressed += StartHosting;
-        host.Text = "IP로 방 만들기";
+        host.Text = "방 만들기";
         buttons.AddChild(host);
 
-        var join = new Button { Text = "참가하기", CustomMinimumSize = new Vector2(0, 46), SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        UiTheme.StyleButton(join, Color.FromHtml("#3a4fb8"), Colors.White, 17);
+        var join = new Button { Text = "참가하기", CustomMinimumSize = new Vector2(0, 42), SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        UiTheme.StyleButton(join, UiTheme.ButtonKind.Secondary, 15);
         join.Pressed += StartJoining;
-        join.Text = "IP로 참가하기";
+        join.Text = "참가하기";
         buttons.AddChild(join);
 
-        menu.AddChild(new HSeparator());
-        var menuSettings = new Button { Text = "설정 (화면 · 소리)", CustomMinimumSize = new Vector2(0, 40) };
-        UiTheme.StyleButton(menuSettings, Color.FromHtml("#34405a"), Colors.White, 15);
+        menu.AddChild(new Control { CustomMinimumSize = new Vector2(0, 6) });
+        var menuSettings = new Button { Text = "설정", CustomMinimumSize = new Vector2(0, 40), SizeFlagsHorizontal = SizeFlags.ShrinkBegin };
+        UiTheme.StyleButton(menuSettings, UiTheme.ButtonKind.Ghost, 15);
         menuSettings.Pressed += ToggleSettings;
         menu.AddChild(menuSettings);
 
@@ -2653,21 +2788,21 @@ public partial class GameController : Control
         _steamRoomBox = steamRoom;
         room.AddChild(steamRoom);
 
-        _roomCodeLabel = UiTheme.MakeLabel("", 20, UiTheme.Gold, bold: true);
+        _roomCodeLabel = UiTheme.MakeLabel("", 22, UiTheme.Text, bold: true);
         _roomCodeLabel.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         steamRoom.AddChild(_roomCodeLabel);
 
         var copy = new Button { Text = "코드 복사" };
-        UiTheme.StyleButton(copy, Color.FromHtml("#34405a"), Colors.White, 14);
+        UiTheme.StyleButton(copy, UiTheme.ButtonKind.Secondary, 14);
         copy.Pressed += () =>
         {
             DisplayServer.ClipboardSet(_roomCode);
-            _lobbyStatus.Text = "방 코드를 복사했어요. 친구에게 붙여 넣어 주세요. (게임이 끝나도 코드는 그대로예요)";
+            _lobbyStatus.Text = "방 코드를 복사했습니다.";
         };
         steamRoom.AddChild(copy);
 
-        var overlayInvite = new Button { Text = "오버레이로 초대" };
-        UiTheme.StyleButton(overlayInvite, Color.FromHtml("#2f5f8f"), Colors.White, 14);
+        var overlayInvite = new Button { Text = "Steam 오버레이" };
+        UiTheme.StyleButton(overlayInvite, UiTheme.ButtonKind.Ghost, 14);
         overlayInvite.Pressed += SteamRuntime.OpenInviteDialog;
         steamRoom.AddChild(overlayInvite);
 
@@ -2679,14 +2814,14 @@ public partial class GameController : Control
         left.AddThemeConstantOverride("separation", 8);
         columns.AddChild(left);
 
-        left.AddChild(UiTheme.MakeLabel($"참가자 (최대 {HostSession.SeatCount}명 · 빈자리는 봇)", 15, UiTheme.TextDim, bold: true));
+        left.AddChild(UiTheme.Caption($"참가자  ·  빈자리는 봇"));
         _roomPlayers = new VBoxContainer();
         _roomPlayers.AddThemeConstantOverride("separation", 6);
         left.AddChild(_roomPlayers);
 
-        left.AddChild(new HSeparator());
-        left.AddChild(UiTheme.MakeLabel("판 설정", 15, UiTheme.TextDim, bold: true));
-        _augmentToggle = MakeToggle("특수 증강 (시작할 때 + 6번째 차례에 규칙을 바꾸는 증강)");
+        left.AddChild(new Control { CustomMinimumSize = new Vector2(0, 8) });
+        left.AddChild(UiTheme.Caption("게임 설정"));
+        _augmentToggle = MakeToggle("특수 증강");
         _augmentToggle.Toggled += pressed =>
         {
             if (!_updatingToggle && _session is HostSession host)
@@ -2695,7 +2830,7 @@ public partial class GameController : Control
             }
         };
         left.AddChild(_augmentToggle);
-        var hint = UiTheme.MakeLabel("방장만 바꿀 수 있어요 · 기본값은 켜짐", 12, UiTheme.TextDim);
+        var hint = UiTheme.MakeLabel("방장만 바꿀 수 있습니다", 12, UiTheme.TextDim);
         left.AddChild(hint);
 
         var friends = new VBoxContainer { CustomMinimumSize = new Vector2(300, 0) };
@@ -2706,11 +2841,11 @@ public partial class GameController : Control
         var friendHeader = new HBoxContainer();
         friendHeader.AddThemeConstantOverride("separation", 8);
         friends.AddChild(friendHeader);
-        var friendTitle = UiTheme.MakeLabel("Steam 친구 초대", 15, Color.FromHtml("#66c0f4"), bold: true);
+        var friendTitle = UiTheme.Caption("친구 초대");
         friendTitle.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         friendHeader.AddChild(friendTitle);
         var refresh = new Button { Text = "새로고침" };
-        UiTheme.StyleButton(refresh, Color.FromHtml("#34405a"), Colors.White, 13);
+        UiTheme.StyleButton(refresh, UiTheme.ButtonKind.Ghost, 13);
         refresh.Pressed += RefreshFriends;
         friendHeader.AddChild(refresh);
 
@@ -2720,7 +2855,7 @@ public partial class GameController : Control
         _friendList.AddThemeConstantOverride("separation", 4);
         scroll.AddChild(_friendList);
 
-        var friendHint = UiTheme.MakeLabel("이 게임을 켜 둔 친구에게는 게임 안에 초대 알림이 떠요.", 12, UiTheme.TextDim);
+        var friendHint = UiTheme.MakeLabel("게임을 켜 둔 친구에게는 게임 안에 알림이 갑니다.", 12, UiTheme.TextDim);
         friendHint.AutowrapMode = TextServer.AutowrapMode.Word;
         friends.AddChild(friendHint);
 
@@ -2729,23 +2864,23 @@ public partial class GameController : Control
         room.AddChild(roomButtons);
 
         _startButton = new Button { Text = "게임 시작", CustomMinimumSize = new Vector2(0, 48), SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        UiTheme.StyleButton(_startButton, Color.FromHtml("#36a06a"), Colors.White, 18);
+        UiTheme.StyleButton(_startButton, UiTheme.ButtonKind.Primary, 18);
         _startButton.Pressed += () => (_session as HostSession)?.StartGame();
         roomButtons.AddChild(_startButton);
 
         _endGameButton = new Button { Text = "게임 끝내기", CustomMinimumSize = new Vector2(130, 48) };
-        UiTheme.StyleButton(_endGameButton, Color.FromHtml("#8a5a20"), Colors.White, 16);
+        UiTheme.StyleButton(_endGameButton, UiTheme.ButtonKind.Secondary, 16);
         _endGameButton.Pressed += () => _session?.ReturnToRoom();
         roomButtons.AddChild(_endGameButton);
 
         var back = new Button { Text = "방 나가기", CustomMinimumSize = new Vector2(120, 48) };
-        UiTheme.StyleButton(back, Color.FromHtml("#5a3440"), Colors.White, 16);
+        UiTheme.StyleButton(back, UiTheme.ButtonKind.Danger, 16);
         back.Pressed += () => BackToLobby("");
         roomButtons.AddChild(back);
 
-        _lobbyStatus = UiTheme.MakeLabel("", 14, UiTheme.Gold);
+        _lobbyStatus = UiTheme.MakeLabel("", 13, UiTheme.TextDim);
         _lobbyStatus.AutowrapMode = TextServer.AutowrapMode.Word;
-        _lobbyStatus.CustomMinimumSize = new Vector2(500, 0);
+        _lobbyStatus.CustomMinimumSize = new Vector2(420, 0);
         box.AddChild(_lobbyStatus);
 
         return overlay;
@@ -2760,7 +2895,7 @@ public partial class GameController : Control
         _steamHostButton.Disabled = !steam;
         _steamJoinButton.Disabled = !steam;
         _steamStatus.Text = steam
-            ? $"Steam 계정: {SteamRuntime.PersonaName}  ·  친구의 초대를 수락하면 바로 들어가요."
+            ? $"{SteamRuntime.PersonaName} 계정으로 로그인됨"
             : SteamRuntime.InitError;
         _steamStatus.AddThemeColorOverride("font_color", steam ? UiTheme.TextDim : UiTheme.Danger);
         _lobbyOverlay.Visible = true;
@@ -2787,7 +2922,7 @@ public partial class GameController : Control
         bool steamRoom = !string.IsNullOrEmpty(_roomCode);
         _steamRoomBox.Visible = steamRoom;
         _friendBox.Visible = steamRoom && SteamRuntime.IsReady;
-        _roomCodeLabel.Text = $"방 코드  {_roomCode}";
+        _roomCodeLabel.Text = $"방 코드   {_roomCode}";
         _lobbyStatus.Text = status;
         _gameOverOverlay.Visible = false;
         RefreshLobby();
@@ -2801,20 +2936,21 @@ public partial class GameController : Control
     {
         var toggle = new CheckButton { Text = text, FocusMode = FocusModeEnum.None };
         toggle.AddThemeFontOverride("font", UiTheme.Bold);
-        toggle.AddThemeFontSizeOverride("font_size", 15);
-        toggle.AddThemeColorOverride("font_color", Colors.White);
-        toggle.AddThemeColorOverride("font_pressed_color", UiTheme.Prism);
-        toggle.AddThemeColorOverride("font_hover_pressed_color", UiTheme.Prism);
+        toggle.AddThemeFontSizeOverride("font_size", 14);
+        toggle.AddThemeColorOverride("font_color", UiTheme.TextDim);
+        toggle.AddThemeColorOverride("font_hover_color", UiTheme.Text);
+        toggle.AddThemeColorOverride("font_pressed_color", UiTheme.Text);
+        toggle.AddThemeColorOverride("font_hover_pressed_color", UiTheme.Text);
         toggle.MouseDefaultCursorShape = CursorShape.PointingHand;
         return toggle;
     }
 
     private static LineEdit MakeEdit(string text)
     {
-        var edit = new LineEdit { Text = text, CustomMinimumSize = new Vector2(0, 40) };
-        edit.AddThemeFontSizeOverride("font_size", 16);
-        edit.AddThemeStyleboxOverride("normal", UiTheme.Box(Color.FromHtml("#0d0c1c"), UiTheme.PanelBorder, 1, 10, 8));
-        edit.AddThemeStyleboxOverride("focus", UiTheme.Box(Color.FromHtml("#0d0c1c"), UiTheme.Gold, 2, 10, 8));
+        var edit = new LineEdit { Text = text, CustomMinimumSize = new Vector2(0, 42) };
+        edit.AddThemeFontSizeOverride("font_size", 15);
+        edit.AddThemeStyleboxOverride("normal", UiTheme.Box(Color.FromHtml("#0e1015"), new Color(1, 1, 1, 0.09f), 1, 4, 10));
+        edit.AddThemeStyleboxOverride("focus", UiTheme.Box(Color.FromHtml("#0e1015"), UiTheme.Gold, 1, 4, 10));
         return edit;
     }
 
@@ -2827,14 +2963,14 @@ public partial class GameController : Control
             box.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         }
 
-        box.AddChild(UiTheme.MakeLabel(label, 13, UiTheme.TextDim));
+        box.AddChild(UiTheme.Caption(label));
         box.AddChild(input);
         return box;
     }
 
     private static Control MakeDimOverlay()
     {
-        var overlay = new ColorRect { Color = new Color(0, 0, 0, 0.55f), Visible = false, MouseFilter = MouseFilterEnum.Stop };
+        var overlay = new ColorRect { Color = new Color(0.02f, 0.025f, 0.035f, 0.7f), Visible = false, MouseFilter = MouseFilterEnum.Stop };
         overlay.SetAnchorsPreset(LayoutPreset.FullRect);
         return overlay;
     }

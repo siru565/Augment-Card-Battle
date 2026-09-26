@@ -6,8 +6,8 @@ using SpCardgame.Core;
 namespace SpCardgame.UI;
 
 /// <summary>
-/// 메인 화면(로비·대기방) 배경입니다. 남보라 그라데이션, 마름모 격자, 은은하게 도는 빛,
-/// 천천히 떠다니는 카드와 반짝이는 빛 알갱이를 그립니다. 입력은 받지 않습니다.
+/// 메인 화면(로비·대기방) 배경입니다. 어두운 그라데이션 위로 카드 몇 장이 흐리게 천천히 떠다닙니다.
+/// 입력은 받지 않습니다.
 /// </summary>
 public partial class MenuBackground : Control
 {
@@ -18,21 +18,10 @@ public partial class MenuBackground : Control
         public float Spin;
     }
 
-    private struct Mote
-    {
-        public Vector2 Position;
-        public float Speed;
-        public float Phase;
-        public float Size;
-    }
-
-    private const int CardCount = 14;
-    private const int MoteCount = 70;
+    private const int CardCount = 10;
 
     private readonly List<Floater> _floaters = new();
-    private readonly List<Mote> _motes = new();
     private readonly Random _rng = new();
-    private float _t;
 
     public MenuBackground()
     {
@@ -41,7 +30,7 @@ public partial class MenuBackground : Control
 
     private bool _spawned;
 
-    /// <summary>카드와 빛 알갱이를 처음 크기가 정해졌을 때 한 번 뿌립니다.</summary>
+    /// <summary>카드를 처음 크기가 정해졌을 때 한 번 뿌립니다.</summary>
     private void Spawn(Vector2 size)
     {
         _spawned = true;
@@ -70,7 +59,7 @@ public partial class MenuBackground : Control
                 PivotOffset = cardSize / 2,
                 Position = new Vector2((float)_rng.NextDouble() * size.X, (float)_rng.NextDouble() * size.Y),
                 Rotation = (float)(_rng.NextDouble() * Math.Tau),
-                Modulate = new Color(1, 1, 1, 0.18f + 0.4f * (depth - 0.45f)),
+                Modulate = new Color(0.8f, 0.8f, 0.85f, 0.07f + 0.2f * (depth - 0.45f)),
             };
             AddChild(view);
             _floaters.Add(new Floater
@@ -78,17 +67,6 @@ public partial class MenuBackground : Control
                 View = view,
                 Velocity = new Vector2(((float)_rng.NextDouble() - 0.5f) * 20f, -(8f + (float)_rng.NextDouble() * 18f)) * depth,
                 Spin = ((float)_rng.NextDouble() - 0.5f) * 0.25f,
-            });
-        }
-
-        for (int i = 0; i < MoteCount; i++)
-        {
-            _motes.Add(new Mote
-            {
-                Position = new Vector2((float)_rng.NextDouble() * size.X, (float)_rng.NextDouble() * size.Y),
-                Speed = 6f + (float)_rng.NextDouble() * 18f,
-                Phase = (float)(_rng.NextDouble() * Math.Tau),
-                Size = 1f + (float)_rng.NextDouble() * 2.2f,
             });
         }
     }
@@ -119,7 +97,6 @@ public partial class MenuBackground : Control
         }
 
         float dt = (float)delta;
-        _t += dt;
 
         foreach (var floater in _floaters)
         {
@@ -143,76 +120,20 @@ public partial class MenuBackground : Control
             }
         }
 
-        for (int i = 0; i < _motes.Count; i++)
-        {
-            var mote = _motes[i];
-            mote.Position.Y -= mote.Speed * dt;
-            if (mote.Position.Y < -5)
-            {
-                mote.Position = new Vector2((float)_rng.NextDouble() * size.X, size.Y + 5);
-            }
-
-            _motes[i] = mote;
-        }
-
-        QueueRedraw();
     }
 
     public override void _Draw()
     {
         var size = Size;
-        var center = new Vector2(size.X / 2, size.Y * 0.5f);
+        var center = new Vector2(size.X * 0.62f, size.Y * 0.45f);
 
-        // 가운데가 밝은 원형 그라데이션입니다. 천천히 숨 쉬듯 밝아졌다 어두워집니다.
+        // 오른쪽이 살짝 밝은 원형 그라데이션만 깝니다. (메뉴는 왼쪽에 있어서 오른쪽을 밝게 둡니다)
         DrawRect(new Rect2(Vector2.Zero, size), UiTheme.TableEdge);
-        float breathe = 1f + 0.04f * Mathf.Sin(_t * 0.6f);
-        float maxR = size.Length() * 0.6f * breathe;
-        for (int i = 40; i >= 0; i--)
+        float maxR = size.Length() * 0.55f;
+        for (int i = 32; i >= 0; i--)
         {
-            float t = i / 40f;
-            DrawCircle(center, maxR * t, UiTheme.TableEdge.Lerp(UiTheme.TableCenter, 1f - t));
-        }
-
-        // 옅은 마름모 격자가 아주 천천히 흘러갑니다.
-        var line = new Color(UiTheme.Gold, 0.05f);
-        float step = size.X / 14f;
-        float shift = _t * 6f % step;
-        for (float x = -size.Y - step; x < size.X + size.Y; x += step)
-        {
-            DrawLine(new Vector2(x + shift, 0), new Vector2(x + shift + size.Y, size.Y), line, 2f, true);
-            DrawLine(new Vector2(x - shift + size.Y, 0), new Vector2(x - shift, size.Y), line, 2f, true);
-        }
-
-        // 가운데 뒤쪽에서 천천히 도는 빛줄기입니다.
-        const int rays = 12;
-        for (int i = 0; i < rays; i++)
-        {
-            float a = _t * 0.05f + i * Mathf.Tau / rays;
-            var points = new[]
-            {
-                center,
-                center + new Vector2(Mathf.Cos(a - 0.06f), Mathf.Sin(a - 0.06f)) * size.X,
-                center + new Vector2(Mathf.Cos(a + 0.06f), Mathf.Sin(a + 0.06f)) * size.X,
-            };
-            DrawPolygon(points, new[] { new Color(UiTheme.Gold, 0.06f), new Color(UiTheme.Gold, 0f), new Color(UiTheme.Gold, 0f) });
-        }
-
-        // 네 귀퉁이 근처의 큰 문양입니다.
-        var suits = new[] { CardColor.Red, CardColor.Yellow, CardColor.Green, CardColor.Blue };
-        var spots = new[] { new Vector2(0.09f, 0.22f), new Vector2(0.91f, 0.22f), new Vector2(0.1f, 0.84f), new Vector2(0.9f, 0.84f) };
-        for (int i = 0; i < 4; i++)
-        {
-            float bob = Mathf.Sin(_t * 0.8f + i * 1.7f) * 6f;
-            var color = UiTheme.CardColor(suits[i]);
-            SuitIcons.Draw(this, suits[i], spots[i] * size + new Vector2(0, bob), size.Y * 0.16f, new Color(color, 0.22f), UiTheme.TableEdge);
-        }
-
-        // 떠오르는 빛 알갱이입니다.
-        foreach (var mote in _motes)
-        {
-            float a = 0.25f + 0.25f * Mathf.Sin(_t * 2f + mote.Phase);
-            DrawCircle(mote.Position, mote.Size, new Color(UiTheme.Gold, a));
-            DrawCircle(mote.Position, mote.Size * 3f, new Color(UiTheme.Gold, a * 0.15f));
+            float t = i / 32f;
+            DrawCircle(center, maxR * t, UiTheme.TableEdge.Lerp(UiTheme.TableCenter, (1f - t) * 0.9f));
         }
     }
 }

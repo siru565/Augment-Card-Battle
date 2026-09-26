@@ -20,6 +20,9 @@ public partial class CardView : Control
     private float _lift;
     private float _pulse;
 
+    /// <summary>프리즘 홀로그램, 특수 카드 광택 애니메이션 시간입니다.</summary>
+    private float _shine = (float)GD.RandRange(0.0, 10.0);
+
     private string _badge = "";
     private Color _badgeColor = Colors.White;
     private bool _alert;
@@ -121,6 +124,13 @@ public partial class CardView : Control
             _pulse += (float)delta * 3.2f;
             QueueRedraw();
         }
+
+        // 프리즘·특수 카드는 앞면일 때 계속 빛이 움직입니다.
+        if (IsShiny && IsVisibleInTree())
+        {
+            _shine += (float)delta;
+            QueueRedraw();
+        }
     }
 
     /// <summary>떠오른 만큼 아래쪽 판정 영역을 늘려서, 떠오를 때 마우스가 빠져 깜빡이는 현상을 막습니다.</summary>
@@ -176,7 +186,21 @@ public partial class CardView : Control
             return;
         }
 
+        if (_card.IsSpecial)
+        {
+            DrawSpecialGlow(rect, radius);
+        }
+
         DrawFace(rect, radius, _card);
+        if (_card.Color == CardColor.Wild)
+        {
+            DrawHolo(rect, radius);
+        }
+        else if (_card.IsSpecial)
+        {
+            DrawGloss(rect, 3.4f, 0.22f);
+        }
+
         DrawBadge(rect);
         DrawHighlight(rect, radius);
 
@@ -187,25 +211,147 @@ public partial class CardView : Control
         }
     }
 
+    private bool IsShiny => _card != null && !_faceDown && (_card.Color == CardColor.Wild || _card.IsSpecial);
+
+    /// <summary>특수 카드 둘레에 은은하게 숨 쉬는 금빛을 그립니다.</summary>
+    private void DrawSpecialGlow(Rect2 rect, float radius)
+    {
+        float breathe = 0.6f + 0.4f * Mathf.Sin(_shine * 2.4f);
+        for (int i = 1; i <= 4; i++)
+        {
+            float a = 0.3f * breathe * (1f - i / 5f);
+            DrawStyleBox(UiTheme.Box(new Color(0, 0, 0, 0), new Color(UiTheme.Gold, a), 2, (int)radius + i * 2, 0), rect.Grow(i * 2));
+        }
+    }
+
+    /// <summary>카드 앞면 안쪽 판의 네 꼭짓점입니다. 빛 효과를 이 안으로 잘라 그립니다.</summary>
+    private Vector2[] FacePolygon(Rect2 rect)
+    {
+        var inner = rect.Grow(-rect.Size.X * 0.06f);
+        return new[] { inner.Position, new Vector2(inner.End.X, inner.Position.Y), inner.End, new Vector2(inner.Position.X, inner.End.Y) };
+    }
+
+    /// <summary>
+    /// 대각선 띠 하나를 카드 안쪽으로 잘라 그립니다. from~to는 대각선 방향으로 잰 위치(0~1)입니다.
+    /// </summary>
+    private void DrawDiagonalBand(Vector2[] face, Rect2 rect, Vector2 dir, float from, float to, Color color)
+    {
+        if (color.A <= 0.004f)
+        {
+            return;
+        }
+
+        // 대각선 방향으로 카드가 차지하는 길이입니다.
+        float length = Mathf.Abs(rect.Size.X * dir.X) + Mathf.Abs(rect.Size.Y * dir.Y);
+        var start = rect.GetCenter() - dir * length / 2;
+        var normal = new Vector2(-dir.Y, dir.X) * rect.Size.Length();
+        var a = start + dir * (from * length);
+        var b = start + dir * (to * length);
+        var band = new[] { a - normal, b - normal, b + normal, a + normal };
+        foreach (var piece in Geometry2D.IntersectPolygons(band, face))
+        {
+            if (piece.Length >= 3)
+            {
+                DrawColoredPolygon(piece, color);
+            }
+        }
+    }
+
+    /// <summary>주기적으로 카드 위를 한 번 쓸고 지나가는 흰 광택입니다.</summary>
+    private void DrawGloss(Rect2 rect, float period, float strength)
+    {
+        float phase = _shine % period / 1.1f;
+        if (phase > 1f)
+        {
+            return;
+        }
+
+        var face = FacePolygon(rect);
+        var dir = new Vector2(1f, 0.7f).Normalized();
+        float center = -0.2f + phase * 1.4f;
+        for (int i = -3; i <= 3; i++)
+        {
+            float a = strength * Mathf.Exp(-i * i / 3f);
+            DrawDiagonalBand(face, rect, dir, center + i * 0.025f, center + (i + 1) * 0.025f, new Color(1, 1, 1, a));
+        }
+    }
+
+    /// <summary>
+    /// 프리즘 카드의 홀로그램입니다. 무지개 띠가 천천히 흐르고, 마우스를 올리면 마우스 위치를 따라 색이 움직이며,
+    /// 밝은 빛줄기가 지나가고 작은 별빛이 반짝입니다. (레어 카드 느낌)
+    /// </summary>
+    private void DrawHolo(Rect2 rect, float radius)
+    {
+        var face = FacePolygon(rect);
+        var dir = new Vector2(1f, 0.55f).Normalized();
+
+        float mouse = 0f;
+        if (_hovered)
+        {
+            var m = GetLocalMousePosition() / Size;
+            mouse = (m.X + m.Y) * 0.6f;
+        }
+
+        // 무지개 띠
+        const int strips = 16;
+        for (int i = 0; i < strips; i++)
+        {
+            float hue = Mathf.PosMod(i / (float)strips * 1.4f + _shine * 0.12f + mouse, 1f);
+            DrawDiagonalBand(face, rect, dir, i / (float)strips, (i + 1) / (float)strips + 0.002f,
+                Color.FromHsv(hue, 0.6f, 1f, _hovered ? 0.34f : 0.25f));
+        }
+
+        // 지나가는 빛줄기
+        float sweep = Mathf.PosMod(_shine * 0.35f + mouse, 1.6f) - 0.3f;
+        for (int i = -4; i <= 4; i++)
+        {
+            float a = 0.42f * Mathf.Exp(-i * i / 5f);
+            DrawDiagonalBand(face, rect, dir, sweep + i * 0.02f, sweep + (i + 1) * 0.02f, new Color(1, 1, 1, a));
+        }
+
+        // 반짝이는 별빛 (카드마다 위치가 다릅니다)
+        var rng = new RandomNumberGenerator { Seed = (ulong)(Math.Abs(_card?.Id ?? 1) * 7919 + 13) };
+        var inner = rect.Grow(-rect.Size.X * 0.12f);
+        for (int i = 0; i < 7; i++)
+        {
+            var p = inner.Position + new Vector2(rng.Randf() * inner.Size.X, rng.Randf() * inner.Size.Y);
+            float phase = rng.Randf() * Mathf.Tau;
+            float twinkle = Mathf.Pow(Mathf.Max(0f, Mathf.Sin(_shine * 2.2f + phase)), 4f);
+            if (twinkle < 0.02f)
+            {
+                continue;
+            }
+
+            float r = rect.Size.X * 0.05f * (0.6f + 0.4f * twinkle);
+            var c = new Color(1, 1, 1, 0.9f * twinkle);
+            DrawColoredPolygon(new[] { p + new Vector2(0, -r), p + new Vector2(r * 0.22f, 0), p + new Vector2(0, r), p + new Vector2(-r * 0.22f, 0) }, c);
+            DrawColoredPolygon(new[] { p + new Vector2(-r, 0), p + new Vector2(0, -r * 0.22f), p + new Vector2(r, 0), p + new Vector2(0, r * 0.22f) }, c);
+        }
+
+        // 테두리에도 무지개빛이 돕니다.
+        var edge = Color.FromHsv(Mathf.PosMod(_shine * 0.2f + mouse, 1f), 0.5f, 1f, 0.8f);
+        DrawStyleBox(UiTheme.Box(new Color(0, 0, 0, 0), edge, 2, (int)radius, 0), rect);
+    }
+
     /// <summary>강조 테두리입니다. 낼 수 있는 카드는 은은하게, 억지 뽑기 덱은 빨갛게 깜빡입니다.</summary>
     private void DrawHighlight(Rect2 rect, float radius)
     {
         if (_alert)
         {
             float a = 0.55f + 0.45f * Mathf.Sin(_pulse * 2.2f);
-            DrawStyleBox(UiTheme.Box(new Color(0, 0, 0, 0), new Color(1f, 0.25f, 0.2f, a), 6, (int)radius + 5, 0), rect.Grow(5));
+            DrawStyleBox(UiTheme.Box(new Color(0, 0, 0, 0), new Color(UiTheme.Danger, a), 3, (int)radius + 4, 0), rect.Grow(4));
             DrawStyleBox(UiTheme.Box(new Color(1f, 0.2f, 0.1f, 0.12f * a), new Color(0, 0, 0, 0), 0, (int)radius, 0), rect);
             return;
         }
 
         Color? glow = _selected ? UiTheme.Gold
-            : _justDrawn ? Color.FromHtml("#6ff3ff")
-            : _playable ? new Color(1f, 0.93f, 0.55f, 0.7f + 0.3f * Mathf.Sin(_pulse))
+            : _justDrawn ? Color.FromHtml("#8ec5ff")
+            : _playable ? new Color(UiTheme.Gold, 0.55f + 0.25f * Mathf.Sin(_pulse))
             : null;
 
         if (glow.HasValue)
         {
-            var glowBox = UiTheme.Box(new Color(0, 0, 0, 0), glow.Value, _selected ? 5 : 4, (int)radius + 3, 0);
+            var glowBox = UiTheme.Box(new Color(0, 0, 0, 0), glow.Value, _selected ? 3 : 2, (int)radius + 3, 0);
             DrawStyleBox(glowBox, rect.Grow(3));
         }
     }
@@ -222,7 +368,7 @@ public partial class CardView : Control
         int fontSize = (int)(rect.Size.X * 0.13f);
         var textSize = font.GetStringSize(_badge, HorizontalAlignment.Left, -1, fontSize);
         var box = new Rect2(rect.End.X - textSize.X - 14, rect.Position.Y + 4, textSize.X + 10, fontSize + 8);
-        DrawStyleBox(UiTheme.Box(new Color(0.03f, 0.03f, 0.06f, 0.9f), _badgeColor, 2, 8, 0), box);
+        DrawStyleBox(UiTheme.Box(new Color(0.04f, 0.045f, 0.06f, 0.92f), _badgeColor, 1, 4, 0), box);
         DrawString(font, new Vector2(box.Position.X + 5, box.Position.Y + 4 + font.GetAscent(fontSize)), _badge,
             HorizontalAlignment.Left, -1, fontSize, _badgeColor);
     }
@@ -248,7 +394,7 @@ public partial class CardView : Control
         var shine = new Rect2(inner.Position, new Vector2(inner.Size.X, inner.Size.Y * 0.45f));
         DrawStyleBox(UiTheme.Box(new Color(1, 1, 1, 0.05f), new Color(0, 0, 0, 0), 0, (int)(radius * 0.7f), 0), shine);
 
-        var center = size / 2 + new Vector2(0, -size.Y * 0.02f);
+        var center = size / 2;
 
         // 배경에 큰 문양을 옅게 깝니다.
         if (isPrism)
@@ -319,18 +465,6 @@ public partial class CardView : Control
         {
             SuitIcons.Draw(this, card.Color, iconCenter, size.X * 0.16f, suitColor.Lightened(0.2f), deep);
         }
-
-        // 아래쪽 띠에는 카드 분류를 적습니다.
-        string category = isNumber ? Card.ColorName(card.Color)
-            : card.IsSpecial ? "★ 특수"
-            : isPrism ? "프리즘"
-            : "액션";
-        int tagSize = (int)(size.X * 0.115f);
-        var band = new Rect2(inner.Position.X, inner.End.Y - size.Y * 0.14f, inner.Size.X, size.Y * 0.14f);
-        DrawRect(new Rect2(band.Position + new Vector2(4, 0), band.Size - new Vector2(8, 4)), new Color(0, 0, 0, 0.28f));
-        var tagPos = new Vector2(0, band.Position.Y + band.Size.Y / 2 + font.GetAscent(tagSize) / 2 - 3);
-        DrawString(font, tagPos, category, HorizontalAlignment.Center, size.X, tagSize,
-            card.IsSpecial || isPrism ? UiTheme.Gold : suitColor.Lightened(0.4f));
     }
 
     /// <summary>
