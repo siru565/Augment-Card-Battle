@@ -26,3 +26,6 @@ steam_api64.dll
 steam_api.dll
 libsteam_api.so
 libsteam_api.dylib
+
+# 개발일지 올릴 때 쓰는 스크린샷 모음 (docs/images/devlog와 같은 사진)
+개발일지_스크린샷/
