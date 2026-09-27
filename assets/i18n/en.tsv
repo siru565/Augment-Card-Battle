@@ -476,3 +476,44 @@ AI 상대	AI opponents
 + 봇 넣기	+ Add bot
 최소 {0}명이 있어야 시작할 수 있어요. 봇을 넣어 주세요.	You need at least {0} players to start. Add a bot.
 혼자서는 시작할 수 없어요. 봇을 넣거나 친구를 초대하세요.	You can't start alone. Add a bot or invite a friend.
+# 봇 난이도
+쉬움	Easy
+보통	Normal
+어려움	Hard
+봇 난이도	Bot difficulty
+# 게임 방법 · 도감
+게임 방법 · 도감	How to Play · Codex
+도움말	Help
+게임 방법	How to Play
+특수 증강 도감	Augment Codex
+각성 능력 도감	Awaken Codex
+내가 얻어 본 것은 빛나고, 아직 못 얻은 것은 흐리게 보입니다.	Ones you've collected glow; the rest stay dim.
+획득 {0} / {1}	Collected {0} / {1}
+발동 {0} / {1}	Used {0} / {1}
+✦ 획득	✦ Collected
+미획득	Not yet
+목표	Goal
+손패를 가장 먼저 모두 내면 1등입니다.	Empty your hand first to take 1st place.
+1등이 나와도 게임은 끝나지 않고, 남은 사람끼리 계속해서 2등, 3등을 가립니다.	The game doesn't end there — the rest keep playing for 2nd, 3rd and so on.
+내 차례	Your turn
+바닥에 놓인 카드와 문양이 같거나 숫자가 같은 카드를 한 장 냅니다.	Play one card that matches the top card's suit or number.
+낼 카드가 없거나 내고 싶지 않으면 덱을 눌러 1장 뽑습니다. (Space 키) 뽑은 카드를 낼 수 있으면 바로 내도 되고, 아니면 '턴 넘기기'를 누릅니다.	If you can't (or don't want to) play, click the deck to draw 1 card (Space). If the drawn card fits you may play it right away; otherwise press 'End Turn'.
+카드에 마우스를 올리면 그 카드의 효과 설명이 나옵니다.	Hover over a card to see what it does.
+문양	Suits
+문양은 불꽃, 달빛, 숲, 물결 네 가지입니다. 프리즘 카드는 아무 때나 낼 수 있고, 낼 때 다음 문양을 고릅니다.	There are four suits: Flame, Moon, Forest and Wave. Prism cards can be played any time, and you pick the next suit.
+공격 카드 (+1 · +2 · +3 · +4)	Attack cards (+1 · +2 · +3 · +4)
++카드를 맞으면 그만큼 카드를 받아야 합니다. 하지만 같은 +숫자나 프리즘 +4를 얹으면 공격을 합쳐서 다음 사람에게 넘길 수 있습니다.	A + card makes you take that many cards — but you can stack the same + number or a Prism +4 on top and pass the combined attack to the next player.
+넘기지 못하면 자기 차례에 쌓인 장수를 모두 받습니다. 받을 때는 시스템이 대신 뽑지 않고, 덱을 눌러 직접 한 장씩 뽑습니다.	If you can't pass it on, you take the whole stack on your turn — clicking the deck to draw each card yourself.
+액션 · 특수 카드	Action & special cards
+각성 카드를 내면 각성 능력 3가지가 나오고, 그중 하나를 골라 바로 발동합니다.	Playing an Awaken card offers 3 Awaken abilities; pick one and it triggers immediately.
+어떤 능력이 있는지는 '각성 능력 도감'에서 볼 수 있습니다. 한 번 발동해 본 능력은 도감에서 빛납니다.	See every ability in the 'Awaken Codex'. Abilities you've used glow there.
+특수 증강을 켜고 시작하면, 시작할 때 모두 동시에 3개 중 1개를 고릅니다. 6번째 차례에 1개를 더 고릅니다. (최대 2개)	With special augments on, everyone picks 1 of 3 at the start, then 1 more on their 6th turn. (Up to 2)
+특수 증강은 게임 규칙 자체를 바꾸는 영구 효과입니다. 등급은 실버, 골드, 프리즘 세 가지입니다.	Special augments are permanent effects that bend the rules. They come in three tiers: Silver, Gold and Prism.
+상대가 가진 증강은 자리 칸의 증강 표시에 마우스를 올리면 볼 수 있습니다.	Hover over an opponent's augment tags to see what they have.
+다른 승리 조건	Other ways to win
+일부 특수 증강은 손패를 다 내는 것 말고도 이길 방법을 줍니다.	Some special augments give you another way to win besides emptying your hand.
+어벤져스: 직업 8가지를 모두 모은 채로 내 차례가 돌아오면 승리	Avengers: win if your turn comes around while you hold all 8 jobs
+블랙홀: 손패가 28장이 되는 순간 승리	Black Hole: win the moment your hand reaches 28 cards
+수집가: 같은 숫자를 네 문양 모두 손에 모으면 승리	Collector: win by holding the same number in all four suits
+탈락 규칙	Elimination
+손패가 30장이 되면 탈락하고 가장 낮은 순위가 됩니다. (블랙홀 증강이 있으면 탈락하지 않습니다)	Reach 30 cards and you're eliminated with the lowest rank. (Not with the Black Hole augment)

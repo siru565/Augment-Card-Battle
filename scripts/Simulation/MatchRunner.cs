@@ -7,7 +7,7 @@ using SpCardgame.Core;
 
 namespace SpCardgame.Simulation;
 
-public sealed record GameResult(int Winner, int Turns, string WinnerBot, string WinReason = "");
+public sealed record GameResult(int Winner, int Turns, string WinnerBot, string WinReason = "", int[]? Ranks = null);
 
 /// <summary>
 /// 봇끼리 게임을 자동으로 진행합니다. 화면이 없어도 돌아가므로 밸런스 테스트에 사용합니다.
@@ -48,7 +48,8 @@ public static class MatchRunner
         }
 
         int winner = engine.State.Winner!.Value;
-        return new GameResult(winner, engine.State.TurnCount, winner >= 0 ? bots[winner].Name : "무승부", reason);
+        return new GameResult(winner, engine.State.TurnCount, winner >= 0 ? bots[winner].Name : "무승부", reason,
+            engine.State.Players.Select(p => p.Rank).ToArray());
     }
 
     /// <summary>

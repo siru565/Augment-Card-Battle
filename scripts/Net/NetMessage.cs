@@ -56,6 +56,9 @@ public sealed record NetMessage
     /// <summary>대기방 정보를 보낼 때, 다음 판에 앉을 봇 수를 알려 줍니다.</summary>
     public int Bots { get; init; }
 
+    /// <summary>대기방 정보를 보낼 때, 봇 난이도(0 쉬움, 1 보통, 2 어려움)를 알려 줍니다.</summary>
+    public int BotLevel { get; init; } = 1;
+
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,

@@ -74,6 +74,7 @@ public sealed class ClientSession : GameSession
                 LobbyBusy = message.Busy ?? Array.Empty<bool>();
                 LobbySteamIds = message.SteamIds ?? Array.Empty<ulong>();
                 LobbyBots = Math.Max(0, message.Bots);
+                LobbyBotLevel = (AI.BotLevel)Math.Clamp(message.BotLevel, 0, 2);
                 RaiseLobbyChanged();
                 break;
 

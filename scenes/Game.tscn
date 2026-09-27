@@ -1,4 +1,4 @@
-[gd_scene load_steps=22 format=3]
+[gd_scene load_steps=23 format=3]
 
 [ext_resource type="Script" path="res://scripts/UI/GameController.cs" id="1_r"]
 [ext_resource type="Theme" path="res://assets/ui/ui_theme.tres" id="2_r"]
@@ -15,7 +15,8 @@
 [ext_resource type="Script" path="res://scripts/UI/FxLayer.cs" id="13_r"]
 [ext_resource type="PackedScene" path="res://scenes/ui/InviteBanner.tscn" id="14_r"]
 [ext_resource type="PackedScene" path="res://scenes/screens/Settings.tscn" id="15_r"]
-[ext_resource type="Script" path="res://scripts/UI/HoverPopup.cs" id="16_r"]
+[ext_resource type="PackedScene" path="res://scenes/screens/Guide.tscn" id="16_r"]
+[ext_resource type="Script" path="res://scripts/UI/HoverPopup.cs" id="17_r"]
 
 [sub_resource type="Gradient" id="Gradient_1"]
 offsets = PackedFloat32Array(0, 1)
@@ -168,6 +169,15 @@ text = ""
 size_flags_horizontal = 3
 size_flags_vertical = 4
 theme_override_colors/font_color = Color(0.5451, 0.5765, 0.6314, 1.0000)
+layout_mode = 2
+
+[node name="GuideButton" type="Button" parent="Layout/Root/Left/TopBar"]
+unique_name_in_owner = true
+focus_mode = 0
+mouse_default_cursor_shape = 2
+theme_type_variation = &"GhostButton"
+theme_override_font_sizes/font_size = 14
+text = "도움말"
 layout_mode = 2
 
 [node name="SettingsButton" type="Button" parent="Layout/Root/Left/TopBar"]
@@ -543,10 +553,16 @@ layer = 12
 [node name="Settings" parent="SettingsCanvas" instance=ExtResource("15_r")]
 unique_name_in_owner = true
 
+[node name="GuideCanvas" type="CanvasLayer" parent="."]
+layer = 13
+
+[node name="Guide" parent="GuideCanvas" instance=ExtResource("16_r")]
+unique_name_in_owner = true
+
 [node name="PopupCanvas" type="CanvasLayer" parent="."]
 layer = 10
 
 [node name="HoverPopup" type="PanelContainer" parent="PopupCanvas"]
-script = ExtResource("16_r")
+script = ExtResource("17_r")
 theme = ExtResource("2_r")
 layout_mode = 0

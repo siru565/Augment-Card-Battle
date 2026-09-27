@@ -93,9 +93,11 @@ public partial class NetTest : Node
         await Wait(0.3);
         report.AppendLine($"설정 전달: 참가자 특수 증강={client.Session?.RoomOptions.SpecialAugments}");
 
-        // 2판은 봇 1명을 넣어 3인으로 합니다.
+        // 2판은 봇 1명(어려움)을 넣어 3인으로 합니다.
         room.AddBot();
+        room.SetBotLevel(SpCardgame.AI.BotLevel.Hard);
         await Wait(0.3);
+        report.AppendLine($"봇 난이도 전달: 참가자 화면={client.Session?.LobbyBotLevel}");
         host.DebugStartGame();
         await Wait(2.0);
         int secondPlayers = client.Session?.View?.PlayerCount ?? -1;
@@ -118,7 +120,7 @@ public partial class NetTest : Node
         string third = await WaitWinner(client);
         report.AppendLine($"3판 (방장 중간 퇴장): 참가자 합류={pulled}, 방장 대기방={hostLeft}, {third}");
         await Wait(0.5);
-        second = secondPlayers == 3 && clientLeft && pulled && hostLeft && third.StartsWith("끝") ? second : "실패";
+        second = secondPlayers == 3 && client.Session?.LobbyBotLevel == SpCardgame.AI.BotLevel.Hard && clientLeft && pulled && hostLeft && third.StartsWith("끝") ? second : "실패";
 
         // 다시 대기방으로 돌아간 뒤 참가자를 강퇴합니다.
         host.Session!.ReturnToRoom();
@@ -189,6 +191,7 @@ public partial class NetTest : Node
         GetTree().SetMultiplayer(new SceneMultiplayer(), viewport.GetPath());
 
         var game = GD.Load<PackedScene>("res://scenes/Game.tscn").Instantiate<GameController>();
+        Collection.TestMode = true;
         viewport.AddChild(game);
         return game;
     }

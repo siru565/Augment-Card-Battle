@@ -548,8 +548,11 @@ public sealed class GameEngine
         {
             int steps = State.DeferredSteps.Value;
             State.DeferredSteps = null;
+            // 다른 승리 조건으로 차례인 사람이 빠지면 AfterRemoval이 이미 차례를 넘겼으므로 여기서는 넘기지 않습니다.
+            // (두 번 넘기면 다음 사람의 특수 증강 선택지가 그 다음 사람에게 잘못 남습니다)
+            int current = State.CurrentPlayer;
             CheckAltWins();
-            if (!State.IsFinished)
+            if (!State.IsFinished && State.CurrentPlayer == current)
             {
                 EndTurn(steps);
             }
@@ -817,6 +820,8 @@ public sealed class GameEngine
     /// </summary>
     private void OfferAugmentIfDue(int playerId)
     {
+        // 새 차례가 시작되면 앞사람에게 떴던 선택지는 항상 지웁니다.
+        State.PendingAugments.Clear();
         var player = State.Players[playerId];
         if (!State.Options.SpecialAugments ||
             player.Augments.Count >= SpecialAugments.MaxPerPlayer ||
@@ -846,6 +851,13 @@ public sealed class GameEngine
 
         var id = State.PendingAugments[index];
         State.PendingAugments.Clear();
+        var player = State.Players[playerId];
+        if (player.Augments.Count >= SpecialAugments.MaxPerPlayer || player.Has(id))
+        {
+            // 안전장치: 이미 가득 찼거나 같은 증강이면 받지 않고 넘어갑니다.
+            return ActionResult.Success();
+        }
+
         GainAugment(playerId, id);
 
         var tier = Augment.TierName(SpecialAugments.TierOf(id));

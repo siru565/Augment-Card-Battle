@@ -35,6 +35,9 @@ public static class GameSettings
     /// <summary>혼자 하기 상대 봇 수(1~3명)입니다.</summary>
     public static int SoloBots { get; set; } = 3;
 
+    /// <summary>봇 난이도입니다. 0 쉬움, 1 보통, 2 어려움</summary>
+    public static int BotLevel { get; set; } = 1;
+
     /// <summary>게임 언어입니다. "ko" 또는 "en"입니다.</summary>
     public static string Language { get; set; } = Localization.DefaultLanguage();
 
@@ -61,6 +64,7 @@ public static class GameSettings
         MusicVolume = Math.Clamp((float)config.GetValue("audio", "music", 0.6f), 0f, 1f);
         Muted = (bool)config.GetValue("audio", "muted", false);
         SoloBots = Math.Clamp((int)config.GetValue("general", "solo_bots", 3), 1, 3);
+        BotLevel = Math.Clamp((int)config.GetValue("general", "bot_level", 1), 0, 2);
         string language = (string)config.GetValue("general", "language", Language);
         Language = Array.IndexOf(Localization.Languages, language) >= 0 ? language : Language;
     }
@@ -76,6 +80,7 @@ public static class GameSettings
         config.SetValue("audio", "muted", Muted);
         config.SetValue("general", "language", Language);
         config.SetValue("general", "solo_bots", SoloBots);
+        config.SetValue("general", "bot_level", BotLevel);
         config.Save(FilePath);
     }
 

@@ -41,6 +41,7 @@ public partial class DevlogShots : Node
     {
         DirAccess.MakeDirRecursiveAbsolute(ProjectSettings.GlobalizePath(Folder));
         _game = GD.Load<PackedScene>("res://scenes/Game.tscn").Instantiate<GameController>();
+        Collection.TestMode = true;
         AddChild(_game);
         string langFile = ProjectSettings.GlobalizePath("res://tools/shot_lang.txt");
         if (System.IO.File.Exists(langFile) && System.IO.File.ReadAllText(langFile).Trim() == "en")
@@ -167,6 +168,24 @@ public partial class DevlogShots : Node
             room.RemoveBot();
             await Wait(0.4);
             await Capture("13_room_two_players.png");
+        }
+
+        // 11. 게임 방법과 도감 (도감은 얻은 것만 빛납니다. 스크린샷용으로 몇 개를 더 넣어 둡니다 — 테스트 모드라 저장되지 않습니다)
+        Collection.AddAugment("어벤져스");
+        Collection.AddAugment("반사의 거울");
+        Collection.AddAbility("운명 교환");
+        for (int tab = 0; tab < 3; tab++)
+        {
+            _game.DebugOpenGuide(tab);
+            await Wait(0.5);
+            await Capture($"{14 + tab}_guide_{tab}.png");
+        }
+
+        for (int page = 1; page <= 2; page++)
+        {
+            _game.DebugOpenGuide(0, page * 560);
+            await Wait(0.3);
+            await Capture($"17_guide_howto_{page}.png");
         }
     }
 

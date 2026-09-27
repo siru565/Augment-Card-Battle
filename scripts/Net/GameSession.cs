@@ -28,6 +28,9 @@ public abstract class GameSession
     /// <summary>다음 판에 앉을 봇 수입니다. (방장이 대기방에서 넣고 뺍니다)</summary>
     public int LobbyBots { get; protected set; }
 
+    /// <summary>봇 난이도입니다. (방장이 대기방에서 고릅니다)</summary>
+    public AI.BotLevel LobbyBotLevel { get; protected set; } = AI.BotLevel.Normal;
+
     /// <summary>게임 자리마다의 Steam ID입니다. (Names와 같은 순서, 봇이나 IP 접속은 0)</summary>
     public ulong[] SeatSteamIds { get; protected set; } = Array.Empty<ulong>();
 

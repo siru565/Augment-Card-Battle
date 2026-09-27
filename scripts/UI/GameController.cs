@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Godot;
+using SpCardgame.AI;
 using SpCardgame.Core;
 using SpCardgame.Net;
 
@@ -140,6 +141,8 @@ public partial class GameController : Control
     private LineEdit _portEdit = null!;
     private Label _lobbyStatus = null!;
     private Button _startButton = null!;
+    private OptionButton _botLevelOption = null!;
+    private GuideView _guide = null!;
     private Control _lobbyMenu = null!;
     private Control _lobbyRoom = null!;
     private LineEdit _codeEdit = null!;
@@ -185,6 +188,13 @@ public partial class GameController : Control
     public void DebugFx(GameEvent gameEvent) => OnFx(gameEvent);
 
     public void DebugToggleSettings() => ToggleSettings();
+
+    /// <summary>게임 방법 · 도감 창을 엽니다. (스크린샷 확인용)</summary>
+    public void DebugOpenGuide(int tab, int scroll = 0)
+    {
+        _guide.Open(tab);
+        _guide.DebugScrollHowTo(scroll);
+    }
 
     public void DebugHost(int port)
     {
@@ -401,6 +411,7 @@ public partial class GameController : Control
         var options = new GameOptions(SpecialAugments: _soloAugmentToggle.ButtonPressed);
         var host = new HostSession(PlayerName, null, GameVersion.Current, options) { BotDelay = _botDelay, HostSteamId = SteamRuntime.MySteamId };
         host.SetBotCount(GameSettings.SoloBots);
+        host.SetBotLevel((BotLevel)GameSettings.BotLevel);
         AttachSession(host);
         host.StartGame();
     }
@@ -418,7 +429,7 @@ public partial class GameController : Control
 
         var transport = new ServerTransport(_net);
         _transport = transport;
-        AttachSession(new HostSession(PlayerName, transport, GameVersion.Current) { BotDelay = _botDelay, HostSteamId = SteamRuntime.MySteamId });
+        AttachHost(transport);
         ShowLobbyRoom($"방을 만들었어요. 포트 {port}\n같은 PC라면 127.0.0.1, 다른 PC라면 이 PC의 IP로 접속하면 돼요.");
     }
 
@@ -443,6 +454,14 @@ public partial class GameController : Control
     private int ParsePort() => int.TryParse(_portEdit.Text, out int port) && port is > 1024 and < 65536
         ? port
         : NetBridge.DefaultPort;
+
+    /// <summary>멀티 방을 만들 때 방장 세션을 붙입니다. 봇 난이도는 마지막으로 고른 값으로 시작합니다.</summary>
+    private void AttachHost(IServerTransport transport)
+    {
+        var host = new HostSession(PlayerName, transport, GameVersion.Current) { BotDelay = _botDelay, HostSteamId = SteamRuntime.MySteamId };
+        host.SetBotLevel((BotLevel)GameSettings.BotLevel);
+        AttachSession(host);
+    }
 
     private void AttachSession(GameSession session)
     {
@@ -479,7 +498,7 @@ public partial class GameController : Control
             var transport = new SteamServerTransport();
             _transport = transport;
             _roomCode = SteamRuntime.ToRoomCode(lobby);
-            AttachSession(new HostSession(PlayerName, transport, GameVersion.Current) { BotDelay = _botDelay, HostSteamId = SteamRuntime.MySteamId });
+            AttachHost(transport);
             ShowLobbyRoom("Steam 방을 만들었어요! 친구를 초대하거나 방 코드를 알려 주세요.");
         }, error => ShowLobbyMenu(error));
     }
@@ -883,6 +902,12 @@ public partial class GameController : Control
         }
 
         bool finished = view.Winner.HasValue;
+
+        // 빼앗기 등으로 얻은 증강도 도감에 넣습니다.
+        foreach (var augment in view.Augments[view.PlayerId])
+        {
+            Collection.AddAugment(augment.Name);
+        }
 
         // 내 차례가 새로 시작되면 딩동 소리를 냅니다.
         bool myTurnNow = view.IsMyTurn && !finished;
@@ -1428,10 +1453,12 @@ public partial class GameController : Control
 
         _updatingToggle = true;
         _augmentToggle.ButtonPressed = _session.RoomOptions.SpecialAugments;
+        _botLevelOption.Selected = (int)_session.LobbyBotLevel;
         _updatingToggle = false;
 
         bool running = _session.GameRunning;
         _augmentToggle.Disabled = !isHost || running;
+        _botLevelOption.Disabled = !isHost || running;
         bool enoughPlayers = names.Length + _session.LobbyBots >= HostSession.MinPlayers;
         _startButton.Visible = isHost;
         _startButton.Disabled = running || !enoughPlayers;
@@ -1533,6 +1560,24 @@ public partial class GameController : Control
     /// <summary>
     /// 엔진에서 온 사건을 화면 연출로 바꿉니다. 규칙에는 영향을 주지 않습니다.
     /// </summary>
+    /// <summary>도감: 내가 얻은 특수 증강과 내가 발동한 각성 능력을 기록합니다.</summary>
+    private static void RecordCollection(GameEvent e)
+    {
+        if (string.IsNullOrEmpty(e.Text))
+        {
+            return;
+        }
+
+        if (e.Type == GameEventType.AugmentGained)
+        {
+            Collection.AddAugment(e.Text);
+        }
+        else if (e.Type == GameEventType.AbilityUsed)
+        {
+            Collection.AddAbility(e.Text);
+        }
+    }
+
     private void OnFx(GameEvent e)
     {
         if (_session == null || !IsInsideTree() || !_session.Playing)
@@ -1544,6 +1589,11 @@ public partial class GameController : Control
         bool targetMe = e.Target == _session.MySeat;
         string who = _session.NameOf(e.Player);
         PlayEventSound(e, me, targetMe);
+
+        if (me)
+        {
+            RecordCollection(e);
+        }
 
         switch (e.Type)
         {
@@ -1892,6 +1942,7 @@ public partial class GameController : Control
         _shakeRoot = GetNode<Control>("%Layout");
         _infoLabel = GetNode<Label>("%InfoLabel");
         GetNode<Button>("%SettingsButton").Pressed += ToggleSettings;
+        GetNode<Button>("%GuideButton").Pressed += () => _guide.Open();
         GetNode<Button>("%LogButton").Pressed += () => _logPanel.Visible = !_logPanel.Visible;
         _newGameButton = GetNode<Button>("%NewGameButton");
         _newGameButton.Pressed += () =>
@@ -2009,6 +2060,7 @@ public partial class GameController : Control
         _toastLabel = GetNode<Label>("%ToastLabel");
         _toastAnim = GetNode<AnimationPlayer>("%ToastAnim");
 
+        _guide = GetNode<GuideView>("%Guide");
         BindLobby();
         BindSettings();
 
@@ -2065,6 +2117,28 @@ public partial class GameController : Control
         menu.GetNode<Button>("%IpHostButton").Pressed += StartHosting;
         menu.GetNode<Button>("%IpJoinButton").Pressed += StartJoining;
         menu.GetNode<Button>("%MenuSettingsButton").Pressed += ToggleSettings;
+        menu.GetNode<Button>("%GuideMenuButton").Pressed += () => _guide.Open();
+
+        // 봇 난이도: 혼자 하기(메인 화면)와 멀티 대기방(방장만) 두 곳에서 고르고, 마지막 값을 저장합니다.
+        var soloLevel = menu.GetNode<OptionButton>("%SoloLevelOption");
+        soloLevel.Selected = Math.Clamp(GameSettings.BotLevel, 0, 2);
+        soloLevel.ItemSelected += index =>
+        {
+            GameSettings.BotLevel = (int)index;
+            GameSettings.Save();
+        };
+        _botLevelOption = menu.GetNode<OptionButton>("%BotLevelOption");
+        _botLevelOption.ItemSelected += index =>
+        {
+            if (_updatingToggle || _session is not HostSession host)
+            {
+                return;
+            }
+
+            GameSettings.BotLevel = (int)index;
+            GameSettings.Save();
+            host.SetBotLevel((BotLevel)index);
+        };
 
         // 대기방입니다. 방은 게임이 끝나도 그대로 남아서 같은 코드로 계속 모일 수 있습니다.
         _steamRoomBox = menu.GetNode<Control>("%SteamRoomBox");

@@ -46,6 +46,9 @@ public sealed class HostSession : GameSession
     private IBot[] _bots = Array.Empty<IBot>();
     private float _botTimer;
 
+    /// <summary>봇 난이도입니다. 새로 앉는 봇과 나간 사람 자리를 이어받는 봇 모두 이 난이도를 씁니다.</summary>
+    public BotLevel BotLevel { get; private set; } = BotLevel.Normal;
+
     /// <summary>방장이 넣어 둔 봇 수입니다. 사람이 들어와서 자리가 모자라면 실제로는 그만큼 줄어듭니다.</summary>
     private int _wantedBots = SeatCount - 1;
     private float _draftTimer;
@@ -110,6 +113,18 @@ public sealed class HostSession : GameSession
         BroadcastLobby();
     }
 
+    /// <summary>봇 난이도를 정합니다. 판이 진행 중일 때는 바꿀 수 없습니다.</summary>
+    public void SetBotLevel(BotLevel level)
+    {
+        if (GameRunning && _transport != null)
+        {
+            return;
+        }
+
+        BotLevel = level;
+        BroadcastLobby();
+    }
+
     /// <summary>봇을 한 명 넣습니다. 자리가 가득 찼으면 아무 일도 하지 않습니다.</summary>
     public void AddBot()
     {
@@ -133,6 +148,7 @@ public sealed class HostSession : GameSession
         LobbyNames = new[] { _hostName }.Concat(_lobby.Select(p => p.Name)).ToArray();
         LobbySteamIds = new[] { HostSteamId }.Concat(_lobby.Select(p => ParseSteamId(p.Identity))).ToArray();
         LobbyBots = BotCount;
+        LobbyBotLevel = BotLevel;
     }
 
     private void BroadcastLobby()
@@ -145,7 +161,7 @@ public sealed class HostSession : GameSession
         SendAll(new NetMessage
         {
             T = NetMessage.Lobby, Names = LobbyNames, Options = RoomOptions, Playing = GameRunning, Busy = LobbyBusy,
-            SteamIds = LobbySteamIds, Bots = LobbyBots,
+            SteamIds = LobbySteamIds, Bots = LobbyBots, BotLevel = (int)BotLevel,
         });
         RaiseLobbyChanged();
     }
@@ -233,7 +249,7 @@ public sealed class HostSession : GameSession
             {
                 _seatKinds[seat] = SeatKind.Bot;
                 _seatPeers[seat] = 0;
-                _bots[seat] = new RuleBasedBot();
+                _bots[seat] = BotFactory.Create(BotLevel);
                 EmitLog(message);
             }
         }
@@ -275,7 +291,7 @@ public sealed class HostSession : GameSession
         if (_seatKinds.Length > MySeat && _seatKinds[MySeat] == SeatKind.Local)
         {
             _seatKinds[MySeat] = SeatKind.Bot;
-            _bots[MySeat] = new RuleBasedBot();
+            _bots[MySeat] = BotFactory.Create(BotLevel);
             EmitLog($"{_hostName}님이 대기방으로 나가서 봇이 이어받습니다.");
         }
 
@@ -327,7 +343,7 @@ public sealed class HostSession : GameSession
             else
             {
                 _seatKinds[seat] = SeatKind.Bot;
-                _bots[seat] = new RuleBasedBot();
+                _bots[seat] = BotFactory.Create(BotLevel);
                 names[seat] = $"봇 {(char)('A' + botLetter++)}";
             }
         }

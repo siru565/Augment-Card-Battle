@@ -1,0 +1,190 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/UI/GuideView.cs" id="1_r"]
+[ext_resource type="Theme" path="res://assets/ui/ui_theme.tres" id="2_r"]
+
+[node name="Guide" type="ColorRect"]
+script = ExtResource("1_r")
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+visible = false
+color = Color(0, 0, 0, 0.72)
+mouse_filter = 0
+theme = ExtResource("2_r")
+
+[node name="Center" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Panel" type="PanelContainer" parent="Center"]
+theme_type_variation = &"ModalPanel"
+custom_minimum_size = Vector2(1060, 660)
+layout_mode = 2
+
+[node name="Box" type="VBoxContainer" parent="Center/Panel"]
+theme_override_constants/separation = 12
+layout_mode = 2
+
+[node name="Header" type="HBoxContainer" parent="Center/Panel/Box"]
+theme_override_constants/separation = 10
+layout_mode = 2
+
+[node name="Title" type="Label" parent="Center/Panel/Box/Header"]
+theme_type_variation = &"TitleLabel"
+theme_override_font_sizes/font_size = 28
+text = "게임 방법 · 도감"
+size_flags_horizontal = 3
+layout_mode = 2
+
+[node name="CloseButton" type="Button" parent="Center/Panel/Box/Header"]
+unique_name_in_owner = true
+focus_mode = 0
+mouse_default_cursor_shape = 2
+theme_type_variation = &"SecondaryButton"
+theme_override_font_sizes/font_size = 15
+text = "닫기"
+custom_minimum_size = Vector2(90, 40)
+size_flags_vertical = 4
+layout_mode = 2
+
+[node name="Tabs" type="HBoxContainer" parent="Center/Panel/Box"]
+theme_override_constants/separation = 8
+layout_mode = 2
+
+[node name="HowToTab" type="Button" parent="Center/Panel/Box/Tabs"]
+unique_name_in_owner = true
+focus_mode = 0
+mouse_default_cursor_shape = 2
+theme_type_variation = &"SecondaryButton"
+theme_override_font_sizes/font_size = 15
+text = "게임 방법"
+custom_minimum_size = Vector2(0, 40)
+toggle_mode = true
+layout_mode = 2
+
+[node name="AugmentTab" type="Button" parent="Center/Panel/Box/Tabs"]
+unique_name_in_owner = true
+focus_mode = 0
+mouse_default_cursor_shape = 2
+theme_type_variation = &"SecondaryButton"
+theme_override_font_sizes/font_size = 15
+text = "특수 증강 도감"
+custom_minimum_size = Vector2(0, 40)
+toggle_mode = true
+layout_mode = 2
+
+[node name="AbilityTab" type="Button" parent="Center/Panel/Box/Tabs"]
+unique_name_in_owner = true
+focus_mode = 0
+mouse_default_cursor_shape = 2
+theme_type_variation = &"SecondaryButton"
+theme_override_font_sizes/font_size = 15
+text = "각성 능력 도감"
+custom_minimum_size = Vector2(0, 40)
+toggle_mode = true
+layout_mode = 2
+
+[node name="Line" type="ColorRect" parent="Center/Panel/Box"]
+custom_minimum_size = Vector2(0, 1)
+color = Color(0, 0, 0, 0.35)
+layout_mode = 2
+
+[node name="HowToPage" type="ScrollContainer" parent="Center/Panel/Box"]
+unique_name_in_owner = true
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+layout_mode = 2
+
+[node name="HowToBox" type="VBoxContainer" parent="Center/Panel/Box/HowToPage"]
+unique_name_in_owner = true
+theme_override_constants/separation = 18
+size_flags_horizontal = 3
+layout_mode = 2
+
+[node name="AugmentPage" type="VBoxContainer" parent="Center/Panel/Box"]
+unique_name_in_owner = true
+theme_override_constants/separation = 10
+visible = false
+size_flags_vertical = 3
+layout_mode = 2
+
+[node name="AugmentHead" type="HBoxContainer" parent="Center/Panel/Box/AugmentPage"]
+theme_override_constants/separation = 10
+layout_mode = 2
+
+[node name="AugmentProgress" type="Label" parent="Center/Panel/Box/AugmentPage/AugmentHead"]
+unique_name_in_owner = true
+theme_type_variation = &"BoldLabel"
+theme_override_font_sizes/font_size = 16
+text = ""
+size_flags_horizontal = 3
+size_flags_vertical = 4
+layout_mode = 2
+
+[node name="AugmentHint" type="Label" parent="Center/Panel/Box/AugmentPage/AugmentHead"]
+theme_type_variation = &"DimLabel"
+theme_override_font_sizes/font_size = 13
+text = "내가 얻어 본 것은 빛나고, 아직 못 얻은 것은 흐리게 보입니다."
+size_flags_vertical = 4
+layout_mode = 2
+
+[node name="AugmentScroll" type="ScrollContainer" parent="Center/Panel/Box/AugmentPage"]
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+layout_mode = 2
+
+[node name="AugmentGrid" type="GridContainer" parent="Center/Panel/Box/AugmentPage/AugmentScroll"]
+unique_name_in_owner = true
+columns = 4
+size_flags_horizontal = 3
+theme_override_constants/h_separation = 4
+theme_override_constants/v_separation = 10
+layout_mode = 2
+
+[node name="AbilityPage" type="VBoxContainer" parent="Center/Panel/Box"]
+unique_name_in_owner = true
+theme_override_constants/separation = 10
+visible = false
+size_flags_vertical = 3
+layout_mode = 2
+
+[node name="AbilityHead" type="HBoxContainer" parent="Center/Panel/Box/AbilityPage"]
+theme_override_constants/separation = 10
+layout_mode = 2
+
+[node name="AbilityProgress" type="Label" parent="Center/Panel/Box/AbilityPage/AbilityHead"]
+unique_name_in_owner = true
+theme_type_variation = &"BoldLabel"
+theme_override_font_sizes/font_size = 16
+text = ""
+size_flags_horizontal = 3
+size_flags_vertical = 4
+layout_mode = 2
+
+[node name="AbilityHint" type="Label" parent="Center/Panel/Box/AbilityPage/AbilityHead"]
+theme_type_variation = &"DimLabel"
+theme_override_font_sizes/font_size = 13
+text = "내가 얻어 본 것은 빛나고, 아직 못 얻은 것은 흐리게 보입니다."
+size_flags_vertical = 4
+layout_mode = 2
+
+[node name="AbilityScroll" type="ScrollContainer" parent="Center/Panel/Box/AbilityPage"]
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+layout_mode = 2
+
+[node name="AbilityGrid" type="GridContainer" parent="Center/Panel/Box/AbilityPage/AbilityScroll"]
+unique_name_in_owner = true
+columns = 4
+size_flags_horizontal = 3
+theme_override_constants/h_separation = 4
+theme_override_constants/v_separation = 10
+layout_mode = 2

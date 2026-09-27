@@ -141,6 +141,23 @@ popup/item_2/id = 3
 selected = 2
 layout_mode = 2
 
+[node name="SoloLevelOption" type="OptionButton" parent="SidePanel/Box/MenuView/SoloBotsRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(110, 40)
+size_flags_vertical = 4
+focus_mode = 0
+mouse_default_cursor_shape = 2
+theme_override_font_sizes/font_size = 15
+item_count = 3
+popup/item_0/text = "쉬움"
+popup/item_0/id = 0
+popup/item_1/text = "보통"
+popup/item_1/id = 1
+popup/item_2/text = "어려움"
+popup/item_2/id = 2
+selected = 1
+layout_mode = 2
+
 [node name="Gap1" type="Control" parent="SidePanel/Box/MenuView"]
 custom_minimum_size = Vector2(0, 10)
 mouse_filter = 2
@@ -267,7 +284,21 @@ custom_minimum_size = Vector2(0, 6)
 mouse_filter = 2
 layout_mode = 2
 
-[node name="MenuSettingsButton" type="Button" parent="SidePanel/Box/MenuView"]
+[node name="MenuFooter" type="HBoxContainer" parent="SidePanel/Box/MenuView"]
+theme_override_constants/separation = 6
+layout_mode = 2
+
+[node name="GuideMenuButton" type="Button" parent="SidePanel/Box/MenuView/MenuFooter"]
+unique_name_in_owner = true
+focus_mode = 0
+mouse_default_cursor_shape = 2
+theme_type_variation = &"GhostButton"
+theme_override_font_sizes/font_size = 15
+text = "게임 방법 · 도감"
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+
+[node name="MenuSettingsButton" type="Button" parent="SidePanel/Box/MenuView/MenuFooter"]
 unique_name_in_owner = true
 focus_mode = 0
 mouse_default_cursor_shape = 2
@@ -275,7 +306,6 @@ theme_type_variation = &"GhostButton"
 theme_override_font_sizes/font_size = 15
 text = "설정"
 custom_minimum_size = Vector2(0, 40)
-size_flags_horizontal = 0
 layout_mode = 2
 
 [node name="RoomView" type="VBoxContainer" parent="SidePanel/Box"]
@@ -349,6 +379,34 @@ unique_name_in_owner = true
 focus_mode = 0
 mouse_default_cursor_shape = 2
 text = "특수 증강"
+layout_mode = 2
+
+[node name="BotLevelRow" type="HBoxContainer" parent="SidePanel/Box/RoomView/Columns/Players"]
+theme_override_constants/separation = 12
+layout_mode = 2
+
+[node name="Name" type="Label" parent="SidePanel/Box/RoomView/Columns/Players/BotLevelRow"]
+theme_override_font_sizes/font_size = 15
+text = "봇 난이도"
+size_flags_horizontal = 3
+size_flags_vertical = 4
+layout_mode = 2
+
+[node name="BotLevelOption" type="OptionButton" parent="SidePanel/Box/RoomView/Columns/Players/BotLevelRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(110, 40)
+size_flags_vertical = 4
+focus_mode = 0
+mouse_default_cursor_shape = 2
+theme_override_font_sizes/font_size = 15
+item_count = 3
+popup/item_0/text = "쉬움"
+popup/item_0/id = 0
+popup/item_1/text = "보통"
+popup/item_1/id = 1
+popup/item_2/text = "어려움"
+popup/item_2/id = 2
+selected = 1
 layout_mode = 2
 
 [node name="Hint" type="Label" parent="SidePanel/Box/RoomView/Columns/Players"]

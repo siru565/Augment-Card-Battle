@@ -12,6 +12,8 @@ public partial class AbilityCardView : PanelContainer
 {
     private AugmentTier _tier;
     private bool _hovered;
+    private bool _codex;
+    private bool _owned;
 
     public event Action? Picked;
 
@@ -61,17 +63,49 @@ public partial class AbilityCardView : PanelContainer
 
     public override void _GuiInput(InputEvent @event)
     {
-        if (@event is InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: true })
+        if (!_codex && @event is InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: true })
         {
             Picked?.Invoke();
             AcceptEvent();
         }
     }
 
+    /// <summary>
+    /// 도감용 모양으로 바꿉니다. 고를 수 없으니 손가락 커서와 확대를 끄고,
+    /// 얻어 본 카드는 테두리를 밝게, 못 얻은 카드는 흐리게 만듭니다.
+    /// </summary>
+    public void SetCodex(bool owned)
+    {
+        _codex = true;
+        _owned = owned;
+        MouseDefaultCursorShape = CursorShape.Arrow;
+        CustomMinimumSize = new Vector2(214, 292);
+        GetNode<Control>("%Emblem").CustomMinimumSize = new Vector2(0, 70);
+        GetNode<Label>("%Title").AddThemeFontSizeOverride("font_size", 19);
+        var description = GetNode<Label>("%Description");
+        description.CustomMinimumSize = new Vector2(184, 0);
+        description.AddThemeFontSizeOverride("font_size", 13);
+
+        var footer = GetNode<Label>("%Footer");
+        footer.Text = owned ? "✦ 획득" : "미획득";
+        if (owned)
+        {
+            footer.AddThemeColorOverride("font_color", UiTheme.TierColor(_tier).Lightened(0.2f));
+        }
+
+        Modulate = owned ? Colors.White : new Color(0.55f, 0.57f, 0.62f, 0.85f);
+        ApplyStyle();
+    }
+
     private void SetHovered(bool hovered)
     {
         _hovered = hovered;
         ApplyStyle();
+        if (_codex)
+        {
+            return;
+        }
+
         PivotOffset = Size / 2;
         var tween = CreateTween();
         tween.TweenProperty(this, "scale", hovered ? new Vector2(1.03f, 1.03f) : Vector2.One, 0.1);
@@ -82,6 +116,7 @@ public partial class AbilityCardView : PanelContainer
         var tier = UiTheme.TierColor(_tier);
         var bg = _hovered ? Color.FromHtml("#1d212a") : Color.FromHtml("#14171d");
         // 등급 색 장식 테두리입니다. 마우스를 올리면 테두리가 더 밝아집니다.
-        AddThemeStyleboxOverride("panel", UiTheme.Ornate(bg, _hovered ? tier : new Color(tier, 0.6f), 18, 10));
+        bool bright = _hovered || (_codex && _owned);
+        AddThemeStyleboxOverride("panel", UiTheme.Ornate(bg, bright ? tier : new Color(tier, 0.6f), 18, 10));
     }
 }
