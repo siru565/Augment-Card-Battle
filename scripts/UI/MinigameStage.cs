@@ -36,7 +36,45 @@ public partial class MinigameStage : Control
 
     private float _t;
 
+    /// <summary>얼음판은 셰이더로 그려서 원과 선의 가장자리가 계단 없이 매끄럽습니다. (부모 그림 뒤에 깔립니다)</summary>
+    private ColorRect _ice = null!;
+    private ShaderMaterial _iceMaterial = null!;
+
     public MinigameInfo? Game => _game;
+
+    public override void _Ready()
+    {
+        _iceMaterial = new ShaderMaterial { Shader = GD.Load<Shader>("res://assets/shaders/curling_ice.gdshader") };
+        _ice = new ColorRect
+        {
+            Material = _iceMaterial,
+            MouseFilter = MouseFilterEnum.Ignore,
+            ShowBehindParent = true,
+            Visible = false,
+        };
+        AddChild(_ice);
+    }
+
+    /// <summary>얼음판 위치와 하우스 위치를 셰이더에 알려 줍니다.</summary>
+    private void UpdateIce()
+    {
+        bool curling = _game?.Kind == MinigameKind.Curling;
+        _ice.Visible = curling;
+        if (!curling)
+        {
+            return;
+        }
+
+        var sheet = SheetRect;
+        _ice.Position = sheet.Position;
+        _ice.Size = sheet.Size;
+        float s = SheetScale;
+        _iceMaterial.SetShaderParameter("rect_size", sheet.Size);
+        _iceMaterial.SetShaderParameter("house_center", ToScreen(_game!.A, CurlingSim.HouseY) - sheet.Position);
+        _iceMaterial.SetShaderParameter("house_radius", CurlingSim.HouseRadius * s);
+        _iceMaterial.SetShaderParameter("button_radius", CurlingSim.ButtonRadius * s);
+        _iceMaterial.SetShaderParameter("back_line_y", ToScreen(0, CurlingSim.BackLine).Y - sheet.Position.Y);
+    }
 
     /// <summary>결과 연출이 끝났는지 알려 줍니다. (컬링 스톤이 멈췄는지)</summary>
     public bool AnimationDone => _game?.Kind != MinigameKind.Curling || _pathTime < 0 || _pathTime * 30f >= _path.Count;
@@ -54,6 +92,7 @@ public partial class MinigameStage : Control
         _hit = null;
         _startUsec = Time.GetTicksUsec();
         MouseDefaultCursorShape = interactive ? CursorShape.PointingHand : CursorShape.Arrow;
+        UpdateIce();
         QueueRedraw();
     }
 
@@ -90,6 +129,7 @@ public partial class MinigameStage : Control
         }
 
         _t += (float)delta;
+        UpdateIce();
         if (_pathTime >= 0)
         {
             _pathTime += (float)delta;
@@ -218,31 +258,21 @@ public partial class MinigameStage : Control
 
     private Vector2 ToScreen(float x, float y) => SheetOrigin + new Vector2(x * SheetScale, -y * SheetScale);
 
+    /// <summary>얼음판 사각형입니다. 픽셀 경계에 맞춰서 테두리가 흐려지지 않게 합니다.</summary>
+    private Rect2 SheetRect
+    {
+        get
+        {
+            float s = SheetScale;
+            var rect = new Rect2(ToScreen(-0.5f, 1.25f), new Vector2(s, 1.3f * s));
+            return new Rect2(rect.Position.Round(), rect.Size.Round());
+        }
+    }
+
     private void DrawCurling(MinigameInfo game)
     {
-        float s = SheetScale;
-        var sheet = new Rect2(ToScreen(-0.5f, 1.25f), new Vector2(s, 1.3f * s));
-        DrawRect(sheet, Color.FromHtml("#dfe9f2"));
-        DrawRect(sheet, new Color(0.3f, 0.45f, 0.6f, 0.9f), false, 3f);
-
-        // 얼음 결 (흐린 가로줄)
-        for (int i = 1; i < 13; i++)
-        {
-            float y = sheet.Position.Y + sheet.Size.Y * i / 13f;
-            DrawLine(new Vector2(sheet.Position.X, y), new Vector2(sheet.End.X, y), new Color(0.6f, 0.72f, 0.82f, 0.35f), 1f);
-        }
-
-        // 하우스 (파랑 · 흰색 · 빨강 · 금색 버튼)
-        var house = ToScreen(game.A, CurlingSim.HouseY);
-        DrawCircle(house, CurlingSim.HouseRadius * s, Color.FromHtml("#2f7fd6"));
-        DrawCircle(house, CurlingSim.HouseRadius * s * 0.68f, Colors.White);
-        DrawCircle(house, CurlingSim.HouseRadius * s * 0.4f, Color.FromHtml("#e0463c"));
-        DrawCircle(house, CurlingSim.ButtonRadius * s, UiTheme.Gold);
-        DrawArc(house, CurlingSim.ButtonRadius * s, 0, Mathf.Tau, 32, Colors.White, 2f, true);
-
-        // 뒷선과 호그선
-        var back = ToScreen(-0.5f, CurlingSim.BackLine);
-        DrawLine(back, back + new Vector2(s, 0), new Color(0.2f, 0.3f, 0.4f, 0.7f), 2f);
+        // 얼음판·하우스·선은 셰이더(curling_ice.gdshader)가 부드럽게 그립니다. 여기서는 그 위에 올라가는 것만 그립니다.
+        var sheet = SheetRect;
 
         // 얼음이 휘는 방향 표시 (시트 옆에 화살표 + 세기)
         DrawCurlHint(game.B, sheet);
@@ -261,7 +291,7 @@ public partial class MinigameStage : Control
                 {
                     float a = length * i / 10f;
                     float b = length * (i + 0.55f) / 10f;
-                    DrawLine(stoneStart + dir * a, stoneStart + dir * b, new Color(1, 0.85f, 0.3f, 0.95f), 3f);
+                    DrawLine(stoneStart + dir * a, stoneStart + dir * b, new Color(1, 0.85f, 0.3f, 0.95f), 3f, true);
                 }
 
                 DrawPowerBar(sheet, power);
@@ -273,9 +303,16 @@ public partial class MinigameStage : Control
         if (_pathTime >= 0 && _path.Count > 0)
         {
             int index = Math.Min(_path.Count - 1, (int)(_pathTime * 30f));
-            for (int i = 1; i <= index; i++)
+            if (index >= 1)
             {
-                DrawLine(ToScreen(_path[i - 1].X, _path[i - 1].Y), ToScreen(_path[i].X, _path[i].Y), new Color(0.25f, 0.35f, 0.5f, 0.35f), 3f);
+                // 스톤이 지나간 자국: 한 줄(폴리라인)로 이어서 부드럽게 그립니다.
+                var trail = new Vector2[index + 1];
+                for (int i = 0; i <= index; i++)
+                {
+                    trail[i] = ToScreen(_path[i].X, _path[i].Y);
+                }
+
+                DrawPolyline(trail, new Color(0.25f, 0.35f, 0.5f, 0.3f), 4f, true);
             }
 
             stone = ToScreen(_path[index].X, _path[index].Y);
@@ -293,12 +330,30 @@ public partial class MinigameStage : Control
     /// <summary>카드 모양 스톤입니다. (별 무늬 카드 뒷면)</summary>
     private void DrawStone(Vector2 at)
     {
-        var size = new Vector2(16, 22);
+        var size = new Vector2(18, 24);
         var rect = new Rect2(at - size / 2, size);
-        DrawRect(new Rect2(rect.Position + new Vector2(2, 3), size), new Color(0, 0, 0, 0.3f));
-        DrawRect(rect, Color.FromHtml("#1d2340"));
-        DrawRect(rect, UiTheme.Gold, false, 2f);
-        SuitIcons.DrawStar(this, at, 6f, UiTheme.Gold);
+        _stoneBox ??= MakeStoneBox();
+        DrawStyleBox(_stoneBox, rect);
+        SuitIcons.DrawStar(this, at, 6.5f, UiTheme.Gold);
+    }
+
+    private StyleBoxFlat? _stoneBox;
+
+    /// <summary>둥근 모서리 + 금테 + 그림자 카드입니다. (StyleBox는 모서리를 안티앨리어싱해서 그립니다)</summary>
+    private static StyleBoxFlat MakeStoneBox()
+    {
+        var box = new StyleBoxFlat
+        {
+            BgColor = Color.FromHtml("#1d2340"),
+            BorderColor = UiTheme.Gold,
+            ShadowColor = new Color(0, 0, 0, 0.35f),
+            ShadowSize = 4,
+            ShadowOffset = new Vector2(1, 2),
+            AntiAliasing = true,
+        };
+        box.SetBorderWidthAll(2);
+        box.SetCornerRadiusAll(3);
+        return box;
     }
 
     private void DrawCurlHint(float curl, Rect2 sheet)
@@ -310,9 +365,8 @@ public partial class MinigameStage : Control
         DrawString(font, at, Loc.Tr("얼음 휨"), HorizontalAlignment.Left, 60, 13, UiTheme.TextDim);
         var arrowFrom = at + new Vector2(right ? 4 : 44, 22);
         var arrowTo = arrowFrom + new Vector2(right ? 40 : -40, 0);
-        DrawLine(arrowFrom, arrowTo, UiTheme.Gold, 3f);
-        DrawLine(arrowTo, arrowTo + new Vector2(right ? -9 : 9, -7), UiTheme.Gold, 3f);
-        DrawLine(arrowTo, arrowTo + new Vector2(right ? -9 : 9, 7), UiTheme.Gold, 3f);
+        DrawLine(arrowFrom, arrowTo, UiTheme.Gold, 3f, true);
+        DrawPolyline(new[] { arrowTo + new Vector2(right ? -9 : 9, -7), arrowTo, arrowTo + new Vector2(right ? -9 : 9, 7) }, UiTheme.Gold, 3f, true);
 
         // 세기 막대 (5칸)
         int bars = Math.Clamp((int)Mathf.Round(strength / 0.35f * 5f), 1, 5);
@@ -353,15 +407,15 @@ public partial class MinigameStage : Control
         float position = MarksmanRules.Position(game.A, game.B, time);
         float x = bar.Position.X + bar.Size.X * position;
         var needleColor = _hit == true ? Color.FromHtml("#7dff9a") : _hit == false ? Color.FromHtml("#ff5c5c") : Colors.White;
-        DrawLine(new Vector2(x, bar.Position.Y - 14), new Vector2(x, bar.End.Y + 14), needleColor, 4f);
-        DrawCircle(new Vector2(x, bar.Position.Y - 16), 6f, needleColor);
+        DrawLine(new Vector2(x, bar.Position.Y - 14), new Vector2(x, bar.End.Y + 14), needleColor, 4f, true);
+        DrawCircle(new Vector2(x, bar.Position.Y - 16), 6f, needleColor, true, -1f, true);
 
         // 단계 표시: 연속 성공 수만큼 금색 점
         for (int i = 0; i < MarksmanRules.Target; i++)
         {
             var dot = new Vector2(Size.X / 2 + (i - (MarksmanRules.Target - 1) / 2f) * 30f, bar.End.Y + 50);
             bool done = i < game.Level || (i == game.Level && _hit == true);
-            DrawCircle(dot, 9f, done ? UiTheme.Gold : new Color(1, 1, 1, 0.15f));
+            DrawCircle(dot, 9f, done ? UiTheme.Gold : new Color(1, 1, 1, 0.15f), true, -1f, true);
             DrawArc(dot, 9f, 0, Mathf.Tau, 24, new Color(1, 1, 1, 0.4f), 1.5f, true);
         }
 
