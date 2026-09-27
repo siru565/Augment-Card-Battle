@@ -144,6 +144,45 @@ public partial class DevlogShots : Node
         await Capture("10_gamble.png");
         _game.Session.Submit(PlayerAction.ChooseDraw(0));
 
+        // 7-2. 승리 조건 미니게임들 (잭팟 · 컬링 · 정밀 사수 · 예언자) — 내 차례에 강제로 띄웁니다.
+        _game.BotDelay = 0.35f;
+        await WaitMyTurn(minTurn: 0);
+        _game.BotDelay = 999f;
+        int opponent = Enumerable.Range(0, View.PlayerCount).First(i => i != View.PlayerId && View.IsActive(i));
+        Host.DebugGiveAugmentTo(opponent, SpecialAugmentId.Jackpot);
+        Host.DebugGiveAugmentTo(View.PlayerId, SpecialAugmentId.Curling);
+        await Wait(0.3);
+        Host.DebugSpinJackpot(opponent);
+        await Wait(1.3);
+        await Capture("18_jackpot.png");
+        await Wait(1.2);
+
+        Host.DebugOpenMinigame(MinigameKind.Curling);
+        await Wait(0.6);
+        await Capture("19_curling.png");
+        var curling = View.Minigame!;
+        var (aim, power) = CurlingSim.BestThrow(curling.A, curling.B);
+        _game.Session.Submit(PlayerAction.Minigame(aim + 0.05f, power + 0.02f));
+        await Wait(1.2);
+        await Capture("20_curling_throw.png");
+        await Wait(3.2);
+
+        Host.DebugOpenMinigame(MinigameKind.Marksman);
+        await Wait(0.8);
+        await Capture("21_marksman.png");
+        var marks = View.Minigame!;
+        float stop = Enumerable.Range(0, 6000).Select(i => 0.9f + i * 0.001f).First(t => MarksmanRules.IsHit(marks, t));
+        _game.Session.Submit(PlayerAction.Minigame(stop));
+        await Wait(0.3);
+        await Capture("22_marksman_hit.png");
+        await Wait(1.6);
+
+        Host.DebugOpenMinigame(MinigameKind.Oracle);
+        await Wait(0.5);
+        await Capture("23_oracle.png");
+        _game.Session.Submit(PlayerAction.Minigame(0, 0, CardColor.Blue));
+        await Wait(0.5);
+
         // 8. 끝까지 자동으로 둬서 최종 순위표
         _game.BotDelay = 0.03f;
         _game.DebugAutoPlay = true;

@@ -143,6 +143,7 @@ public partial class GameController : Control
     private Button _startButton = null!;
     private OptionButton _botLevelOption = null!;
     private GuideView _guide = null!;
+    private MinigameOverlay _minigame = null!;
     private Control _lobbyMenu = null!;
     private Control _lobbyRoom = null!;
     private LineEdit _codeEdit = null!;
@@ -946,6 +947,7 @@ public partial class GameController : Control
         RefreshAbilityOverlay(view);
         RefreshAugmentOverlay(view);
         RefreshGambleOverlay(view);
+        RefreshMinigame(view, finished);
 
         if (finished)
         {
@@ -1057,6 +1059,12 @@ public partial class GameController : Control
         if (view.DebtPlayer == seat)
         {
             return view.DebtRemaining < 0 ? $"{Card.ColorName(view.DebtSuit)} 찾는 중 ({view.DebtDrawn}장)" : $"뽑는 중 {view.DebtDrawn}/{view.DebtDrawn + view.DebtRemaining}";
+        }
+
+        string goals = GoalsText(view, seat);
+        if (goals.Length > 0)
+        {
+            return goals;
         }
 
         if (view.JobProgress[seat] >= 0)
@@ -1193,6 +1201,12 @@ public partial class GameController : Control
         if (mine.Any(a => a.Name == SpecialAugments.NameOf(SpecialAugmentId.SuitLord)) && view.LordSuit != CardColor.Wild)
         {
             parts.Add($"내 문양: {Card.ColorName(view.LordSuit)}");
+        }
+
+        string goals = GoalsText(view, view.PlayerId);
+        if (goals.Length > 0)
+        {
+            parts.Add(goals);
         }
 
         if (view.AugmentCountdown > 0)
@@ -1538,6 +1552,37 @@ public partial class GameController : Control
         _ => new[] { 1, 2, 3 },
     };
 
+    /// <summary>잭팟 슬롯머신을 테이블 위쪽 가운데에 띄웁니다. (누구의 슬롯이든 모두에게 보입니다)</summary>
+    private void ShowSlot(GameEvent e, string who)
+    {
+        var reels = e.Text.Split(',').Select(t => int.TryParse(t, out int v) ? v : 0).ToArray();
+        if (reels.Length != 3)
+        {
+            return;
+        }
+
+        var slot = new SlotMachineView();
+        _fx.AddChild(slot);
+        var table = _table.GetGlobalRect();
+        slot.Position = new Vector2(table.GetCenter().X - slot.Size.X / 2, table.Position.Y + 6) - _fx.GetGlobalRect().Position;
+        slot.Landed += outcome =>
+        {
+            var at = slot.GetGlobalRect().GetCenter();
+            if (outcome == 2)
+            {
+                _fx.Rays(at, UiTheme.Gold);
+                _fx.Burst(at, UiTheme.Gold, 60, 480, 6f, 200f);
+                Audio.Sfx.Play("win", 0f);
+            }
+            else if (outcome == 1)
+            {
+                _fx.Ring(at, Color.FromHtml("#9fe3ff"), 160, 0.5f);
+                Audio.Sfx.Play("augment_gain", -4f);
+            }
+        };
+        slot.Play($"{who}의 잭팟", reels, e.Amount);
+    }
+
     /// <summary>플레이어 자리의 화면 위치입니다. 내 자리는 손패 가운데입니다.</summary>
     private Vector2 SeatAnchor(int playerId)
     {
@@ -1564,6 +1609,41 @@ public partial class GameController : Control
     /// <summary>
     /// 엔진에서 온 사건을 화면 연출로 바꿉니다. 규칙에는 영향을 주지 않습니다.
     /// </summary>
+    /// <summary>
+    /// 승리 조건 미니게임 창을 엽니다. 내 것이면 조작하고, 남의 것이면 구경합니다.
+    /// 결과 연출 중에는 게임 상태가 바뀌어도 닫지 않습니다.
+    /// </summary>
+    private void RefreshMinigame(PlayerView view, bool finished)
+    {
+        var game = view.Minigame;
+        if (game != null && !finished && game.Id != _minigame.ShownId)
+        {
+            bool mine = game.Player == view.PlayerId;
+            _minigame.Open(game, mine, _session!.NameOf(game.Player));
+            if (mine)
+            {
+                Audio.Sfx.Play("my_turn", -2f, 1.2f, 0f);
+            }
+        }
+        else if ((game == null || finished) && _minigame.Visible && !_minigame.Busy)
+        {
+            _minigame.Close();
+        }
+    }
+
+    /// <summary>승리 조건 진행도 한 줄입니다. (자리 칸과 내 정보 줄에 씁니다)</summary>
+    private static string GoalText(WinGoal goal) => goal.Augment switch
+    {
+        "컬링" => goal.Value >= goal.Target ? "컬링 투구 준비!" : $"컬링 게이지 {goal.Value}/{goal.Target}",
+        "잭팟" => goal.Detail.Length > 0 ? $"잭팟 {goal.Detail}" : "잭팟 대기",
+        "도미노" => goal.Detail.Length > 0 ? $"도미노 {goal.Value}/{goal.Target} · {goal.Detail}" : $"도미노 {goal.Value}/{goal.Target}",
+        "예언자" => goal.Detail.Length > 0 ? $"예언 {goal.Value}/{goal.Target} · {goal.Detail}" : $"예언 {goal.Value}/{goal.Target}",
+        _ => $"{goal.Augment} {goal.Value}/{goal.Target}",
+    };
+
+    private static string GoalsText(PlayerView view, int seat) =>
+        seat < view.WinGoals.Length ? string.Join("  ·  ", view.WinGoals[seat].Select(GoalText)) : "";
+
     /// <summary>도감: 내가 얻은 특수 증강과 내가 발동한 각성 능력을 기록합니다.</summary>
     private static void RecordCollection(GameEvent e)
     {
@@ -1719,6 +1799,31 @@ public partial class GameController : Control
                 _fx.Ring(SeatAnchor(e.Player), color, 220, 0.7f);
                 break;
             }
+
+            case GameEventType.CurlingThrown:
+            case GameEventType.MarksmanStopped:
+                _minigame.ShowResult(e);
+                Audio.Sfx.Play(e.Amount > 0 ? "augment_gain" : "skip", me ? 0f : -5f);
+                break;
+
+            case GameEventType.JackpotSpun:
+                ShowSlot(e, who);
+                break;
+
+            case GameEventType.OracleChecked:
+                _fx.FloatText(SeatAnchor(e.Player), e.Amount == 1 ? $"예언 적중 {e.Target}/{StreakRules.OracleTarget}" : "예언 빗나감",
+                    e.Amount == 1 ? UiTheme.Gold : UiTheme.TextDim, me ? 40 : 30, 0.7f);
+                if (e.Amount == 1)
+                {
+                    Audio.Sfx.Play("augment_gain", me ? 0f : -5f);
+                }
+
+                break;
+
+            case GameEventType.DominoStep:
+                _fx.FloatText(SeatAnchor(e.Player), e.Amount > 0 ? $"도미노 {e.Amount}/{StreakRules.DominoTarget}" : "도미노 끊김",
+                    e.Amount > 0 ? Color.FromHtml("#9fe3ff") : UiTheme.TextDim, me ? 36 : 28, 0.5f);
+                break;
 
             case GameEventType.HandsShuffled:
                 ShowToast(e.Text, UiTheme.Prism);
@@ -1913,8 +2018,19 @@ public partial class GameController : Control
         string myName = Loc.Tr(_session?.NameOf(_session.MySeat) ?? "");
 
         // 엔진 로그의 ★·✦ 표시는 색으로만 강조하고 기호는 지웁니다.
-        bool highlight = message.Contains('★');
-        escaped = escaped.Replace("★", "").Replace("✦", "").Trim();
+        // 줄 앞의 ★ · ✦ 표시와 순위 줄의 "★★ 이름 ★★"만 지웁니다. (잭팟 릴의 ★처럼 내용 속 ★는 남깁니다)
+        bool highlight = trimmed.StartsWith('★');
+        escaped = escaped.TrimStart('★', '✦', ' ');
+        if (trimmed.StartsWith("★★"))
+        {
+            int close = escaped.IndexOf(" ★★", StringComparison.Ordinal);
+            if (close >= 0)
+            {
+                escaped = escaped.Remove(close, 3);
+            }
+        }
+
+        escaped = escaped.Trim();
         if (highlight)
         {
             escaped = $"[color=#f0b849]{escaped}[/color]";
@@ -2065,6 +2181,8 @@ public partial class GameController : Control
         _toastAnim = GetNode<AnimationPlayer>("%ToastAnim");
 
         _guide = GetNode<GuideView>("%Guide");
+        _minigame = GetNode<MinigameOverlay>("%Minigame");
+        _minigame.Submitted += action => _session?.Submit(action);
         BindLobby();
         BindSettings();
 

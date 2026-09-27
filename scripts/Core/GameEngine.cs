@@ -13,6 +13,7 @@ public enum ActionType
     ChooseAugment,
     ForcedDraw,
     ChooseDraw,
+    Minigame,
 }
 
 /// <summary>
@@ -22,8 +23,16 @@ public readonly record struct PlayerAction(
     ActionType Type,
     int CardId = -1,
     CardColor ChosenColor = CardColor.Wild,
-    int Target = -1)
+    int Target = -1,
+    float X = 0,
+    float Y = 0)
 {
+    /// <summary>
+    /// 미니게임 조작입니다. 컬링: x = 조준(-1~1), y = 힘(0~1) / 정밀 사수: x = 멈춘 시각(초) / 예언자: 문양
+    /// </summary>
+    public static PlayerAction Minigame(float x, float y = 0, CardColor suit = CardColor.Wild) =>
+        new(ActionType.Minigame, -1, suit, -1, x, y);
+
     public static PlayerAction Play(int cardId, CardColor chosenColor = CardColor.Wild, int target = -1) =>
         new(ActionType.Play, cardId, chosenColor, target);
 
@@ -203,6 +212,12 @@ public sealed class GameEngine
                 ? TryChooseAugment(playerId, action.CardId)
                 : ActionResult.Fail("먼저 특수 증강을 하나 골라야 합니다.");
         }
+        else if (State.PendingMinigame != null)
+        {
+            result = action.Type == ActionType.Minigame
+                ? TryMinigame(playerId, action)
+                : ActionResult.Fail("먼저 미니게임을 해야 합니다.");
+        }
         else if (State.ChoosingAbility)
         {
             result = action.Type == ActionType.ChooseAbility
@@ -271,6 +286,7 @@ public sealed class GameEngine
         string targetNote = needsTarget ? $" (대상: {NameOf(action.Target)})" : "";
         Emit($"  {NameOf(playerId)}: [{card}]{colorNote}{targetNote} (남은 {player.Hand.Count}장)");
         Raise(new GameEvent(GameEventType.CardPlayed, playerId, action.Target, card));
+        TrackAltWinPlay(player, card);
 
         // 손패를 다 내면 순위가 정해집니다. 게임은 남은 사람끼리 계속되고, 마지막 카드의 효과도 발동합니다.
         bool wentOut = CheckWin(playerId);
@@ -815,6 +831,261 @@ public sealed class GameEngine
 
     // ───────────── 특수 증강 ─────────────
 
+    // ───────────── 승리 조건 미니게임 (컬링 · 잭팟 · 도미노 · 예언자 · 정밀 사수) ─────────────
+
+    private static string F(float value) => value.ToString("0.#####", System.Globalization.CultureInfo.InvariantCulture);
+
+    /// <summary>카드를 낼 때마다 컬링 게이지와 도미노 연속을 갱신합니다.</summary>
+    private void TrackAltWinPlay(PlayerState player, Card card)
+    {
+        if (player.Has(SpecialAugmentId.Curling) && player.CurlingCharge < StreakRules.CurlingCharge)
+        {
+            player.CurlingCharge++;
+            if (player.CurlingCharge == StreakRules.CurlingCharge)
+            {
+                Emit($"    → [컬링] 게이지가 찼습니다. 다음 차례에 스톤을 던집니다.");
+            }
+        }
+
+        if (!player.Has(SpecialAugmentId.Domino))
+        {
+            return;
+        }
+
+        int before = player.DominoChain;
+        if (card.Kind == CardKind.Number)
+        {
+            player.DominoChain = player.DominoLast >= 0 && Math.Abs(card.Number - player.DominoLast) == 1 ? player.DominoChain + 1 : 1;
+            player.DominoLast = card.Number;
+        }
+        else
+        {
+            player.DominoChain = 0;
+            player.DominoLast = -1;
+        }
+
+        if (player.DominoChain >= 2)
+        {
+            Emit($"    → [도미노] {player.DominoChain}/{StreakRules.DominoTarget} 연속!");
+            Raise(new GameEvent(GameEventType.DominoStep, player.Id, Amount: player.DominoChain));
+        }
+        else if (before >= 2)
+        {
+            Emit($"    → [도미노] 연속이 끊겼습니다.");
+            Raise(new GameEvent(GameEventType.DominoStep, player.Id, Amount: 0));
+        }
+    }
+
+    /// <summary>
+    /// 차례가 시작될 때 승리 조건 미니게임을 준비합니다.
+    /// 잭팟과 예언 확인은 바로 결과가 나오고, 컬링·정밀 사수·새 예언은 차례인 사람이 직접 해야 합니다.
+    /// </summary>
+    private void StartTurnMinigames(PlayerState player)
+    {
+        State.PendingMinigame = null;
+        if (!player.Active || State.IsFinished)
+        {
+            return;
+        }
+
+        if (player.Has(SpecialAugmentId.Jackpot) && SpinJackpot(player))
+        {
+            return;
+        }
+
+        if (player.Has(SpecialAugmentId.Oracle))
+        {
+            if (player.OracleGuess != CardColor.Wild)
+            {
+                bool hit = State.CurrentColor == player.OracleGuess;
+                player.OracleStreak = hit ? player.OracleStreak + 1 : 0;
+                Emit(hit
+                    ? $"  ★ {NameOf(player.Id)}: [예언자] {Card.ColorName(player.OracleGuess)} 적중! ({player.OracleStreak}/{StreakRules.OracleTarget})"
+                    : $"  {NameOf(player.Id)}: [예언자] {Card.ColorName(player.OracleGuess)} 예언이 빗나갔습니다.");
+                Raise(new GameEvent(GameEventType.OracleChecked, player.Id, player.OracleStreak, Amount: hit ? 1 : 0,
+                    Text: Card.ColorName(player.OracleGuess)));
+                player.OracleGuess = CardColor.Wild;
+                if (player.OracleStreak >= StreakRules.OracleTarget)
+                {
+                    WinAtTurnStart(player, $"예언자 — {StreakRules.OracleTarget}번 연속으로 예언을 맞혔습니다");
+                    return;
+                }
+            }
+
+            OpenMinigame(MinigameKind.Oracle, player.Id, 0, 0, 0, player.OracleStreak);
+            return;
+        }
+
+        if (player.Has(SpecialAugmentId.Marksman))
+        {
+            int level = Math.Min(player.MarksmanStreak, MarksmanRules.Target - 1);
+            OpenMinigame(MinigameKind.Marksman, player.Id, MarksmanRules.Speed(level), (float)Rng.NextDouble(),
+                0.15f + 0.7f * (float)Rng.NextDouble(), level);
+            return;
+        }
+
+        if (player.Has(SpecialAugmentId.Curling) && player.CurlingCharge >= StreakRules.CurlingCharge)
+        {
+            // 하우스 위치와 얼음이 휘는 방향·세기는 던질 때마다 다릅니다.
+            float targetX = -0.25f + 0.5f * (float)Rng.NextDouble();
+            float curl = (Rng.Next(2) == 0 ? -1 : 1) * (0.1f + 0.25f * (float)Rng.NextDouble());
+            OpenMinigame(MinigameKind.Curling, player.Id, targetX, curl, 0, 0);
+        }
+    }
+
+    /// <summary>개발용: 미니게임을 바로 엽니다. (스크린샷 확인용)</summary>
+    public void DebugOpenMinigame(MinigameKind kind, int player)
+    {
+        var p = State.Players[player];
+        switch (kind)
+        {
+            case MinigameKind.Curling:
+                OpenMinigame(kind, player, 0.12f, -0.22f, 0, 0);
+                break;
+            case MinigameKind.Marksman:
+                OpenMinigame(kind, player, MarksmanRules.Speed(p.MarksmanStreak), 0.1f, 0.62f, Math.Min(p.MarksmanStreak, MarksmanRules.Target - 1));
+                break;
+            default:
+                OpenMinigame(kind, player, 0, 0, 0, p.OracleStreak);
+                break;
+        }
+    }
+
+    /// <summary>개발용: 잭팟 슬롯을 바로 돌립니다.</summary>
+    public void DebugSpinJackpot(int player) => SpinJackpot(State.Players[player]);
+
+    private void OpenMinigame(MinigameKind kind, int player, float a, float b, float c, int level)
+    {
+        State.MinigameCounter++;
+        State.PendingMinigame = new MinigameInfo(State.MinigameCounter, kind, player, a, b, c, level);
+    }
+
+    /// <summary>잭팟 슬롯을 돌립니다. 이겨서 차례가 넘어갔으면 true입니다.</summary>
+    private bool SpinJackpot(PlayerState player)
+    {
+        var reels = new[] { JackpotRules.Spin(Rng), JackpotRules.Spin(Rng), JackpotRules.Spin(Rng) };
+        bool jackpot = reels.All(r => r == JackpotRules.Star);
+        bool triple = !jackpot && reels.All(r => r == reels[0]);
+        player.LastJackpot = string.Join(" ", reels.Select(JackpotRules.SymbolName));
+        Emit($"  {NameOf(player.Id)}: [잭팟] {string.Join(" · ", reels.Select(JackpotRules.SymbolName))}");
+        Raise(new GameEvent(GameEventType.JackpotSpun, player.Id, Amount: jackpot ? 2 : triple ? 1 : 0,
+            Text: string.Join(",", reels)));
+
+        if (jackpot)
+        {
+            WinAtTurnStart(player, "잭팟 — ★★★이 나왔습니다");
+            return true;
+        }
+
+        if (triple)
+        {
+            var suit = (CardColor)reels[0];
+            var junk = player.Hand.Where(c => c.Color == suit).ToList();
+            if (junk.Count > 0 && player.Hand.Count > 1)
+            {
+                var card = junk[Rng.Next(junk.Count)];
+                player.Hand.Remove(card);
+                State.DiscardPile.Insert(0, card);
+                Emit($"    → [잭팟] 같은 문양 3개! [{card}]를 버립니다.");
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>차례가 시작되는 순간 승리 조건을 채웠습니다. 순위를 정하고 다음 사람에게 넘깁니다.</summary>
+    private void WinAtTurnStart(PlayerState player, string reason)
+    {
+        Place(player.Id, reason, eliminated: false);
+        if (!State.IsFinished)
+        {
+            EndTurn(1);
+        }
+    }
+
+    private ActionResult TryMinigame(int playerId, PlayerAction action)
+    {
+        var game = State.PendingMinigame!;
+        if (game.Player != playerId)
+        {
+            return ActionResult.Fail("내 미니게임이 아닙니다.");
+        }
+
+        var player = State.Players[playerId];
+        switch (game.Kind)
+        {
+            case MinigameKind.Oracle:
+            {
+                if (action.ChosenColor is CardColor.Wild || (int)action.ChosenColor > 3)
+                {
+                    return ActionResult.Fail("예언할 문양을 골라야 합니다.");
+                }
+
+                State.PendingMinigame = null;
+                player.OracleGuess = action.ChosenColor;
+                Emit($"  {NameOf(playerId)}: [예언자] 다음 내 차례의 문양은… {Card.ColorName(action.ChosenColor)}!");
+                return ActionResult.Success();
+            }
+
+            case MinigameKind.Marksman:
+            {
+                State.PendingMinigame = null;
+                bool hit = MarksmanRules.IsHit(game, action.X);
+                player.MarksmanStreak = hit ? player.MarksmanStreak + 1 : 0;
+                Emit(hit
+                    ? $"  ★ {NameOf(playerId)}: [정밀 사수] 명중! ({player.MarksmanStreak}/{MarksmanRules.Target})"
+                    : $"  {NameOf(playerId)}: [정밀 사수] 빗나갔습니다.");
+                Raise(new GameEvent(GameEventType.MarksmanStopped, playerId, player.MarksmanStreak, Amount: hit ? 1 : 0,
+                    Text: F(action.X)));
+                if (player.MarksmanStreak >= MarksmanRules.Target)
+                {
+                    Place(playerId, $"정밀 사수 — {MarksmanRules.Target}번 연속으로 명중했습니다", eliminated: false);
+                    AfterRemoval(playerId);
+                }
+                else if (hit && player.Hand.Count > 1)
+                {
+                    // 명중할 때마다 손패 1장을 버립니다. (연속 명중이 끊겨도 헛수고가 되지 않게)
+                    var junk = player.Hand[Rng.Next(player.Hand.Count)];
+                    player.Hand.Remove(junk);
+                    State.DiscardPile.Insert(0, junk);
+                    Emit($"    → [정밀 사수] 명중 보상으로 [{junk}]를 버립니다.");
+                }
+
+                return ActionResult.Success();
+            }
+
+            default:
+            {
+                State.PendingMinigame = null;
+                player.CurlingCharge = 0;
+                var result = CurlingSim.Simulate(game.A, game.B, action.X, action.Y);
+                Raise(new GameEvent(GameEventType.CurlingThrown, playerId, Amount: (int)result.Outcome,
+                    Text: $"{F(action.X)};{F(action.Y)};{F(game.A)};{F(game.B)}"));
+                switch (result.Outcome)
+                {
+                    case CurlingSim.Outcome.Button:
+                        Emit($"  ★ {NameOf(playerId)}: [컬링] 버튼에 정확히 멈췄습니다!");
+                        Place(playerId, "컬링 — 스톤을 버튼에 세웠습니다", eliminated: false);
+                        AfterRemoval(playerId);
+                        break;
+
+                    case CurlingSim.Outcome.House when player.Hand.Count > 1:
+                        var junk = player.Hand[Rng.Next(player.Hand.Count)];
+                        player.Hand.Remove(junk);
+                        State.DiscardPile.Insert(0, junk);
+                        Emit($"  {NameOf(playerId)}: [컬링] 하우스 안! [{junk}]를 버립니다.");
+                        break;
+
+                    default:
+                        Emit($"  {NameOf(playerId)}: [컬링] 하우스를 벗어났습니다.");
+                        break;
+                }
+
+                return ActionResult.Success();
+            }
+        }
+    }
+
     /// <summary>
     /// 차례가 시작될 때, 특수 증강을 고를 차례인지 확인하고 선택지를 띄웁니다.
     /// </summary>
@@ -1131,6 +1402,10 @@ public sealed class GameEngine
             {
                 reason = "수집가 — 같은 숫자를 네 문양 모두 모았습니다";
             }
+            else if (player.Has(SpecialAugmentId.Domino) && player.DominoChain >= StreakRules.DominoTarget)
+            {
+                reason = $"도미노 — 숫자를 {StreakRules.DominoTarget}번 연속으로 이었습니다";
+            }
 
             if (reason != null)
             {
@@ -1243,6 +1518,7 @@ public sealed class GameEngine
         State.FrenzyActive = false;
         State.PendingAbilities.Clear();
         State.PendingAugments.Clear();
+        State.PendingMinigame = null;
         State.GambleCards.Clear();
         Emit($"게임 종료 · 최종 순위: {string.Join(", ", State.Players.OrderBy(p => p.Rank).Select(p => $"{p.Rank}등 {NameOf(p.Id)}"))}");
     }
@@ -1269,6 +1545,7 @@ public sealed class GameEngine
         {
             State.PendingAbilities.Clear();
             State.PendingAugments.Clear();
+            State.PendingMinigame = null;
             State.GambleCards.Clear();
             EndTurn(1);
         }
@@ -1346,6 +1623,7 @@ public sealed class GameEngine
         }
 
         OfferAugmentIfDue(next.Id);
+        StartTurnMinigames(next);
     }
 
     /// <summary>한 장을 뽑아서 손에 넣습니다. 덱이 비면 null입니다.</summary>

@@ -47,6 +47,25 @@ public sealed class PlayerState
     /// <summary>저격수에게 찍혀서 다음 차례를 건너뛰는지 표시합니다.</summary>
     public bool SkipNext { get; set; }
 
+    /// <summary>컬링: 지금까지 모은 게이지(낸 카드 수)입니다.</summary>
+    public int CurlingCharge { get; set; }
+
+    /// <summary>도미노: 마지막으로 낸 숫자(-1이면 없음)와 지금 연속 수입니다.</summary>
+    public int DominoLast { get; set; } = -1;
+
+    public int DominoChain { get; set; }
+
+    /// <summary>예언자: 예언한 문양(Wild면 아직 없음)과 연속 적중 수입니다.</summary>
+    public CardColor OracleGuess { get; set; } = CardColor.Wild;
+
+    public int OracleStreak { get; set; }
+
+    /// <summary>정밀 사수: 연속 성공 수입니다.</summary>
+    public int MarksmanStreak { get; set; }
+
+    /// <summary>잭팟: 마지막으로 나온 릴입니다. (화면 표시용)</summary>
+    public string LastJackpot { get; set; } = "";
+
     public PlayerState(int id) => Id = id;
 
     public bool Has(SpecialAugmentId id) => Augments.Contains(id);
@@ -129,6 +148,12 @@ public sealed class GameState
     /// <summary>직업 카드 배정에 섞는 판별 값입니다.</summary>
     public int JobSalt { get; set; }
 
+    /// <summary>지금 차례인 사람이 해야 하는 미니게임입니다. (컬링, 정밀 사수, 예언자)</summary>
+    public MinigameInfo? PendingMinigame { get; set; }
+
+    /// <summary>미니게임마다 붙이는 번호입니다. 화면이 새 미니게임인지 알아보는 데 씁니다.</summary>
+    public int MinigameCounter { get; set; }
+
     public bool ChoosingAbility => PendingAbilities.Count > 0;
 
     public bool ChoosingAugment => PendingAugments.Count > 0;
@@ -200,7 +225,7 @@ public sealed class GameState
     public PlayerView ViewFor(int playerId)
     {
         bool myTurn = CurrentPlayer == playerId && !IsFinished && Players[playerId].Active;
-        bool blocked = ChoosingAbility || ChoosingAugment || PayingDebt || Drafting || GambleCards.Count > 0;
+        bool blocked = ChoosingAbility || ChoosingAugment || PayingDebt || Drafting || GambleCards.Count > 0 || PendingMinigame != null;
         var me = Players[playerId];
         var hand = me.Hand.ToList();
 
@@ -277,7 +302,48 @@ public sealed class GameState
             AugmentCountdown: Options.SpecialAugments && me.Augments.Count < SpecialAugments.MaxPerPlayer
                 ? SpecialAugments.TurnsUntilOffer(me.TurnsStarted)
                 : -1,
-            Winner: Winner);
+            Winner: Winner)
+        {
+            // 특수 증강 고르기나 억지 뽑기가 먼저 끝나야 미니게임을 합니다. (엔진도 같은 순서로 받습니다)
+            Minigame = ChoosingAugment || PayingDebt || Drafting || GambleCards.Count > 0 ? null : PendingMinigame,
+            WinGoals = Players.Select(WinGoalsOf).ToArray(),
+        };
+    }
+
+    /// <summary>
+    /// 승리 조건 증강의 진행도입니다. 모두에게 공개됩니다. (다른 사람이 얼마나 가까운지 보고 견제할 수 있게)
+    /// </summary>
+    public static IReadOnlyList<WinGoal> WinGoalsOf(PlayerState p)
+    {
+        var goals = new List<WinGoal>();
+        if (p.Has(SpecialAugmentId.Curling))
+        {
+            goals.Add(new WinGoal("컬링", Math.Min(p.CurlingCharge, StreakRules.CurlingCharge), StreakRules.CurlingCharge));
+        }
+
+        if (p.Has(SpecialAugmentId.Jackpot))
+        {
+            goals.Add(new WinGoal("잭팟", 0, 0, p.LastJackpot));
+        }
+
+        if (p.Has(SpecialAugmentId.Domino))
+        {
+            goals.Add(new WinGoal("도미노", p.DominoChain, StreakRules.DominoTarget,
+                p.DominoLast < 0 ? "" : p.DominoLast == 0 ? "다음 1" : p.DominoLast == 9 ? "다음 8" : $"다음 {p.DominoLast - 1} 또는 {p.DominoLast + 1}"));
+        }
+
+        if (p.Has(SpecialAugmentId.Oracle))
+        {
+            goals.Add(new WinGoal("예언자", p.OracleStreak, StreakRules.OracleTarget,
+                p.OracleGuess == CardColor.Wild ? "" : Card.ColorName(p.OracleGuess)));
+        }
+
+        if (p.Has(SpecialAugmentId.Marksman))
+        {
+            goals.Add(new WinGoal("정밀 사수", p.MarksmanStreak, MarksmanRules.Target));
+        }
+
+        return goals;
     }
 }
 
@@ -336,6 +402,15 @@ public sealed record PlayerView(
     int AugmentCountdown,
     int? Winner)
 {
+    /// <summary>지금 진행 중인 미니게임입니다. 모두에게 보입니다.</summary>
+    public MinigameInfo? Minigame { get; init; }
+
+    /// <summary>자리마다 승리 조건 증강의 진행도입니다. 모두에게 보입니다.</summary>
+    public IReadOnlyList<WinGoal>[] WinGoals { get; init; } = Array.Empty<IReadOnlyList<WinGoal>>();
+
+    /// <summary>내가 지금 해야 하는 미니게임입니다.</summary>
+    public MinigameInfo? MyMinigame => Minigame != null && Minigame.Player == PlayerId && !GameOver ? Minigame : null;
+
     public int PlayerCount => HandCounts.Length;
 
     public bool IsActive(int seat) => Ranks[seat] == 0;

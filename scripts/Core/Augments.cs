@@ -40,6 +40,11 @@ public enum SpecialAugmentId
     EvenLover,
     Foresight,
     Dominator,
+    Curling,
+    Jackpot,
+    Domino,
+    Oracle,
+    Marksman,
 }
 
 /// <summary>직업 카드입니다. 어벤져스 증강을 가진 플레이어의 카드에만 붙습니다.</summary>
@@ -147,6 +152,19 @@ public static class SpecialAugments
             "각성 카드를 내면 능력 선택지가 3개가 아니라 4개 나옵니다."),
         [SpecialAugmentId.Dominator] = ("지배자", AugmentTier.Prism,
             "각성 카드를 내면 능력을 하나 고른 뒤, 새 선택지에서 하나를 더 골라 연달아 발동합니다."),
+        [SpecialAugmentId.Curling] = ("컬링", AugmentTier.Prism,
+            $"카드를 {StreakRules.CurlingCharge}장 낼 때마다 내 차례에 카드 스톤을 한 번 튕길 수 있습니다. 하우스 정중앙(버튼)에 멈추면 승리! " +
+            "하우스 안에만 들어가도 손패 1장을 버립니다. 얼음은 매번 다르게 휘니 잘 보고 던지세요. (손패를 다 내도 승리합니다)"),
+        [SpecialAugmentId.Jackpot] = ("잭팟", AugmentTier.Gold,
+            "내 차례가 올 때마다 슬롯머신이 돌아갑니다. ★★★이 나오면 승리! 같은 문양 3개가 나오면 그 문양 카드 1장을 버립니다. (손패를 다 내도 승리합니다)"),
+        [SpecialAugmentId.Domino] = ("도미노", AugmentTier.Gold,
+            $"내가 낸 숫자 카드가 1씩 차이 나게 {StreakRules.DominoTarget}번 연속으로 이어지면 승리! 올라가도 내려가도 됩니다. (예: 3 → 4 → 5 → 4, 문양 상관없음) " +
+            "숫자가 아닌 카드를 내거나 숫자가 끊기면 처음부터입니다. (손패를 다 내도 승리합니다)"),
+        [SpecialAugmentId.Oracle] = ("예언자", AugmentTier.Gold,
+            $"내 차례마다 다음 내 차례가 올 때의 바닥 문양을 예언합니다. {StreakRules.OracleTarget}번 연속으로 맞히면 승리! (손패를 다 내도 승리합니다)"),
+        [SpecialAugmentId.Marksman] = ("정밀 사수", AugmentTier.Prism,
+            $"내 차례마다 엄청 빠르게 왕복하는 바늘을 황금 구간에서 멈춥니다. {MarksmanRules.Target}번 연속 성공하면 승리! " +
+            "명중할 때마다 손패 1장을 버리고, 성공할수록 더 빨라집니다. 한 번이라도 놓치면 처음부터입니다. (손패를 다 내도 승리합니다)"),
     };
 
     private static readonly Dictionary<AugmentTier, int> TierWeights = new()
@@ -216,7 +234,9 @@ public static class SpecialAugments
 
     /// <summary>승리 조건을 바꾸는 증강인지 확인합니다. 한 사람은 이런 증강을 하나만 가질 수 있습니다.</summary>
     public static bool IsAltWin(SpecialAugmentId id) =>
-        id is SpecialAugmentId.Avengers or SpecialAugmentId.BlackHole or SpecialAugmentId.Collector;
+        id is SpecialAugmentId.Avengers or SpecialAugmentId.BlackHole or SpecialAugmentId.Collector
+            or SpecialAugmentId.Curling or SpecialAugmentId.Jackpot or SpecialAugmentId.Domino
+            or SpecialAugmentId.Oracle or SpecialAugmentId.Marksman;
 
     /// <summary>
     /// 이미 가진 증강과 겹치거나 충돌하지 않는 후보 중에서 등급 가중치로 3개를 뽑습니다.

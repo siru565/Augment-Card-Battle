@@ -114,13 +114,17 @@ public partial class NetTest : Node
         host.Session!.Restart();
         await Wait(1.0);
         bool pulled = client.Session.Playing;
+
+        // 참가자에게 정밀 사수를 줘서, 참가자 화면에서 미니게임이 뜨고 결과가 방장에게 전달되는지 봅니다.
+        ((SpCardgame.Net.HostSession)host.Session!).DebugGiveAugmentTo(client.Session.MySeat, SpCardgame.Core.SpecialAugmentId.Marksman);
+        _sawClientMinigame = false;
         host.Session.LeaveGame();
         await Wait(0.5);
         bool hostLeft = !host.Session.Playing && client.Session.GameRunning;
         string third = await WaitWinner(client);
-        report.AppendLine($"3판 (방장 중간 퇴장): 참가자 합류={pulled}, 방장 대기방={hostLeft}, {third}");
+        report.AppendLine($"3판 (방장 중간 퇴장): 참가자 합류={pulled}, 방장 대기방={hostLeft}, 참가자 미니게임={_sawClientMinigame}, {third}");
         await Wait(0.5);
-        second = secondPlayers == 3 && client.Session?.LobbyBotLevel == SpCardgame.AI.BotLevel.Hard && clientLeft && pulled && hostLeft && third.StartsWith("끝") ? second : "실패";
+        second = _sawClientMinigame && secondPlayers == 3 && client.Session?.LobbyBotLevel == SpCardgame.AI.BotLevel.Hard && clientLeft && pulled && hostLeft && third.StartsWith("끝") ? second : "실패";
 
         // 다시 대기방으로 돌아간 뒤 참가자를 강퇴합니다.
         host.Session!.ReturnToRoom();
@@ -154,12 +158,19 @@ public partial class NetTest : Node
         return (ok ? "성공\n" : "실패\n") + report;
     }
 
+    private bool _sawClientMinigame;
+
     private async Task<string> WaitWinner(GameController who)
     {
         for (int i = 0; i < 2400; i++)
         {
             await Wait(0.05);
             var v = who.Session?.View;
+            if (v?.MyMinigame != null)
+            {
+                _sawClientMinigame = true;
+            }
+
             if (v?.Winner != null)
             {
                 return $"끝 · 승자 {who.Session!.NameOf(v.Winner.Value)}, 턴 {v.TurnCount}";

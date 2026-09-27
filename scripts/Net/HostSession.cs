@@ -467,6 +467,30 @@ public sealed class HostSession : GameSession
         }
     }
 
+    /// <summary>개발용: 미니게임을 바로 엽니다. (스크린샷 확인용)</summary>
+    public void DebugOpenMinigame(MinigameKind kind)
+    {
+        _engine?.DebugOpenMinigame(kind, MySeat);
+        Broadcast();
+    }
+
+    /// <summary>개발용: 잭팟 슬롯을 바로 돌립니다.</summary>
+    public void DebugSpinJackpot(int seat)
+    {
+        _engine?.DebugSpinJackpot(seat);
+        Broadcast();
+    }
+
+    /// <summary>개발용: 아무 자리에나 특수 증강을 넣습니다. (최대 개수 무시)</summary>
+    public void DebugGiveAugmentTo(int seat, SpecialAugmentId id)
+    {
+        if (_engine != null && !_engine.State.Players[seat].Has(id))
+        {
+            _engine.State.Players[seat].Augments.Add(id);
+            Broadcast();
+        }
+    }
+
     /// <summary>개발용: 내 손에 특수 증강을 바로 넣습니다.</summary>
     public void DebugGiveAugment(SpecialAugmentId id)
     {
@@ -531,8 +555,10 @@ public sealed class HostSession : GameSession
         float speed = humansPlaying ? 1f : 0.25f;
 
         // 증강·능력 고르기도 조금 빠르게 합니다.
+        // 미니게임은 모두가 볼 수 있게 조금 더 뜸을 들입니다.
         float delay = speed * (_engine.State.PayingDebt ? BotDelay * 0.35f
             : _engine.State.ChoosingAugment || _engine.State.ChoosingAbility ? BotDelay * 0.5f
+            : _engine.State.PendingMinigame != null ? BotDelay * 1.8f
             : BotDelay);
         _botTimer += (float)delta;
         if (_botTimer < delay)
@@ -542,6 +568,11 @@ public sealed class HostSession : GameSession
 
         _botTimer = 0f;
         var action = _bots[actor].Decide(_engine.State.ViewFor(actor), _botRng);
+        if (action.Type == ActionType.Minigame && humansPlaying)
+        {
+            // 컬링 스톤이 미끄러지는 연출과 바늘 결과를 볼 시간을 줍니다.
+            _botTimer = -MinigamePause;
+        }
         var result = _engine.Apply(actor, action);
         if (!result.Ok)
         {
@@ -598,9 +629,12 @@ public sealed class HostSession : GameSession
             return;
         }
 
-        _botTimer = 0f;
+        _botTimer = action.Type == ActionType.Minigame ? -MinigamePause : 0f;
         Broadcast();
     }
+
+    /// <summary>미니게임 결과 연출을 보여 주는 동안 봇이 기다리는 시간(초)입니다.</summary>
+    private const float MinigamePause = 2.2f;
 
     /// <summary>
     /// 모든 사람에게 각자 시점의 상태를 보냅니다. 호스트 화면도 함께 갱신합니다.

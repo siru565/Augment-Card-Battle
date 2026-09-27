@@ -518,3 +518,75 @@ AI 상대	AI opponents
 탈락 규칙	Elimination
 손패가 30장이 되면 탈락하고 가장 낮은 순위가 됩니다. (블랙홀 증강이 있으면 탈락하지 않습니다)	Reach 30 cards and you're eliminated with the lowest rank. (Not with the Black Hole augment)
 {0}님이 방을 나갔어요.	{0} left the room.
+# 승리 조건 미니게임 증강
+컬링	Curling
+잭팟	Jackpot
+도미노	Domino
+예언자	Oracle
+정밀 사수	Marksman
+카드를 8장 낼 때마다 내 차례에 카드 스톤을 한 번 튕길 수 있습니다. 하우스 정중앙(버튼)에 멈추면 승리! 하우스 안에만 들어가도 손패 1장을 버립니다. 얼음은 매번 다르게 휘니 잘 보고 던지세요. (손패를 다 내도 승리합니다)	Every 8 cards you play, you get to flick a card stone on your turn. Stop it dead center (the button) to win! Landing anywhere in the house discards 1 card. The ice curls differently every time — read it before you throw. (Emptying your hand still wins)
+내 차례가 올 때마다 슬롯머신이 돌아갑니다. ★★★이 나오면 승리! 같은 문양 3개가 나오면 그 문양 카드 1장을 버립니다. (손패를 다 내도 승리합니다)	A slot machine spins at the start of each of your turns. ★★★ wins! Three of the same suit discards 1 card of that suit. (Emptying your hand still wins)
+내가 낸 숫자 카드가 1씩 차이 나게 4번 연속으로 이어지면 승리! 올라가도 내려가도 됩니다. (예: 3 → 4 → 5 → 4, 문양 상관없음) 숫자가 아닌 카드를 내거나 숫자가 끊기면 처음부터입니다. (손패를 다 내도 승리합니다)	Win when 4 number cards you play in a row each differ by 1 — up or down (e.g. 3 → 4 → 5 → 4, any suit). Playing a non-number card or breaking the chain starts over. (Emptying your hand still wins)
+내 차례마다 다음 내 차례가 올 때의 바닥 문양을 예언합니다. 4번 연속으로 맞히면 승리! (손패를 다 내도 승리합니다)	Each turn, predict the top card's suit when your next turn comes. Get 4 right in a row to win! (Emptying your hand still wins)
+내 차례마다 엄청 빠르게 왕복하는 바늘을 황금 구간에서 멈춥니다. 5번 연속 성공하면 승리! 명중할 때마다 손패 1장을 버리고, 성공할수록 더 빨라집니다. 한 번이라도 놓치면 처음부터입니다. (손패를 다 내도 승리합니다)	Each turn, stop a blazing-fast needle inside the gold zone. 5 hits in a row wins! Each hit discards 1 card and makes the needle faster. One miss and you start over. (Emptying your hand still wins)
+→ [도미노] {0}/{1} 연속!	→ [Domino] {0}/{1} in a row!
+→ [도미노] 연속이 끊겼습니다.	→ [Domino] Chain broken.
+→ [잭팟] 같은 문양 3개! [{0}]를 버립니다.	→ [Jackpot] Three of a suit! Discards [{0}].
+→ [정밀 사수] 명중 보상으로 [{0}]를 버립니다.	→ [Marksman] Hit reward: discards [{0}].
+→ [컬링] 게이지가 찼습니다. 다음 차례에 스톤을 던집니다.	→ [Curling] Gauge full. Throws a stone next turn.
+{0}: [예언자] {1} 예언이 빗나갔습니다.	{0}: [Oracle] {1} prediction missed.
+{0}: [예언자] 다음 내 차례의 문양은… {1}!	{0}: [Oracle] Next turn's suit will be… {1}!
+{0}: [잭팟] {1}	{0}: [Jackpot] {1}
+{0}: [정밀 사수] 빗나갔습니다.	{0}: [Marksman] Missed.
+{0}: [컬링] 하우스 안! [{1}]를 버립니다.	{0}: [Curling] In the house! Discards [{1}].
+{0}: [컬링] 하우스를 벗어났습니다.	{0}: [Curling] Missed the house.
+★ {0}: [예언자] {1} 적중! ({2}/{3})	★ {0}: [Oracle] {1} — correct! ({2}/{3})
+★ {0}: [정밀 사수] 명중! ({1}/{2})	★ {0}: [Marksman] Hit! ({1}/{2})
+★ {0}: [컬링] 버튼에 정확히 멈췄습니다!	★ {0}: [Curling] Dead on the button!
+내 미니게임이 아닙니다.	That's not your minigame.
+먼저 미니게임을 해야 합니다.	Finish the minigame first.
+예언할 문양을 골라야 합니다.	Pick a suit to predict.
+도미노 — 숫자를 {0}번 연속으로 이었습니다	Domino — chained {0} numbers in a row
+예언자 — {0}번 연속으로 예언을 맞혔습니다	Oracle — {0} correct predictions in a row
+잭팟 — ★★★이 나왔습니다	Jackpot — hit ★★★
+정밀 사수 — {0}번 연속으로 명중했습니다	Marksman — {0} hits in a row
+컬링 — 스톤을 버튼에 세웠습니다	Curling — stopped the stone on the button
+다음 {0} 또는 {1}	next {0} or {1}
+다음 {0}	next {0}
+{0}의 잭팟	{0}'s Jackpot
+도미노 {0}/{1} · {2}	Domino {0}/{1} · {2}
+도미노 {0}/{1}	Domino {0}/{1}
+도미노 끊김	Domino broken
+예언 {0}/{1} · {2}	Oracle {0}/{1} · {2}
+예언 {0}/{1}	Oracle {0}/{1}
+예언 빗나감	Wrong prediction
+예언 적중 {0}/{1}	Correct {0}/{1}
+잭팟 {0}	Jackpot {0}
+잭팟 대기	Jackpot ready
+컬링 게이지 {0}/{1}	Curling gauge {0}/{1}
+컬링 투구 준비!	Curling throw ready!
+컬링: 카드를 8장 낼 때마다 카드 스톤을 튕길 수 있고, 하우스 정중앙(버튼)에 세우면 승리	Curling: every 8 cards played you flick a card stone — stop it on the button to win
+잭팟: 내 차례마다 슬롯머신이 돌고, ★★★이 나오면 승리	Jackpot: a slot machine spins every turn — ★★★ wins
+도미노: 내가 낸 숫자가 1씩 차이 나게 4번 연속으로 이어지면 승리	Domino: win by playing 4 numbers in a row that each differ by 1
+예언자: 다음 내 차례의 바닥 문양을 4번 연속으로 맞히면 승리	Oracle: win by predicting your next turn's suit 4 times in a row
+정밀 사수: 엄청 빠른 바늘을 황금 구간에서 5번 연속으로 멈추면 승리	Marksman: win by stopping a blazing-fast needle in the gold zone 5 times in a row
+이런 승리 조건의 진행도는 모두에게 공개됩니다. 누가 이기기 직전인지 보고 견제하세요.	Everyone can see progress on these win conditions — watch who's close and stop them.
+{0}가 예언하는 중	{0} is making a prediction
+{0}번 연속 명중하면 승리 · 놓치면 처음부터	{0} hits in a row wins · a miss starts over
+{0}번 연속으로 맞히면 승리	Get {0} right in a row to win
+{0}의 정밀 사수	{0}'s Marksman
+{0}의 컬링 투구	{0}'s Curling throw
+다음 내 차례가 올 때 바닥 카드의 문양은?	What suit will be on top when your next turn comes?
+당긴 길이 = 힘, 당긴 방향의 반대 = 조준 · 얼음은 화살표 쪽으로 휘어요	Pull length = power, pull the opposite way to aim · the ice curls toward the arrow
+바늘이 황금 구간에 들어온 순간 클릭하거나 Space를 누르세요.	Click or press Space the instant the needle is in the gold zone.
+버튼! 승리!	Button! Victory!
+빗나감…	Missed…
+아깝다…	So close…
+얼음판을 누른 채 아래로 당겼다 놓으면 카드 스톤이 날아갑니다. 버튼(금색 정중앙)에 세우면 승리!	Press on the ice, pull back and release to flick the card stone. Stop it on the button (gold center) to win!
+하우스 안! 손패 1장 버림	In the house! Discard 1 card
+단계 {0}/{1} · 초당 {2}번 왕복	Stage {0}/{1} · {2} sweeps per second
+얼음 휨	Ice curl
+명중! ({0}/{1})	Hit! ({0}/{1})
+명중! 승리!	Hit! Victory!
+
+내 숫자 카드가 직업 카드(전사·궁수·해적·도적·마법사·어부·낚시꾼·농부)가 됩니다. 액션·특수·프리즘 카드는 직업이 없습니다. 8가지 직업을 모두 모은 채로 내 차례가 다시 돌아오면 승리! 모으는 순간 모두에게 들키니 한 바퀴를 버텨야 합니다. (손패를 다 내도 승리합니다)	Your number cards become job cards (Warrior, Archer, Pirate, Rogue, Mage, Fisher, Angler, Farmer). Action, special and Prism cards have no job. Win if your turn comes around while you hold all 8 jobs! Everyone sees the moment you complete them, so you must survive a full round. (Emptying your hand also wins.)

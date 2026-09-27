@@ -162,6 +162,11 @@ public static class BotUtil
             return PlayerAction.ForcedDraw();
         }
 
+        if (view.MyMinigame is { } game)
+        {
+            return PlayMinigame(view, game, rng, randomChoices ? 0.5 : 1.0);
+        }
+
         // 도박사: 낼 수 있는 카드를 고르고, 둘 다 되면 무작위로 고릅니다.
         if (view.DrawChoices.Count > 0)
         {
@@ -180,6 +185,63 @@ public static class BotUtil
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// 승리 조건 미니게임을 합니다. 봇도 사람처럼 손이 떨리게(오차) 만들어서 늘 성공하지는 않습니다.
+    /// skill은 1이 기본, 낮을수록 오차가 커집니다.
+    /// </summary>
+    public static PlayerAction PlayMinigame(PlayerView view, MinigameInfo game, Random rng, double skill)
+    {
+        switch (game.Kind)
+        {
+            case MinigameKind.Oracle:
+            {
+                // 내가 가장 많이 가진 문양을 예언합니다. (내가 그 문양을 낼 가능성이 높으니까)
+                var suit = view.Hand.Where(c => c.Color != CardColor.Wild)
+                    .GroupBy(c => c.Color).OrderByDescending(g => g.Count())
+                    .Select(g => g.Key).FirstOrDefault((CardColor)rng.Next(4));
+                return PlayerAction.Minigame(0, 0, suit);
+            }
+
+            case MinigameKind.Marksman:
+            {
+                // 단계가 오를수록 성공 확률이 떨어집니다.
+                double chance = (0.34 - 0.05 * game.Level) * skill;
+                bool wantHit = rng.NextDouble() < chance;
+                for (int i = 0; i < 6000; i++)
+                {
+                    float t = 0.4f + i * 0.001f;
+                    if (MarksmanRules.IsHit(game, t) == wantHit)
+                    {
+                        return PlayerAction.Minigame(t);
+                    }
+                }
+
+                return PlayerAction.Minigame(MarksmanRules.TimeLimit);
+            }
+
+            default:
+            {
+                var (aim, power) = CurlingSim.BestThrow(game.A, game.B);
+                double noise = 1.0 / Math.Max(0.2, skill);
+                aim += (float)(Gaussian(rng) * CurlingAimError * noise);
+                power += (float)(Gaussian(rng) * CurlingPowerError * noise);
+                return PlayerAction.Minigame(aim, power);
+            }
+        }
+    }
+
+    /// <summary>봇 컬링 오차(표준편차)입니다. 시뮬레이션으로 버튼 성공률이 너무 높지 않게 맞췄습니다.</summary>
+    public static double CurlingAimError { get; set; } = 0.09;
+
+    public static double CurlingPowerError { get; set; } = 0.055;
+
+    private static double Gaussian(Random rng)
+    {
+        double u1 = 1.0 - rng.NextDouble();
+        double u2 = rng.NextDouble();
+        return Math.Sqrt(-2.0 * Math.Log(u1)) * Math.Cos(2.0 * Math.PI * u2);
     }
 
     /// <summary>특수 증강이 지금 나에게 얼마나 좋은지 대략 점수를 매깁니다.</summary>
@@ -212,6 +274,11 @@ public static class BotUtil
             "선견지명" => 40,
             "지배자" => 48,
             "문양 군주" => 45,
+            "컬링" => 45,
+            "잭팟" => 45,
+            "도미노" => 45,
+            "예언자" => 45,
+            "정밀 사수" => 30,
             _ => 30,
         };
     }
@@ -235,6 +302,16 @@ public static class BotUtil
 
             int same = view.Jobs.Count(j => j.Job == job);
             return same > 1 ? 40 : -60;
+        }
+
+        // 도미노: 다음 숫자(+1)를 이어서 낼 수 있으면 먼저 냅니다.
+        if (Has(view, "도미노") && card.Kind == CardKind.Number && view.WinGoals.Length > view.PlayerId)
+        {
+            var goal = view.WinGoals[view.PlayerId].FirstOrDefault(g => g.Augment == "도미노");
+            if (goal != null && goal.Detail.StartsWith("다음 ") && goal.Detail[3..].Split(" 또는 ").Contains(card.Number.ToString()))
+            {
+                return 80 + goal.Value * 30;
+            }
         }
 
         if (Has(view, "수집가") && card.Kind == CardKind.Number)
@@ -538,6 +615,10 @@ public sealed class HardBot : RuleBasedBot
         "수호천사" or "불사조" or "시간 도둑" or "저격수" or "청소부" or "선견지명" => 22,
         "역풍" or "폭탄마" => 21,
         "광전사" => 19,
+        "예언자" => 30,
+        "정밀 사수" or "컬링" => 26,
+        "잭팟" => 25,
+        "도미노" => 23,
         _ => 20,
     };
 }
