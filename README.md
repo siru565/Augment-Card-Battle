@@ -1,4 +1,4 @@
-<p align="center"><img src="docs/images/logo.png" width="560" alt="증강 카드 배틀 로고"></p>
+<p align="center"><img src="docs/images/hero.png" alt="증강 카드 배틀 대표 이미지"></p>
 
 # 증강 카드 배틀 (Augment Card Battle)
 
