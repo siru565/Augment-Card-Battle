@@ -31,6 +31,18 @@ public enum GameEventType
 
     /// <summary>도미노가 이어지거나 끊겼습니다. Amount = 지금 연속 수</summary>
     DominoStep,
+
+    /// <summary>이번 판 테마가 정해졌습니다. Amount = 테마 번호</summary>
+    ThemeRevealed,
+
+    /// <summary>미니게임 대회가 시작됐습니다. Amount = 종목</summary>
+    ArcadeStarted,
+
+    /// <summary>미니게임 대회 결과입니다. Text = "자리:점수,자리:점수…", Target = 별을 받은 사람(여럿이면 -1), Amount = 최고 점수</summary>
+    ArcadeResult,
+
+    /// <summary>야추 족보를 등록했습니다. Text = 족보 이름, Amount = 등록한 족보 수</summary>
+    YachtRegistered,
 }
 
 /// <summary>

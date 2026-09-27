@@ -590,3 +590,61 @@ AI 상대	AI opponents
 명중! 승리!	Hit! Victory!
 
 내 숫자 카드가 직업 카드(전사·궁수·해적·도적·마법사·어부·낚시꾼·농부)가 됩니다. 액션·특수·프리즘 카드는 직업이 없습니다. 8가지 직업을 모두 모은 채로 내 차례가 다시 돌아오면 승리! 모으는 순간 모두에게 들키니 한 바퀴를 버텨야 합니다. (손패를 다 내도 승리합니다)	Your number cards become job cards (Warrior, Archer, Pirate, Rogue, Mage, Fisher, Angler, Farmer). Action, special and Prism cards have no job. Win if your turn comes around while you hold all 8 jobs! Everyone sees the moment you complete them, so you must survive a full round. (Emptying your hand also wins.)
+# 판 테마
+미니게임 대회	Minigame Tournament
+판 테마	Match theme
+판 테마 (무작위)	Match theme (random)
+이번 판 테마	This match's theme
+테마: {0}	Theme: {0}
+✦ 이번 판 테마: {0} — {1}	✦ This match's theme: {0} — {1}
+{0}턴마다 모두가 같은 미니게임을 동시에 합니다. 1등은 별 1개! 별 {1}개를 모으면 승리	Every {0} turns everyone plays the same minigame at once. The top score earns a star! Collect {1} stars to win
+원카드 규칙이 바뀝니다! 차례마다 카드를 1장 더 뽑고, 손패를 다 내도 이기지 않고 새 카드 {0}장을 받습니다. 손패로 족보를 등록해서 {1}종류를 먼저 채우면 승리	The rules change! You draw 1 extra card every turn, and emptying your hand doesn't win — you get {0} new cards instead. Register combos from your hand; the first to fill {1} kinds wins
+✦ 미니게임 대회! 이번 종목은 [{0}]입니다.	✦ Minigame tournament! This round: [{0}].
+★ [{0}] {1} 우승! 별 +1 ({2})	★ [{0}] {1} wins! +1 star ({2})
+[{0}] 우승자가 없습니다. ({1})	[{0}] No winner. ({1})
+{0} {1}점	{0} {1} pts
+{0}점	{0} pts
+미니게임 대회 — 별 {0}개를 모았습니다	Minigame Tournament — collected {0} stars
+미니게임 대회가 끝나기를 기다리는 중입니다.	Waiting for the minigame tournament to finish.
+★ {0}: [야추] {1} 등록! ({2}) {3}/{4}	★ {0}: [Yacht] Registered {1}! ({2}) {3}/{4}
+[{0}]에 맞는 카드가 없습니다.	You don't have the cards for [{0}].
+야추 — 족보 {0}종류를 등록했습니다	Yacht — registered {0} combos
+야추 테마가 아닙니다.	This isn't a Yacht match.
+이미 등록한 족보입니다.	You've already registered that combo.
+지금은 족보를 등록할 수 없습니다.	You can't register a combo right now.
+→ [야추] 손패를 다 냈습니다! 새 카드 {0}장을 받습니다.	→ [Yacht] Hand emptied! Drawing {0} new cards.
+벽돌깨기	Breakout
+두더지 카드	Whack-a-Card
+미로 탈출	Maze Escape
+마우스로 패들을 움직여 공을 튕기세요. 벽돌을 많이 깰수록 점수가 높습니다. 공을 3번 놓치면 끝!	Move the paddle with your mouse to bounce the ball. More bricks, more points. Miss the ball 3 times and it's over!
+튀어나오는 카드를 재빨리 누르세요. 빨간 폭탄 카드는 누르면 감점!	Click the cards as they pop up. Red bomb cards cost you points!
+방향키(또는 WASD)로 움직여 금색 출구로 나가세요. 빨리 나올수록 점수가 높습니다.	Use the arrow keys (or WASD) to reach the gold exit. The faster you escape, the higher your score.
+트리플	Triple
+투 페어	Two Pair
+스트레이트	Straight
+플러시	Flush
+풀하우스	Full House
+야추	Yacht
+같은 숫자 3장	3 of the same number
+같은 숫자 2장 + 같은 숫자 2장	2 of a number + 2 of another
+연속된 숫자 4장 (예: 3·4·5·6)	4 consecutive numbers (e.g. 3·4·5·6)
+같은 문양 숫자 카드 4장	4 number cards of the same suit
+같은 숫자 3장 + 같은 숫자 2장	3 of a number + 2 of another
+같은 숫자 4장	4 of the same number
+{0}초	{0}s
+점수 {0}	Score {0}
+준비!	Ready!
+결과 발표!	Results!
+우승자가 없습니다.	No winner.
+내 점수 {0}점! 다른 사람을 기다리는 중…	You scored {0}! Waiting for the others…
+다른 사람들이 미니게임을 하는 중…	The others are playing the minigame…
+다른 사람을 기다리는 중… ({0}/{1})	Waiting for the others… ({0}/{1})
+별 {0}/{1}	Stars {0}/{1}
+족보 {0}/{1}	Combos {0}/{1}
+✓ {0}	✓ {0}
+{0}     {1}라운드  ·  턴 {2}     테마: {3}	{0}     Round {1}  ·  Turn {2}     Theme: {3}
+방에서 '판 테마'를 켜 두면 게임을 시작할 때 테마 하나가 무작위로 정해지고, 그 판에만 특별한 승리 조건이 붙습니다.	With 'Match theme' on, a random theme is picked when the game starts and adds a special win condition for that match.
+미니게임 대회: {0}	Minigame Tournament: {0}
+야추: {0}	Yacht: {0}
+미니게임은 벽돌깨기 · 두더지 카드 · 미로 탈출이 돌아가며 나오고, 모두 같은 판을 동시에 합니다.	The minigames rotate between Breakout, Whack-a-Card and Maze Escape, and everyone plays the same board at the same time.
+야추 족보: 트리플 · 투 페어 · 스트레이트 · 플러시 · 풀하우스 · 야추 (내 차례에 족보판 버튼을 누르면 등록, 등록하면 차례가 끝납니다)	Yacht combos: Triple · Two Pair · Straight · Flush · Full House · Yacht (press a combo button on your turn to register it — registering ends your turn)

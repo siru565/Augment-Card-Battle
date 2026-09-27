@@ -64,6 +64,8 @@ public partial class NetTest : Node
         // 1판은 봇을 모두 빼서 사람 둘만(2인) 합니다.
         var room = (SpCardgame.Net.HostSession)host.Session!;
         room.SetBotCount(0);
+        // 1판은 미니게임 대회 테마로 고정해서, 대회가 네트워크로 잘 돌아가는지 봅니다.
+        room.SetOptions(room.RoomOptions with { ForcedTheme = (int)SpCardgame.Core.ThemeId.Arcade });
         await Wait(0.3);
         bool botsSynced = client.Session!.LobbyBots == 0;
         host.DebugStartGame();
@@ -76,8 +78,8 @@ public partial class NetTest : Node
         report.AppendLine($"로비: {lobby}");
         report.AppendLine($"봇 빼기: 참가자 화면 봇 수 0={botsSynced}, 1판 인원={firstPlayers}");
         string first = await PlayToEnd(host, client);
-        report.AppendLine($"1판 (특수 증강 OFF): {first}");
-        if (!first.StartsWith("끝") || !botsSynced || firstPlayers != 2)
+        report.AppendLine($"1판 (미니게임 대회 테마): 참가자 화면 대회={_sawArcade}, {first}");
+        if (!first.StartsWith("끝") || !botsSynced || firstPlayers != 2 || !_sawArcade)
         {
             return "실패\n" + report;
         }
@@ -93,14 +95,17 @@ public partial class NetTest : Node
         await Wait(0.3);
         report.AppendLine($"설정 전달: 참가자 특수 증강={client.Session?.RoomOptions.SpecialAugments}");
 
-        // 2판은 봇 1명(어려움)을 넣어 3인으로 합니다.
+        // 2판은 봇 1명(어려움)을 넣어 3인으로, 야추 테마로 합니다.
         room.AddBot();
+        room.SetOptions(room.RoomOptions with { ForcedTheme = (int)SpCardgame.Core.ThemeId.Yacht });
         room.SetBotLevel(SpCardgame.AI.BotLevel.Hard);
         await Wait(0.3);
         report.AppendLine($"봇 난이도 전달: 참가자 화면={client.Session?.LobbyBotLevel}");
         host.DebugStartGame();
         await Wait(2.0);
         int secondPlayers = client.Session?.View?.PlayerCount ?? -1;
+        bool yachtTheme = client.Session?.View?.Theme == SpCardgame.Core.ThemeId.Yacht;
+        report.AppendLine($"2판 테마 전달: 참가자 화면 야추={yachtTheme}");
         report.AppendLine($"봇 넣기: 참가자 화면 봇 수={client.Session?.LobbyBots}, 2판 인원={secondPlayers}");
 
         // 2판: 참가자가 중간에 나가기 → 대기방으로, 자리는 봇이 이어받고 게임은 계속됩니다.
@@ -124,7 +129,7 @@ public partial class NetTest : Node
         string third = await WaitWinner(client);
         report.AppendLine($"3판 (방장 중간 퇴장): 참가자 합류={pulled}, 방장 대기방={hostLeft}, 참가자 미니게임={_sawClientMinigame}, {third}");
         await Wait(0.5);
-        second = _sawClientMinigame && secondPlayers == 3 && client.Session?.LobbyBotLevel == SpCardgame.AI.BotLevel.Hard && clientLeft && pulled && hostLeft && third.StartsWith("끝") ? second : "실패";
+        second = yachtTheme && _sawClientMinigame && secondPlayers == 3 && client.Session?.LobbyBotLevel == SpCardgame.AI.BotLevel.Hard && clientLeft && pulled && hostLeft && third.StartsWith("끝") ? second : "실패";
 
         // 다시 대기방으로 돌아간 뒤 참가자를 강퇴합니다.
         host.Session!.ReturnToRoom();
@@ -159,6 +164,7 @@ public partial class NetTest : Node
     }
 
     private bool _sawClientMinigame;
+    private bool _sawArcade;
 
     private async Task<string> WaitWinner(GameController who)
     {
@@ -199,6 +205,11 @@ public partial class NetTest : Node
                 await Capture("net_end.png");
                 return $"끝 · 승자 {host.Session!.NameOf(hv.Winner.Value)} (참가자 화면: {client.Session!.NameOf(cv.Winner.Value)}), " +
                        $"턴 {hv.TurnCount}, 증강 {string.Join("/", hv.Augments.Select(a => a.Count))}, 장수 불일치 관측 {mismatches}";
+            }
+
+            if (cv.Arcade != null)
+            {
+                _sawArcade = true;
             }
 
             if (!hv.HandCounts.SequenceEqual(cv.HandCounts))

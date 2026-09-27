@@ -157,6 +157,12 @@ public static class BotUtil
     /// </summary>
     public static PlayerAction? Mandatory(PlayerView view, Random rng, bool randomChoices)
     {
+        // 미니게임 대회: 봇은 사람이 보통 받는 점수 범위에서 점수를 냅니다.
+        if (view.MyArcade is { } arcade)
+        {
+            return PlayerAction.ArcadeScore(ArcadeRules.BotScore(arcade.Game, randomChoices ? 0.75 : 1.0, rng));
+        }
+
         if (view.MustDraw)
         {
             return PlayerAction.ForcedDraw();
@@ -394,6 +400,13 @@ public class RuleBasedBot : IBot
                 .OrderByDescending(i => BotUtil.AbilityScore(view, view.AbilityChoices[i]))
                 .First();
             return BotUtil.MakeAbilityChoice(view, best, rng, randomChoices: false);
+        }
+
+        // 야추 테마: 등록할 수 있는 족보가 있으면 어려운 것부터 등록합니다.
+        if (view.YachtOptions.Count > 0)
+        {
+            var best = view.YachtOptions.OrderByDescending(c => (int)c).First();
+            return PlayerAction.YachtRegister(best);
         }
 
         if (view.PlayableCardIds.Count == 0)

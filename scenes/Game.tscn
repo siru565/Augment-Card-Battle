@@ -1,4 +1,4 @@
-[gd_scene load_steps=24 format=3]
+[gd_scene load_steps=25 format=3]
 
 [ext_resource type="Script" path="res://scripts/UI/GameController.cs" id="1_r"]
 [ext_resource type="Theme" path="res://assets/ui/ui_theme.tres" id="2_r"]
@@ -15,9 +15,10 @@
 [ext_resource type="Script" path="res://scripts/UI/FxLayer.cs" id="13_r"]
 [ext_resource type="PackedScene" path="res://scenes/ui/InviteBanner.tscn" id="14_r"]
 [ext_resource type="PackedScene" path="res://scenes/screens/Settings.tscn" id="15_r"]
-[ext_resource type="PackedScene" path="res://scenes/screens/Minigame.tscn" id="16_r"]
-[ext_resource type="PackedScene" path="res://scenes/screens/Guide.tscn" id="17_r"]
-[ext_resource type="Script" path="res://scripts/UI/HoverPopup.cs" id="18_r"]
+[ext_resource type="PackedScene" path="res://scenes/screens/Arcade.tscn" id="16_r"]
+[ext_resource type="PackedScene" path="res://scenes/screens/Minigame.tscn" id="17_r"]
+[ext_resource type="PackedScene" path="res://scenes/screens/Guide.tscn" id="18_r"]
+[ext_resource type="Script" path="res://scripts/UI/HoverPopup.cs" id="19_r"]
 
 [sub_resource type="Gradient" id="Gradient_1"]
 offsets = PackedFloat32Array(0, 1)
@@ -445,6 +446,13 @@ text = "턴 넘기기"
 custom_minimum_size = Vector2(120, 42)
 layout_mode = 2
 
+[node name="YachtBar" type="HBoxContainer" parent="Layout/Root/Left"]
+unique_name_in_owner = true
+theme_override_constants/separation = 6
+visible = false
+alignment = 1
+layout_mode = 2
+
 [node name="Hand" type="Control" parent="Layout/Root/Left"]
 script = ExtResource("8_r")
 unique_name_in_owner = true
@@ -554,22 +562,28 @@ layer = 12
 [node name="Settings" parent="SettingsCanvas" instance=ExtResource("15_r")]
 unique_name_in_owner = true
 
+[node name="ArcadeCanvas" type="CanvasLayer" parent="."]
+layer = 7
+
+[node name="Arcade" parent="ArcadeCanvas" instance=ExtResource("16_r")]
+unique_name_in_owner = true
+
 [node name="MinigameCanvas" type="CanvasLayer" parent="."]
 layer = 6
 
-[node name="Minigame" parent="MinigameCanvas" instance=ExtResource("16_r")]
+[node name="Minigame" parent="MinigameCanvas" instance=ExtResource("17_r")]
 unique_name_in_owner = true
 
 [node name="GuideCanvas" type="CanvasLayer" parent="."]
 layer = 13
 
-[node name="Guide" parent="GuideCanvas" instance=ExtResource("17_r")]
+[node name="Guide" parent="GuideCanvas" instance=ExtResource("18_r")]
 unique_name_in_owner = true
 
 [node name="PopupCanvas" type="CanvasLayer" parent="."]
 layer = 10
 
 [node name="HoverPopup" type="PanelContainer" parent="PopupCanvas"]
-script = ExtResource("18_r")
+script = ExtResource("19_r")
 theme = ExtResource("2_r")
 layout_mode = 0

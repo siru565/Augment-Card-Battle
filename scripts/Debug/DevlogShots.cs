@@ -42,6 +42,7 @@ public partial class DevlogShots : Node
         DirAccess.MakeDirRecursiveAbsolute(ProjectSettings.GlobalizePath(Folder));
         _game = GD.Load<PackedScene>("res://scenes/Game.tscn").Instantiate<GameController>();
         Collection.TestMode = true;
+        _game.DebugForcedTheme = -2;
         AddChild(_game);
         string langFile = ProjectSettings.GlobalizePath("res://tools/shot_lang.txt");
         if (System.IO.File.Exists(langFile) && System.IO.File.ReadAllText(langFile).Trim() == "en")
@@ -193,6 +194,42 @@ public partial class DevlogShots : Node
 
         await Wait(2.0);
         await Capture("11_ranking.png");
+
+        // 8-2. 판 테마: 미니게임 대회 (벽돌깨기 · 두더지 카드 · 미로 탈출)
+        _game.DebugAutoPlay = false;
+        _game.BotDelay = 999f;
+        _game.DebugForcedTheme = (int)ThemeId.Arcade;
+        _game.DebugStartSolo(specialAugments: true);
+        await Wait(1.0);
+        await Capture("24_theme_banner.png");
+        _game.Session!.Submit(PlayerAction.ChooseAugment(0));
+        await Wait(0.5);
+        for (int round = 0; round < 3; round++)
+        {
+            Host.DebugStartArcade();
+            await Wait(3.6);
+            await Capture($"{25 + round * 2}_arcade_{round}.png");
+            _game.Session.Submit(PlayerAction.ArcadeScore(20 + round));
+            Host.DebugFinishArcadeBots();
+            await Wait(0.8);
+            await Capture($"{26 + round * 2}_arcade_{round}_result.png");
+            await Wait(3.2);
+        }
+
+        // 8-3. 판 테마: 야추
+        _game.DebugForcedTheme = (int)ThemeId.Yacht;
+        _game.DebugStartSolo(specialAugments: false);
+        _game.BotDelay = 0.35f;
+        await WaitMyTurn(minTurn: 0);
+        _game.BotDelay = 999f;
+        Host.DebugYachtHand();
+        await Wait(0.8);
+        await Capture("31_yacht.png");
+        var option = View.YachtOptions.OrderByDescending(c => (int)c).FirstOrDefault();
+        _game.Session.Submit(PlayerAction.YachtRegister(option));
+        await Wait(1.0);
+        await Capture("32_yacht_registered.png");
+        _game.DebugForcedTheme = -2;
 
         // 9. 대기방
         _game.DebugAutoPlay = false;

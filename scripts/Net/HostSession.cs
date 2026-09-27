@@ -45,6 +45,9 @@ public sealed class HostSession : GameSession
     private long[] _seatPeers = Array.Empty<long>();
     private IBot[] _bots = Array.Empty<IBot>();
     private float _botTimer;
+    private int _arcadeId = -1;
+    private float _arcadeElapsed;
+    private readonly Dictionary<int, float> _arcadeBotDone = new();
 
     /// <summary>봇 난이도입니다. 새로 앉는 봇과 나간 사람 자리를 이어받는 봇 모두 이 난이도를 씁니다.</summary>
     public BotLevel BotLevel { get; private set; } = BotLevel.Normal;
@@ -474,6 +477,23 @@ public sealed class HostSession : GameSession
         Broadcast();
     }
 
+    /// <summary>개발용: 미니게임 대회를 바로 엽니다.</summary>
+    public void DebugStartArcade()
+    {
+        _engine?.DebugStartArcade();
+        Broadcast();
+    }
+
+    /// <summary>개발용: 미니게임 대회에서 봇들이 바로 점수를 내게 합니다.</summary>
+    public void DebugFinishArcadeBots() => _arcadeElapsed = 999f;
+
+    /// <summary>개발용: 족보를 만들기 좋은 카드를 내 손에 넣습니다.</summary>
+    public void DebugYachtHand()
+    {
+        _engine?.DebugYachtHand(MySeat);
+        Broadcast();
+    }
+
     /// <summary>개발용: 잭팟 슬롯을 바로 돌립니다.</summary>
     public void DebugSpinJackpot(int seat)
     {
@@ -539,6 +559,35 @@ public sealed class HostSession : GameSession
         }
 
         _draftTimer = 0f;
+
+        // 미니게임 대회: 모두가 동시에 합니다. 봇은 사람이 게임하는 시간만큼 기다렸다가 점수를 냅니다.
+        if (_engine.State.Arcade is { } arcade)
+        {
+            if (arcade.Id != _arcadeId)
+            {
+                _arcadeId = arcade.Id;
+                _arcadeElapsed = 0f;
+                _arcadeBotDone.Clear();
+                foreach (int seat in arcade.Players)
+                {
+                    _arcadeBotDone[seat] = 4f + (float)_botRng.NextDouble() * (ArcadeRules.TimeLimit - 6f);
+                }
+            }
+
+            bool humansIn = arcade.Players.Any(p => _seatKinds[p] != SeatKind.Bot);
+            _arcadeElapsed += (float)delta * (humansIn ? 1f : 50f);
+            foreach (int seat in arcade.Players.Where(p => _seatKinds[p] == SeatKind.Bot && !arcade.Scores.ContainsKey(p)).ToList())
+            {
+                if (_arcadeElapsed >= _arcadeBotDone.GetValueOrDefault(seat) && _engine.State.Arcade == arcade)
+                {
+                    var choice = _bots[seat].Decide(_engine.State.ViewFor(seat), _botRng);
+                    _engine.Apply(seat, choice);
+                    Broadcast();
+                }
+            }
+
+            return;
+        }
 
         // 억지 뽑기 중이면 뽑는 사람이, 아니면 차례인 사람이 행동합니다.
         int actor = _engine.State.InputPlayer;

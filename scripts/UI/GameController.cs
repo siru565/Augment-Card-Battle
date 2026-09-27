@@ -144,6 +144,11 @@ public partial class GameController : Control
     private OptionButton _botLevelOption = null!;
     private GuideView _guide = null!;
     private MinigameOverlay _minigame = null!;
+    private ArcadeOverlay _arcade = null!;
+    private HBoxContainer _yachtBar = null!;
+    private string _yachtSignature = "";
+    private CheckButton _themeToggle = null!;
+    private CheckButton _soloThemeToggle = null!;
     private Control _lobbyMenu = null!;
     private Control _lobbyRoom = null!;
     private LineEdit _codeEdit = null!;
@@ -190,6 +195,9 @@ public partial class GameController : Control
 
     public void DebugToggleSettings() => ToggleSettings();
 
+    /// <summary>개발용: 혼자 하기에서 이 테마로 고정합니다. (-1이면 무작위, -2면 테마 끔)</summary>
+    public int DebugForcedTheme { get; set; } = -1;
+
     /// <summary>게임 방법 · 도감 창을 엽니다. (스크린샷 확인용)</summary>
     public void DebugOpenGuide(int tab, int scroll = 0)
     {
@@ -218,7 +226,7 @@ public partial class GameController : Control
     private void RunAutoPlay(double delta)
     {
         var view = _session?.View;
-        if (!DebugAutoPlay || view == null || !(view.IsMyTurn || view.MustDraw || view.AugmentChoices.Count > 0) || view.Winner.HasValue)
+        if (!DebugAutoPlay || view == null || !(view.IsMyTurn || view.MustDraw || view.AugmentChoices.Count > 0 || view.MyArcade != null) || view.Winner.HasValue)
         {
             return;
         }
@@ -412,7 +420,8 @@ public partial class GameController : Control
     private void StartSolo()
     {
         LeaveSession();
-        var options = new GameOptions(SpecialAugments: _soloAugmentToggle.ButtonPressed);
+        var options = new GameOptions(SpecialAugments: _soloAugmentToggle.ButtonPressed, Themes: _soloThemeToggle.ButtonPressed && DebugForcedTheme != -2,
+            ForcedTheme: DebugForcedTheme);
         var host = new HostSession(PlayerName, null, GameVersion.Current, options) { BotDelay = _botDelay, HostSteamId = SteamRuntime.MySteamId };
         host.SetBotCount(GameSettings.SoloBots);
         host.SetBotLevel((BotLevel)GameSettings.BotLevel);
@@ -948,6 +957,9 @@ public partial class GameController : Control
         RefreshAugmentOverlay(view);
         RefreshGambleOverlay(view);
         RefreshMinigame(view, finished);
+        RefreshArcade(view, finished);
+        ShowThemeBannerWhenFree(view);
+        RefreshYachtBar(view, finished);
 
         if (finished)
         {
@@ -1118,7 +1130,8 @@ public partial class GameController : Control
 
         // 혼자 하기는 전송 계층이 없는 방장뿐입니다. Steam 방장도 멀티로 표시합니다.
         string mode = _session!.IsSolo ? "혼자 하기" : _session is ClientSession ? "멀티 · 참가자" : "멀티 · 방장";
-        _infoLabel.Text = $"{mode}     {view.Round}라운드  ·  턴 {view.TurnCount + 1}";
+        string theme = view.Theme == ThemeId.None ? "" : $"     테마: {Themes.Info(view.Theme).Name}";
+        _infoLabel.Text = $"{mode}     {view.Round}라운드  ·  턴 {view.TurnCount + 1}{theme}";
     }
 
     private void RefreshMyArea(PlayerView view)
@@ -1471,11 +1484,13 @@ public partial class GameController : Control
 
         _updatingToggle = true;
         _augmentToggle.ButtonPressed = _session.RoomOptions.SpecialAugments;
+        _themeToggle.ButtonPressed = _session.RoomOptions.Themes;
         _botLevelOption.Selected = (int)_session.LobbyBotLevel;
         _updatingToggle = false;
 
         bool running = _session.GameRunning;
         _augmentToggle.Disabled = !isHost || running;
+        _themeToggle.Disabled = !isHost || running;
         _botLevelOption.Disabled = !isHost || running;
         bool enoughPlayers = names.Length + _session.LobbyBots >= HostSession.MinPlayers;
         _startButton.Visible = isHost;
@@ -1641,8 +1656,118 @@ public partial class GameController : Control
         _ => $"{goal.Augment} {goal.Value}/{goal.Target}",
     };
 
-    private static string GoalsText(PlayerView view, int seat) =>
-        seat < view.WinGoals.Length ? string.Join("  ·  ", view.WinGoals[seat].Select(GoalText)) : "";
+    private static string GoalsText(PlayerView view, int seat)
+    {
+        var parts = new List<string>();
+
+        // 판 테마 진행도가 먼저입니다. (모두에게 공개)
+        if (view.Theme == ThemeId.Arcade && seat < view.Stars.Length)
+        {
+            parts.Add($"별 {view.Stars[seat]}/{ArcadeRules.StarsToWin}");
+        }
+        else if (view.Theme == ThemeId.Yacht && seat < view.YachtDone.Length)
+        {
+            parts.Add($"족보 {view.YachtDone[seat].Count}/{YachtRules.CategoriesToWin}");
+        }
+
+        if (seat < view.WinGoals.Length)
+        {
+            parts.AddRange(view.WinGoals[seat].Select(GoalText));
+        }
+
+        return string.Join("  ·  ", parts);
+    }
+
+    private string _pendingThemeBanner = "";
+
+    /// <summary>이번 판 테마를 크게 알립니다. (증강 고르기 창이 닫힌 뒤)</summary>
+    private void ShowThemeBannerWhenFree(PlayerView view)
+    {
+        if (_pendingThemeBanner.Length == 0 || _augmentOverlay.Visible || view.ChoosingAugment)
+        {
+            return;
+        }
+
+        ShowToast($"이번 판 테마\n{_pendingThemeBanner}", UiTheme.Gold);
+        _fx.Rays(_table.GetGlobalRect().GetCenter(), UiTheme.Gold, 360, 1.2f);
+        Audio.Sfx.Play("augment_offer", 0f, 1f, 0f);
+        _pendingThemeBanner = "";
+    }
+
+    /// <summary>미니게임 대회 창을 열고, 기다리는 동안 진행 상황을 보여 줍니다.</summary>
+    private void RefreshArcade(PlayerView view, bool finished)
+    {
+        if (view.Arcade is { } arcade && !finished)
+        {
+            if (arcade.Id != _arcade.ShownId)
+            {
+                _arcade.Open(arcade, view.PlayerId);
+            }
+            else
+            {
+                _arcade.UpdateProgress(arcade, view.PlayerId);
+            }
+        }
+        else if (_arcade.Visible && !_arcade.ShowingResult)
+        {
+            _arcade.Close();
+        }
+    }
+
+    /// <summary>
+    /// 야추 족보판입니다. 등록한 족보는 금색, 지금 등록할 수 있는 족보는 눌러서 등록, 나머지는 흐리게 보입니다.
+    /// </summary>
+    private void RefreshYachtBar(PlayerView view, bool finished)
+    {
+        bool show = view.Theme == ThemeId.Yacht && !finished;
+        _yachtBar.Visible = show;
+        if (!show)
+        {
+            return;
+        }
+
+        var done = view.PlayerId < view.YachtDone.Length ? view.YachtDone[view.PlayerId] : Array.Empty<YachtCategory>();
+        string signature = string.Join(",", done) + "|" + string.Join(",", view.YachtOptions);
+        if (signature == _yachtSignature)
+        {
+            return;
+        }
+
+        _yachtSignature = signature;
+        foreach (var child in _yachtBar.GetChildren())
+        {
+            child.QueueFree();
+        }
+
+        _yachtBar.AddChild(UiTheme.MakeLabel($"족보 {done.Count}/{YachtRules.CategoriesToWin}", 14, UiTheme.Gold));
+        foreach (var category in YachtRules.All)
+        {
+            bool registered = done.Contains(category);
+            bool available = view.YachtOptions.Contains(category);
+            var button = new Button
+            {
+                Text = registered ? $"✓ {YachtRules.Name(category)}" : YachtRules.Name(category),
+                TooltipText = YachtRules.Describe(category),
+                FocusMode = FocusModeEnum.None,
+                Disabled = !available,
+                CustomMinimumSize = new Vector2(96, 32),
+                MouseDefaultCursorShape = available ? CursorShape.PointingHand : CursorShape.Arrow,
+            };
+            UiTheme.StyleButton(button, available ? UiTheme.ButtonKind.Primary : UiTheme.ButtonKind.Secondary, 13);
+            if (registered)
+            {
+                button.Modulate = new Color(1f, 0.85f, 0.4f);
+            }
+            else if (!available)
+            {
+                button.Modulate = new Color(1, 1, 1, 0.5f);
+            }
+
+            var chosen = category;
+            button.Pressed += () => _session?.Submit(PlayerAction.YachtRegister(chosen));
+            _yachtBar.AddChild(button);
+        }
+    }
 
     /// <summary>도감: 내가 얻은 특수 증강과 내가 발동한 각성 능력을 기록합니다.</summary>
     private static void RecordCollection(GameEvent e)
@@ -1804,6 +1929,22 @@ public partial class GameController : Control
             case GameEventType.MarksmanStopped:
                 _minigame.ShowResult(e);
                 Audio.Sfx.Play(e.Amount > 0 ? "augment_gain" : "skip", me ? 0f : -5f);
+                break;
+
+            case GameEventType.ThemeRevealed:
+                // 첫 특수 증강 고르기 창이 떠 있으면 가리지 않도록, 창이 닫힌 뒤에 알립니다.
+                _pendingThemeBanner = e.Text;
+                break;
+
+            case GameEventType.ArcadeResult:
+                _arcade.ShowResult(e, seat => _session!.NameOf(seat), _session?.View?.Stars ?? Array.Empty<int>());
+                Audio.Sfx.Play(e.Target == _session?.MySeat ? "win" : "augment_gain", -2f);
+                break;
+
+            case GameEventType.YachtRegistered:
+                _fx.FloatText(SeatAnchor(e.Player), $"{e.Text}!", UiTheme.Gold, me ? 44 : 32, 0.7f);
+                _fx.Ring(SeatAnchor(e.Player), UiTheme.Gold, 170, 0.5f);
+                Audio.Sfx.Play("augment_gain", me ? 0f : -5f);
                 break;
 
             case GameEventType.JackpotSpun:
@@ -2183,6 +2324,9 @@ public partial class GameController : Control
         _guide = GetNode<GuideView>("%Guide");
         _minigame = GetNode<MinigameOverlay>("%Minigame");
         _minigame.Submitted += action => _session?.Submit(action);
+        _arcade = GetNode<ArcadeOverlay>("%Arcade");
+        _arcade.Submitted += score => _session?.Submit(PlayerAction.ArcadeScore(score));
+        _yachtBar = GetNode<HBoxContainer>("%YachtBar");
         BindLobby();
         BindSettings();
 
@@ -2218,6 +2362,7 @@ public partial class GameController : Control
 
         menu.GetNode<Button>("%SoloButton").Pressed += StartSolo;
         _soloAugmentToggle = menu.GetNode<CheckButton>("%SoloAugmentToggle");
+        _soloThemeToggle = menu.GetNode<CheckButton>("%SoloThemeToggle");
 
         // 혼자 하기 상대 봇 수(1~3명)입니다. 고른 값은 설정 파일에 저장합니다.
         var soloBots = menu.GetNode<OptionButton>("%SoloBotsOption");
@@ -2278,6 +2423,14 @@ public partial class GameController : Control
             if (!_updatingToggle && _session is HostSession host)
             {
                 host.SetOptions(host.RoomOptions with { SpecialAugments = pressed });
+            }
+        };
+        _themeToggle = menu.GetNode<CheckButton>("%ThemeToggle");
+        _themeToggle.Toggled += pressed =>
+        {
+            if (!_updatingToggle && _session is HostSession host)
+            {
+                host.SetOptions(host.RoomOptions with { Themes = pressed });
             }
         };
         _friendBox = menu.GetNode<Control>("%FriendBox");

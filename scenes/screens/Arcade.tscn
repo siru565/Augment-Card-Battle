@@ -1,0 +1,100 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/UI/ArcadeOverlay.cs" id="1_r"]
+[ext_resource type="Theme" path="res://assets/ui/ui_theme.tres" id="2_r"]
+[ext_resource type="Script" path="res://scripts/UI/ArcadeStage.cs" id="3_r"]
+
+[node name="Arcade" type="ColorRect"]
+script = ExtResource("1_r")
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+visible = false
+color = Color(0, 0, 0, 0.7)
+mouse_filter = 0
+theme = ExtResource("2_r")
+
+[node name="Center" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Panel" type="PanelContainer" parent="Center"]
+theme_type_variation = &"ModalPanel"
+custom_minimum_size = Vector2(640, 0)
+layout_mode = 2
+
+[node name="Box" type="VBoxContainer" parent="Center/Panel"]
+theme_override_constants/separation = 10
+layout_mode = 2
+
+[node name="Caption" type="Label" parent="Center/Panel/Box"]
+theme_type_variation = &"CaptionLabel"
+text = "미니게임 대회"
+horizontal_alignment = 1
+layout_mode = 2
+
+[node name="Title" type="Label" parent="Center/Panel/Box"]
+unique_name_in_owner = true
+theme_type_variation = &"TitleLabel"
+theme_override_font_sizes/font_size = 32
+text = "벽돌깨기"
+horizontal_alignment = 1
+layout_mode = 2
+
+[node name="HowTo" type="Label" parent="Center/Panel/Box"]
+unique_name_in_owner = true
+theme_type_variation = &"DimLabel"
+theme_override_font_sizes/font_size = 14
+text = ""
+horizontal_alignment = 1
+autowrap_mode = 2
+custom_minimum_size = Vector2(560, 0)
+layout_mode = 2
+
+[node name="Stats" type="HBoxContainer" parent="Center/Panel/Box"]
+theme_override_constants/separation = 24
+alignment = 1
+layout_mode = 2
+
+[node name="TimeLabel" type="Label" parent="Center/Panel/Box/Stats"]
+unique_name_in_owner = true
+theme_type_variation = &"BoldLabel"
+theme_override_font_sizes/font_size = 18
+text = "20.0초"
+layout_mode = 2
+
+[node name="ScoreLabel" type="Label" parent="Center/Panel/Box/Stats"]
+unique_name_in_owner = true
+theme_type_variation = &"BoldLabel"
+theme_override_font_sizes/font_size = 18
+text = "점수 0"
+theme_override_colors/font_color = Color(0.9412, 0.7216, 0.2863, 1.0000)
+layout_mode = 2
+
+[node name="Stage" type="Control" parent="Center/Panel/Box"]
+script = ExtResource("3_r")
+unique_name_in_owner = true
+custom_minimum_size = Vector2(580, 360)
+mouse_filter = 0
+focus_mode = 2
+layout_mode = 2
+
+[node name="Status" type="Label" parent="Center/Panel/Box"]
+unique_name_in_owner = true
+theme_type_variation = &"BoldLabel"
+theme_override_font_sizes/font_size = 16
+text = ""
+horizontal_alignment = 1
+layout_mode = 2
+
+[node name="Results" type="VBoxContainer" parent="Center/Panel/Box"]
+unique_name_in_owner = true
+theme_override_constants/separation = 4
+layout_mode = 2

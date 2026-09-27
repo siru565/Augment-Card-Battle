@@ -7,7 +7,7 @@ namespace SpCardgame.Core;
 /// <summary>
 /// 판 설정입니다. 대기방에서 방장이 고릅니다.
 /// </summary>
-public sealed record GameOptions(bool SpecialAugments = true);
+public sealed record GameOptions(bool SpecialAugments = true, bool Themes = true, int ForcedTheme = -1);
 
 /// <summary>
 /// 억지로 뽑아야 하는 카드 빚입니다. (+2, +4, 카드 폭풍, 심연의 부름 등)
@@ -62,6 +62,12 @@ public sealed class PlayerState
 
     /// <summary>정밀 사수: 연속 성공 수입니다.</summary>
     public int MarksmanStreak { get; set; }
+
+    /// <summary>미니게임 대회 테마: 모은 별 수입니다.</summary>
+    public int Stars { get; set; }
+
+    /// <summary>야추 테마: 등록한 족보입니다.</summary>
+    public HashSet<YachtCategory> YachtDone { get; } = new();
 
     /// <summary>잭팟: 마지막으로 나온 릴입니다. (화면 표시용)</summary>
     public string LastJackpot { get; set; } = "";
@@ -151,6 +157,14 @@ public sealed class GameState
     /// <summary>지금 차례인 사람이 해야 하는 미니게임입니다. (컬링, 정밀 사수, 예언자)</summary>
     public MinigameInfo? PendingMinigame { get; set; }
 
+    /// <summary>이번 판 테마입니다.</summary>
+    public ThemeId Theme { get; set; } = ThemeId.None;
+
+    /// <summary>진행 중인 미니게임 대회입니다. (미니게임 대회 테마) 모두 점수를 낼 때까지 게임이 멈춥니다.</summary>
+    public ArcadeRound? Arcade { get; set; }
+
+    public int ArcadeCounter { get; set; }
+
     /// <summary>미니게임마다 붙이는 번호입니다. 화면이 새 미니게임인지 알아보는 데 씁니다.</summary>
     public int MinigameCounter { get; set; }
 
@@ -168,6 +182,7 @@ public sealed class GameState
     /// </summary>
     public int InputPlayer =>
         Drafting ? Players.First(p => p.DraftChoices.Count > 0).Id
+        : Arcade != null ? Arcade.Players.First(p => !Arcade.Scores.ContainsKey(p))
         : PayingDebt ? DrawQueue[0].Player
         : CurrentPlayer;
 
@@ -225,7 +240,7 @@ public sealed class GameState
     public PlayerView ViewFor(int playerId)
     {
         bool myTurn = CurrentPlayer == playerId && !IsFinished && Players[playerId].Active;
-        bool blocked = ChoosingAbility || ChoosingAugment || PayingDebt || Drafting || GambleCards.Count > 0 || PendingMinigame != null;
+        bool blocked = ChoosingAbility || ChoosingAugment || PayingDebt || Drafting || GambleCards.Count > 0 || PendingMinigame != null || Arcade != null;
         var me = Players[playerId];
         var hand = me.Hand.ToList();
 
@@ -307,6 +322,13 @@ public sealed class GameState
             // 특수 증강 고르기나 억지 뽑기가 먼저 끝나야 미니게임을 합니다. (엔진도 같은 순서로 받습니다)
             Minigame = ChoosingAugment || PayingDebt || Drafting || GambleCards.Count > 0 ? null : PendingMinigame,
             WinGoals = Players.Select(WinGoalsOf).ToArray(),
+            Theme = Theme,
+            Stars = Players.Select(p => p.Stars).ToArray(),
+            YachtDone = Players.Select(p => (IReadOnlyList<YachtCategory>)p.YachtDone.OrderBy(c => c).ToList()).ToArray(),
+            YachtOptions = Theme == ThemeId.Yacht && myTurn && !blocked && !FrenzyActive && PendingPenalty == 0
+                ? YachtRules.All.Where(c => !me.YachtDone.Contains(c) && YachtRules.Find(me.Hand, c) != null).ToList()
+                : new List<YachtCategory>(),
+            Arcade = Arcade == null ? null : new ArcadeInfo(Arcade.Id, Arcade.Game, Arcade.Seed, Arcade.Players, Arcade.Scores.Keys.ToArray()),
         };
     }
 
@@ -407,6 +429,24 @@ public sealed record PlayerView(
 
     /// <summary>자리마다 승리 조건 증강의 진행도입니다. 모두에게 보입니다.</summary>
     public IReadOnlyList<WinGoal>[] WinGoals { get; init; } = Array.Empty<IReadOnlyList<WinGoal>>();
+
+    /// <summary>이번 판 테마입니다.</summary>
+    public ThemeId Theme { get; init; } = ThemeId.None;
+
+    /// <summary>자리마다 모은 별 (미니게임 대회 테마)</summary>
+    public int[] Stars { get; init; } = Array.Empty<int>();
+
+    /// <summary>자리마다 등록한 족보 (야추 테마) — 모두에게 공개됩니다.</summary>
+    public IReadOnlyList<YachtCategory>[] YachtDone { get; init; } = Array.Empty<IReadOnlyList<YachtCategory>>();
+
+    /// <summary>지금 내가 등록할 수 있는 족보입니다. (야추 테마, 내 차례)</summary>
+    public IReadOnlyList<YachtCategory> YachtOptions { get; init; } = Array.Empty<YachtCategory>();
+
+    /// <summary>진행 중인 미니게임 대회입니다.</summary>
+    public ArcadeInfo? Arcade { get; init; }
+
+    /// <summary>내가 아직 점수를 안 낸 미니게임 대회입니다.</summary>
+    public ArcadeInfo? MyArcade => Arcade != null && Arcade.Players.Contains(PlayerId) && !Arcade.Submitted.Contains(PlayerId) ? Arcade : null;
 
     /// <summary>내가 지금 해야 하는 미니게임입니다.</summary>
     public MinigameInfo? MyMinigame => Minigame != null && Minigame.Player == PlayerId && !GameOver ? Minigame : null;

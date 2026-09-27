@@ -14,6 +14,8 @@ public enum ActionType
     ForcedDraw,
     ChooseDraw,
     Minigame,
+    ArcadeScore,
+    YachtRegister,
 }
 
 /// <summary>
@@ -32,6 +34,12 @@ public readonly record struct PlayerAction(
     /// </summary>
     public static PlayerAction Minigame(float x, float y = 0, CardColor suit = CardColor.Wild) =>
         new(ActionType.Minigame, -1, suit, -1, x, y);
+
+    /// <summary>미니게임 대회 점수를 냅니다.</summary>
+    public static PlayerAction ArcadeScore(int score) => new(ActionType.ArcadeScore, score);
+
+    /// <summary>야추 족보를 등록합니다.</summary>
+    public static PlayerAction YachtRegister(YachtCategory category) => new(ActionType.YachtRegister, (int)category);
 
     public static PlayerAction Play(int cardId, CardColor chosenColor = CardColor.Wild, int target = -1) =>
         new(ActionType.Play, cardId, chosenColor, target);
@@ -119,6 +127,7 @@ public sealed class GameEngine
 
         string mode = State.Options.SpecialAugments ? $" · 특수 증강 켜짐 (시작할 때 + {SpecialAugments.OfferEveryTurns}턴마다)" : "";
         Emit($"게임 시작 · 덱 {DeckSize}장{mode}");
+        ChooseTheme();
 
         for (int round = 0; round < Rules.StartingHandSize; round++)
         {
@@ -182,6 +191,15 @@ public sealed class GameEngine
 
             result = TryDraftAugment(playerId, action.CardId);
         }
+        else if (State.Arcade != null)
+        {
+            if (action.Type != ActionType.ArcadeScore || !State.Arcade.Players.Contains(playerId) || State.Arcade.Scores.ContainsKey(playerId))
+            {
+                return ActionResult.Fail("미니게임 대회가 끝나기를 기다리는 중입니다.");
+            }
+
+            result = TryArcadeScore(playerId, action.CardId);
+        }
         else if (State.PayingDebt)
         {
             if (playerId != State.InputPlayer)
@@ -231,6 +249,7 @@ public sealed class GameEngine
                 ActionType.Play => TryPlay(playerId, action),
                 ActionType.Draw => TryDraw(playerId),
                 ActionType.Pass => TryPass(playerId),
+                ActionType.YachtRegister => TryYacht(playerId, (YachtCategory)action.CardId),
                 _ => ActionResult.Fail("지금은 할 수 없는 행동입니다."),
             };
         }
@@ -831,6 +850,128 @@ public sealed class GameEngine
 
     // ───────────── 특수 증강 ─────────────
 
+    // ───────────── 판 테마 (미니게임 대회 · 야추 …) ─────────────
+
+    /// <summary>게임을 시작할 때 이번 판 테마를 무작위로 고릅니다. (방에서 테마를 껐으면 없음)</summary>
+    private void ChooseTheme()
+    {
+        if (!State.Options.Themes)
+        {
+            State.Theme = ThemeId.None;
+            return;
+        }
+
+        State.Theme = State.Options.ForcedTheme >= 0 && Themes.Pool.Contains((ThemeId)State.Options.ForcedTheme)
+            ? (ThemeId)State.Options.ForcedTheme
+            : Themes.Pool[Rng.Next(Themes.Pool.Length)];
+        var info = Themes.Info(State.Theme);
+        Emit($"✦ 이번 판 테마: {info.Name} — {info.Summary}");
+        Raise(new GameEvent(GameEventType.ThemeRevealed, Amount: (int)State.Theme, Text: info.Name));
+    }
+
+    private void StartArcade()
+    {
+        var game = (ArcadeGame)(State.ArcadeCounter % 3);
+        State.ArcadeCounter++;
+        var players = State.Players.Where(p => p.Active).Select(p => p.Id).ToArray();
+        State.Arcade = new ArcadeRound(State.ArcadeCounter, game, Rng.Next(), players, new Dictionary<int, int>());
+        Emit($"✦ 미니게임 대회! 이번 종목은 [{ArcadeRules.Name(game)}]입니다.");
+        Raise(new GameEvent(GameEventType.ArcadeStarted, Amount: (int)game, Text: ArcadeRules.Name(game)));
+    }
+
+    private ActionResult TryArcadeScore(int playerId, int score)
+    {
+        var arcade = State.Arcade!;
+        arcade.Scores[playerId] = Math.Clamp(score, 0, 100_000);
+        if (arcade.Players.Any(p => !arcade.Scores.ContainsKey(p)))
+        {
+            return ActionResult.Success();
+        }
+
+        // 모두 냈으면 결과를 발표합니다. 최고 점수가 여럿이면 모두 별을 받습니다. (0점끼리는 없음)
+        State.Arcade = null;
+        int best = arcade.Scores.Values.Max();
+        var winners = best > 0 ? arcade.Scores.Where(kv => kv.Value == best).Select(kv => kv.Key).ToList() : new List<int>();
+        foreach (int w in winners)
+        {
+            State.Players[w].Stars++;
+        }
+
+        string board = string.Join(", ", arcade.Scores.OrderByDescending(kv => kv.Value).Select(kv => $"{NameOf(kv.Key)} {kv.Value}점"));
+        Emit(winners.Count > 0
+            ? $"  ★ [{ArcadeRules.Name(arcade.Game)}] {string.Join(", ", winners.Select(NameOf))} 우승! 별 +1 ({board})"
+            : $"  [{ArcadeRules.Name(arcade.Game)}] 우승자가 없습니다. ({board})");
+        Raise(new GameEvent(GameEventType.ArcadeResult, Target: winners.Count == 1 ? winners[0] : -1, Amount: best,
+            Text: string.Join(",", arcade.Scores.Select(kv => $"{kv.Key}:{kv.Value}"))));
+
+        foreach (int w in winners.Where(w => State.Players[w].Stars >= ArcadeRules.StarsToWin))
+        {
+            if (State.IsFinished || !State.IsActive(w))
+            {
+                continue;
+            }
+
+            Place(w, $"미니게임 대회 — 별 {ArcadeRules.StarsToWin}개를 모았습니다", eliminated: false);
+            AfterRemoval(w);
+        }
+
+        return ActionResult.Success();
+    }
+
+    private ActionResult TryYacht(int playerId, YachtCategory category)
+    {
+        var player = State.Players[playerId];
+        if (State.Theme != ThemeId.Yacht)
+        {
+            return ActionResult.Fail("야추 테마가 아닙니다.");
+        }
+
+        if (State.FrenzyActive || State.PendingPenalty > 0)
+        {
+            return ActionResult.Fail("지금은 족보를 등록할 수 없습니다.");
+        }
+
+        if (player.YachtDone.Contains(category))
+        {
+            return ActionResult.Fail("이미 등록한 족보입니다.");
+        }
+
+        var cards = YachtRules.Find(player.Hand, category);
+        if (cards == null)
+        {
+            return ActionResult.Fail($"[{YachtRules.Name(category)}]에 맞는 카드가 없습니다.");
+        }
+
+        // 족보 카드는 버린 더미 맨 아래로 갑니다. (바닥 카드는 그대로)
+        foreach (var card in cards)
+        {
+            player.Hand.Remove(card);
+            State.DiscardPile.Insert(0, card);
+        }
+
+        player.YachtDone.Add(category);
+        Emit($"  ★ {NameOf(playerId)}: [야추] {YachtRules.Name(category)} 등록! ({string.Join(" ", cards.Select(c => $"[{c}]"))}) " +
+             $"{player.YachtDone.Count}/{YachtRules.CategoriesToWin}");
+        Raise(new GameEvent(GameEventType.YachtRegistered, playerId, Amount: player.YachtDone.Count, Text: YachtRules.Name(category)));
+
+        if (player.YachtDone.Count >= YachtRules.CategoriesToWin)
+        {
+            Place(playerId, $"야추 — 족보 {YachtRules.CategoriesToWin}종류를 등록했습니다", eliminated: false);
+            AfterRemoval(playerId);
+            return ActionResult.Success();
+        }
+
+        if (CheckWin(playerId))
+        {
+            AfterRemoval(playerId);
+            return ActionResult.Success();
+        }
+
+        // 족보를 등록하면 차례가 끝납니다.
+        FinishTurn(1);
+        return ActionResult.Success();
+    }
+
     // ───────────── 승리 조건 미니게임 (컬링 · 잭팟 · 도미노 · 예언자 · 정밀 사수) ─────────────
 
     private static string F(float value) => value.ToString("0.#####", System.Globalization.CultureInfo.InvariantCulture);
@@ -948,6 +1089,24 @@ public sealed class GameEngine
             default:
                 OpenMinigame(kind, player, 0, 0, 0, p.OracleStreak);
                 break;
+        }
+    }
+
+    /// <summary>개발용: 미니게임 대회를 바로 엽니다.</summary>
+    public void DebugStartArcade() => StartArcade();
+
+    /// <summary>개발용: 족보를 만들기 좋은 카드(같은 숫자 3장, 연속 숫자 4장)를 덱에서 가져와 손에 넣습니다.</summary>
+    public void DebugYachtHand(int player)
+    {
+        var hand = State.Players[player].Hand;
+        foreach (int number in new[] { 7, 7, 7, 2, 3, 4, 5 })
+        {
+            var card = State.DrawPile.FirstOrDefault(c => c.Kind == CardKind.Number && c.Number == number);
+            if (card != null)
+            {
+                State.DrawPile.Remove(card);
+                hand.Add(card);
+            }
         }
     }
 
@@ -1366,6 +1525,14 @@ public sealed class GameEngine
             return false;
         }
 
+        // 야추 테마: 손패를 다 내면 이기는 대신 새 카드를 받습니다. (주사위를 다시 굴리듯)
+        if (State.Theme == ThemeId.Yacht)
+        {
+            DrawCards(playerId, YachtRules.RerollCards);
+            Emit($"    → [야추] 손패를 다 냈습니다! 새 카드 {YachtRules.RerollCards}장을 받습니다.");
+            return false;
+        }
+
         Place(playerId, "손패를 모두 냈습니다", eliminated: false);
         return true;
     }
@@ -1519,6 +1686,7 @@ public sealed class GameEngine
         State.PendingAbilities.Clear();
         State.PendingAugments.Clear();
         State.PendingMinigame = null;
+        State.Arcade = null;
         State.GambleCards.Clear();
         Emit($"게임 종료 · 최종 순위: {string.Join(", ", State.Players.OrderBy(p => p.Rank).Select(p => $"{p.Rank}등 {NameOf(p.Id)}"))}");
     }
@@ -1573,6 +1741,12 @@ public sealed class GameEngine
         State.FrenzyNumber = -1;
         State.TurnCount++;
 
+        // 미니게임 대회 테마: 정해진 턴마다 모두가 미니게임을 합니다.
+        if (State.Theme == ThemeId.Arcade && State.TurnCount % ArcadeRules.Every == 0 && State.ActiveCount >= 2)
+        {
+            StartArcade();
+        }
+
         // 저격수에게 찍힌 사람은 이번 차례를 건너뜁니다.
         for (int guard = 0; guard < State.PlayerCount && State.Players[State.CurrentPlayer].SkipNext; guard++)
         {
@@ -1620,6 +1794,12 @@ public sealed class GameEngine
             Emit($"    → [평화주의자] {NameOf(next.Id)}는 누적 +{State.PendingPenalty}의 영향을 받지 않습니다.");
             Raise(new GameEvent(GameEventType.Immune, -1, next.Id, Text: "평화주의자"));
             State.PendingPenalty = 0;
+        }
+
+        // 야추 테마: 차례가 시작되면 주사위를 굴리듯 카드를 더 뽑습니다.
+        if (State.Theme == ThemeId.Yacht && YachtRules.DrawPerTurn > 0)
+        {
+            DrawCards(next.Id, YachtRules.DrawPerTurn);
         }
 
         OfferAugmentIfDue(next.Id);

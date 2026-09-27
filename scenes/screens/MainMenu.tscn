@@ -112,6 +112,14 @@ text = "특수 증강"
 button_pressed = true
 layout_mode = 2
 
+[node name="SoloThemeToggle" type="CheckButton" parent="SidePanel/Box/MenuView/SoloRow"]
+unique_name_in_owner = true
+focus_mode = 0
+mouse_default_cursor_shape = 2
+text = "판 테마"
+button_pressed = true
+layout_mode = 2
+
 [node name="SoloBotsRow" type="HBoxContainer" parent="SidePanel/Box/MenuView"]
 theme_override_constants/separation = 12
 layout_mode = 2
@@ -379,6 +387,13 @@ unique_name_in_owner = true
 focus_mode = 0
 mouse_default_cursor_shape = 2
 text = "특수 증강"
+layout_mode = 2
+
+[node name="ThemeToggle" type="CheckButton" parent="SidePanel/Box/RoomView/Columns/Players"]
+unique_name_in_owner = true
+focus_mode = 0
+mouse_default_cursor_shape = 2
+text = "판 테마 (무작위)"
 layout_mode = 2
 
 [node name="BotLevelRow" type="HBoxContainer" parent="SidePanel/Box/RoomView/Columns/Players"]
