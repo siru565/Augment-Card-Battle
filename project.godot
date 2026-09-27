@@ -14,7 +14,9 @@ config/name="SP_Cardgame"
 config/version="0.2.6"
 run/main_scene="res://scenes/Game.tscn"
 config/features=PackedStringArray("4.7", "C#", "Mobile")
-config/icon="res://icon.svg"
+config/icon="res://assets/ui/icon.png"
+boot_splash/bg_color=Color(0.039, 0.047, 0.063, 1)
+boot_splash/image="res://assets/ui/logo.png"
 
 [autoload]
 

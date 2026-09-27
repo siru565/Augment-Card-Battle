@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/images/logo.png" width="560" alt="증강 카드 배틀 로고"></p>
+
 # 증강 카드 배틀 (Augment Card Battle)
 
 > 우노처럼 손패를 먼저 다 내면 이기는 카드 게임에, **롤 증강처럼 판의 규칙 자체를 바꾸는 "특수 증강"** 을 더한 멀티플레이 카드 게임입니다.
