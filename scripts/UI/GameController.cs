@@ -400,6 +400,7 @@ public partial class GameController : Control
         LeaveSession();
         var options = new GameOptions(SpecialAugments: _soloAugmentToggle.ButtonPressed);
         var host = new HostSession(PlayerName, null, GameVersion.Current, options) { BotDelay = _botDelay, HostSteamId = SteamRuntime.MySteamId };
+        host.SetBotCount(GameSettings.SoloBots);
         AttachSession(host);
         host.StartGame();
     }
@@ -547,10 +548,20 @@ public partial class GameController : Control
         _myAugmentSignature = "";
 
         // 내 자리를 기준으로 다음 사람부터 위쪽에 차례대로 앉힙니다.
+        // 인원이 적으면 칸을 비워 둡니다. (2인: 가운데 한 칸, 3인: 양쪽 두 칸)
+        int players = Math.Max(2, _session.Names.Length);
+        var slots = OpponentSlots(players);
         for (int k = 1; k < SeatCount; k++)
         {
-            int seat = (_session.MySeat + k) % SeatCount;
-            _seats[k].Assign(seat, _session.NameOf(seat), _session.SteamIdOf(seat));
+            _seats[k].SetEmpty(true);
+        }
+
+        for (int k = 1; k < players; k++)
+        {
+            int seat = (_session.MySeat + k) % players;
+            var slot = _seats[slots[k - 1]];
+            slot.SetEmpty(false);
+            slot.Assign(seat, _session.NameOf(seat), _session.SteamIdOf(seat));
         }
 
         _myNameLabel.Text = _session.NameOf(_session.MySeat);
@@ -885,6 +896,11 @@ public partial class GameController : Control
         for (int k = 1; k < SeatCount; k++)
         {
             int seat = _seats[k].PlayerId;
+            if (seat < 0 || seat >= view.PlayerCount)
+            {
+                continue;
+            }
+
             _seats[k].UpdateView(view.HandCounts[seat], view.Augments[seat], view.Sealed[seat],
                 isTurn: (view.PayingDebt ? view.DebtPlayer : view.CurrentPlayer) == seat && !finished,
                 isNext: view.NextSeat == seat,
@@ -1368,18 +1384,43 @@ public partial class GameController : Control
             child.QueueFree();
         }
 
-        for (int i = 0; i < HostSession.SeatCount; i++)
+        // 자리 순서: 사람(방장 먼저) → 봇 → 빈자리. 한 줄의 모양은 scenes/ui/RoomRow.tscn에 있습니다.
+        var host = _session as HostSession;
+        bool canEdit = isHost && !_session.GameRunning;
+        for (int i = 0; i < names.Length; i++)
         {
-            // 한 줄의 모양은 scenes/ui/RoomRow.tscn에 있습니다.
-            bool filled = i < names.Length;
-            ulong steamId = filled && i < _session.LobbySteamIds.Length ? _session.LobbySteamIds[i] : 0;
-            bool busy = filled && i < _session.LobbyBusy.Length && _session.LobbyBusy[i];
-            bool canKick = i > 0 && filled && isHost;
-            var row = RoomRow.Create(filled ? names[i] : "", steamId, busy, i == 0, canKick);
-            if (canKick && _session is HostSession host)
+            ulong steamId = i < _session.LobbySteamIds.Length ? _session.LobbySteamIds[i] : 0;
+            bool busy = i < _session.LobbyBusy.Length && _session.LobbyBusy[i];
+            bool canKick = i > 0 && isHost;
+            var row = RoomRow.Create(names[i], steamId, busy, i == 0, canKick);
+            if (canKick && host != null)
             {
                 int index = i;
-                row.KickPressed += () => host.Kick(index);
+                row.ButtonPressed += () => host.Kick(index);
+            }
+
+            _roomPlayers.AddChild(row);
+        }
+
+        int bots = Math.Min(_session.LobbyBots, HostSession.SeatCount - names.Length);
+        for (int b = 0; b < bots; b++)
+        {
+            // 게임에서 쓰는 이름과 같게 "봇 A, 봇 B…"로 보여 줍니다. 빼기는 맨 뒤 봇부터 뺍니다.
+            var row = RoomRow.CreateBot($"봇 {(char)('A' + b)}", canEdit && b == bots - 1);
+            if (host != null)
+            {
+                row.ButtonPressed += host.RemoveBot;
+            }
+
+            _roomPlayers.AddChild(row);
+        }
+
+        for (int e = names.Length + bots; e < HostSession.SeatCount; e++)
+        {
+            var row = RoomRow.CreateEmpty(canEdit && e == names.Length + bots);
+            if (host != null)
+            {
+                row.ButtonPressed += host.AddBot;
             }
 
             _roomPlayers.AddChild(row);
@@ -1391,8 +1432,9 @@ public partial class GameController : Control
 
         bool running = _session.GameRunning;
         _augmentToggle.Disabled = !isHost || running;
+        bool enoughPlayers = names.Length + _session.LobbyBots >= HostSession.MinPlayers;
         _startButton.Visible = isHost;
-        _startButton.Disabled = running;
+        _startButton.Disabled = running || !enoughPlayers;
         _startButton.Text = running ? "게임 진행 중" : "게임 시작";
         _endGameButton.Visible = isHost && running;
 
@@ -1416,6 +1458,11 @@ public partial class GameController : Control
             return _session.IsHost
                 ? $"{playing}명이 게임 중입니다. '게임 끝내기'로 모두 대기방으로 부를 수 있습니다."
                 : $"{playing}명이 게임 중입니다. 판이 끝나면 함께할 수 있습니다.";
+        }
+
+        if (_session.IsHost && _session.LobbyNames.Length + _session.LobbyBots < HostSession.MinPlayers)
+        {
+            return "혼자서는 시작할 수 없어요. 봇을 넣거나 친구를 초대하세요.";
         }
 
         return _session.IsHost
@@ -1448,6 +1495,17 @@ public partial class GameController : Control
     }
 
     // ───────────── 연출 ─────────────
+
+    /// <summary>
+    /// 상대 인원에 따라 위쪽 세 칸(1: 왼쪽, 2: 가운데, 3: 오른쪽) 중 어디에 앉힐지 정합니다.
+    /// 차례 순서대로 왼쪽 → 오른쪽입니다.
+    /// </summary>
+    private static int[] OpponentSlots(int players) => players switch
+    {
+        2 => new[] { 2 },
+        3 => new[] { 1, 3 },
+        _ => new[] { 1, 2, 3 },
+    };
 
     /// <summary>플레이어 자리의 화면 위치입니다. 내 자리는 손패 가운데입니다.</summary>
     private Vector2 SeatAnchor(int playerId)
@@ -1612,9 +1670,10 @@ public partial class GameController : Control
                 ShowToast(e.Text, UiTheme.Prism);
                 _fx.Shake(16f, 0.7f);
                 _fx.Flash(Color.FromHtml("#8a5cff"), 0.35f, 0.6f);
-                foreach (var seat in Enumerable.Range(0, SeatCount))
+                int count = Math.Max(2, _session?.Names.Length ?? SeatCount);
+                foreach (var seat in Enumerable.Range(0, count))
                 {
-                    _fx.FlyCard(SeatAnchor(seat), SeatAnchor((seat + 1) % SeatCount), null, 0.5f, 0.05f * seat, new Vector2(70, 100));
+                    _fx.FlyCard(SeatAnchor(seat), SeatAnchor((seat + 1) % count), null, 0.5f, 0.05f * seat, new Vector2(70, 100));
                 }
 
                 break;
@@ -1985,6 +2044,15 @@ public partial class GameController : Control
 
         menu.GetNode<Button>("%SoloButton").Pressed += StartSolo;
         _soloAugmentToggle = menu.GetNode<CheckButton>("%SoloAugmentToggle");
+
+        // 혼자 하기 상대 봇 수(1~3명)입니다. 고른 값은 설정 파일에 저장합니다.
+        var soloBots = menu.GetNode<OptionButton>("%SoloBotsOption");
+        soloBots.Selected = Math.Clamp(GameSettings.SoloBots, 1, HostSession.SeatCount - 1) - 1;
+        soloBots.ItemSelected += index =>
+        {
+            GameSettings.SoloBots = (int)index + 1;
+            GameSettings.Save();
+        };
         _steamHostButton = menu.GetNode<Button>("%SteamHostButton");
         _steamHostButton.Pressed += StartSteamHosting;
         _codeEdit = menu.GetNode<LineEdit>("%CodeEdit");

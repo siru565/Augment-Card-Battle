@@ -465,3 +465,14 @@ Steam 방을 만들었어요! 친구를 초대하거나 방 코드를 알려 주
 달빛 각성	Moon Awaken
 숲 각성	Forest Awaken
 물결 각성	Wave Awaken
+# 봇 넣고 빼기 (2~4인)
+AI 상대	AI opponents
+봇 1명  ·  2인 게임	1 bot  ·  2 players
+봇 2명  ·  3인 게임	2 bots  ·  3 players
+봇 3명  ·  4인 게임	3 bots  ·  4 players
+참가자  ·  2~4명	PLAYERS  ·  2–4
+빈자리	Empty seat
+빼기	Remove
++ 봇 넣기	+ Add bot
+최소 {0}명이 있어야 시작할 수 있어요. 봇을 넣어 주세요.	You need at least {0} players to start. Add a bot.
+혼자서는 시작할 수 없어요. 봇을 넣거나 친구를 초대하세요.	You can't start alone. Add a bot or invite a friend.

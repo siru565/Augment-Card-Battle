@@ -49,6 +49,14 @@ public partial class DevlogShots : Node
             _prefix = "en_";
         }
 
+        // tools/shot_bots.txt에 1~3이 있으면 그 수만큼의 봇과 혼자 하기를 찍습니다. (2인·3인 화면 확인용)
+        string botsFile = ProjectSettings.GlobalizePath("res://tools/shot_bots.txt");
+        if (System.IO.File.Exists(botsFile) && int.TryParse(System.IO.File.ReadAllText(botsFile).Trim(), out int bots) && bots is >= 1 and <= 3)
+        {
+            GameSettings.SoloBots = bots;
+            _prefix += $"b{bots}_";
+        }
+
         // 1. 메인 화면과 설정 창
         await Wait(1.5);
         await Capture("01_main_menu.png");
@@ -151,6 +159,15 @@ public partial class DevlogShots : Node
         _game.DebugHost(24791);
         await Wait(0.8);
         await Capture("12_room.png");
+
+        // 10. 대기방에서 봇을 빼서 2인으로 만든 모습
+        if (_game.Session is HostSession room)
+        {
+            room.RemoveBot();
+            room.RemoveBot();
+            await Wait(0.4);
+            await Capture("13_room_two_players.png");
+        }
     }
 
     /// <summary>봇이 두는 동안 기다렸다가 내 차례가 오면 돌아옵니다. (억지 뽑기는 대신 눌러 줍니다)</summary>

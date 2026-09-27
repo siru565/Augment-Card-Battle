@@ -60,16 +60,24 @@ public partial class NetTest : Node
         host.BotDelay = 0.05f;
         host.DebugAutoPlay = true;
         client.DebugAutoPlay = true;
+
+        // 1판은 봇을 모두 빼서 사람 둘만(2인) 합니다.
+        var room = (SpCardgame.Net.HostSession)host.Session!;
+        room.SetBotCount(0);
+        await Wait(0.3);
+        bool botsSynced = client.Session!.LobbyBots == 0;
         host.DebugStartGame();
 
         await Wait(1.0);
+        int firstPlayers = client.Session?.View?.PlayerCount ?? -1;
         await Capture("net_test.png");
 
         var report = new System.Text.StringBuilder();
         report.AppendLine($"로비: {lobby}");
+        report.AppendLine($"봇 빼기: 참가자 화면 봇 수 0={botsSynced}, 1판 인원={firstPlayers}");
         string first = await PlayToEnd(host, client);
         report.AppendLine($"1판 (특수 증강 OFF): {first}");
-        if (!first.StartsWith("끝"))
+        if (!first.StartsWith("끝") || !botsSynced || firstPlayers != 2)
         {
             return "실패\n" + report;
         }
@@ -85,8 +93,13 @@ public partial class NetTest : Node
         await Wait(0.3);
         report.AppendLine($"설정 전달: 참가자 특수 증강={client.Session?.RoomOptions.SpecialAugments}");
 
+        // 2판은 봇 1명을 넣어 3인으로 합니다.
+        room.AddBot();
+        await Wait(0.3);
         host.DebugStartGame();
         await Wait(2.0);
+        int secondPlayers = client.Session?.View?.PlayerCount ?? -1;
+        report.AppendLine($"봇 넣기: 참가자 화면 봇 수={client.Session?.LobbyBots}, 2판 인원={secondPlayers}");
 
         // 2판: 참가자가 중간에 나가기 → 대기방으로, 자리는 봇이 이어받고 게임은 계속됩니다.
         client.Session!.LeaveGame();
@@ -105,7 +118,7 @@ public partial class NetTest : Node
         string third = await WaitWinner(client);
         report.AppendLine($"3판 (방장 중간 퇴장): 참가자 합류={pulled}, 방장 대기방={hostLeft}, {third}");
         await Wait(0.5);
-        second = clientLeft && pulled && hostLeft && third.StartsWith("끝") ? second : "실패";
+        second = secondPlayers == 3 && clientLeft && pulled && hostLeft && third.StartsWith("끝") ? second : "실패";
 
         // 다시 대기방으로 돌아간 뒤 참가자를 강퇴합니다.
         host.Session!.ReturnToRoom();

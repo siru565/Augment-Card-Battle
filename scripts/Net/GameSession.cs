@@ -25,6 +25,9 @@ public abstract class GameSession
     /// <summary>대기방 사람마다의 Steam ID입니다. (LobbyNames와 같은 순서, 모르면 0)</summary>
     public ulong[] LobbySteamIds { get; protected set; } = Array.Empty<ulong>();
 
+    /// <summary>다음 판에 앉을 봇 수입니다. (방장이 대기방에서 넣고 뺍니다)</summary>
+    public int LobbyBots { get; protected set; }
+
     /// <summary>게임 자리마다의 Steam ID입니다. (Names와 같은 순서, 봇이나 IP 접속은 0)</summary>
     public ulong[] SeatSteamIds { get; protected set; } = Array.Empty<ulong>();
 

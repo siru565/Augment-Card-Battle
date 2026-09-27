@@ -53,6 +53,9 @@ public sealed record NetMessage
     /// </summary>
     public ulong[]? SteamIds { get; init; }
 
+    /// <summary>대기방 정보를 보낼 때, 다음 판에 앉을 봇 수를 알려 줍니다.</summary>
+    public int Bots { get; init; }
+
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,

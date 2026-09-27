@@ -112,6 +112,35 @@ text = "특수 증강"
 button_pressed = true
 layout_mode = 2
 
+[node name="SoloBotsRow" type="HBoxContainer" parent="SidePanel/Box/MenuView"]
+theme_override_constants/separation = 12
+layout_mode = 2
+
+[node name="Name" type="Label" parent="SidePanel/Box/MenuView/SoloBotsRow"]
+theme_type_variation = &"BoldLabel"
+theme_override_font_sizes/font_size = 15
+text = "AI 상대"
+size_flags_vertical = 4
+layout_mode = 2
+
+[node name="SoloBotsOption" type="OptionButton" parent="SidePanel/Box/MenuView/SoloBotsRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 40)
+size_flags_horizontal = 3
+size_flags_vertical = 4
+focus_mode = 0
+mouse_default_cursor_shape = 2
+theme_override_font_sizes/font_size = 15
+item_count = 3
+popup/item_0/text = "봇 1명  ·  2인 게임"
+popup/item_0/id = 1
+popup/item_1/text = "봇 2명  ·  3인 게임"
+popup/item_1/id = 2
+popup/item_2/text = "봇 3명  ·  4인 게임"
+popup/item_2/id = 3
+selected = 2
+layout_mode = 2
+
 [node name="Gap1" type="Control" parent="SidePanel/Box/MenuView"]
 custom_minimum_size = Vector2(0, 10)
 mouse_filter = 2
@@ -297,7 +326,7 @@ layout_mode = 2
 
 [node name="PlayersCaption" type="Label" parent="SidePanel/Box/RoomView/Columns/Players"]
 theme_type_variation = &"CaptionLabel"
-text = "참가자  ·  빈자리는 봇"
+text = "참가자  ·  2~4명"
 layout_mode = 2
 
 [node name="RoomPlayers" type="VBoxContainer" parent="SidePanel/Box/RoomView/Columns/Players"]

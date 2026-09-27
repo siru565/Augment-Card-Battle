@@ -14,7 +14,11 @@ namespace SpCardgame.Net;
 /// </summary>
 public sealed class HostSession : GameSession
 {
+    /// <summary>한 판에 앉을 수 있는 최대 인원입니다. (방장 포함)</summary>
     public const int SeatCount = 4;
+
+    /// <summary>한 판을 시작하려면 필요한 최소 인원입니다. (사람 + 봇)</summary>
+    public const int MinPlayers = 2;
 
     /// <summary>강퇴 메시지가 도착할 시간을 준 뒤 연결을 끊기까지 기다리는 시간(초)입니다.</summary>
     private const float KickDelay = 0.6f;
@@ -41,6 +45,9 @@ public sealed class HostSession : GameSession
     private long[] _seatPeers = Array.Empty<long>();
     private IBot[] _bots = Array.Empty<IBot>();
     private float _botTimer;
+
+    /// <summary>방장이 넣어 둔 봇 수입니다. 사람이 들어와서 자리가 모자라면 실제로는 그만큼 줄어듭니다.</summary>
+    private int _wantedBots = SeatCount - 1;
     private float _draftTimer;
 
     /// <summary>봇이 한 번 행동하기까지 기다리는 시간(초)입니다.</summary>
@@ -85,10 +92,47 @@ public sealed class HostSession : GameSession
 
     // ───────────── 대기방 ─────────────
 
+    /// <summary>다음 판에 실제로 앉을 봇 수입니다. 사람이 먼저 자리를 차지하고, 남는 자리만큼만 봇이 앉습니다.</summary>
+    public int BotCount => Math.Clamp(_wantedBots, 0, SeatCount - 1 - _lobby.Count);
+
+    /// <summary>다음 판 인원(방장 + 참가자 + 봇)입니다.</summary>
+    public int PlannedPlayers => 1 + _lobby.Count + BotCount;
+
+    /// <summary>봇 수를 정합니다. 판이 진행 중일 때는 바꿀 수 없습니다. (혼자 하기는 판 사이에 언제든 바꿀 수 있습니다)</summary>
+    public void SetBotCount(int count)
+    {
+        if (GameRunning && _transport != null)
+        {
+            return;
+        }
+
+        _wantedBots = Math.Clamp(count, 0, SeatCount - 1);
+        BroadcastLobby();
+    }
+
+    /// <summary>봇을 한 명 넣습니다. 자리가 가득 찼으면 아무 일도 하지 않습니다.</summary>
+    public void AddBot()
+    {
+        if (PlannedPlayers < SeatCount)
+        {
+            SetBotCount(BotCount + 1);
+        }
+    }
+
+    /// <summary>봇을 한 명 뺍니다.</summary>
+    public void RemoveBot()
+    {
+        if (BotCount > 0)
+        {
+            SetBotCount(BotCount - 1);
+        }
+    }
+
     private void UpdateLobbyNames()
     {
         LobbyNames = new[] { _hostName }.Concat(_lobby.Select(p => p.Name)).ToArray();
         LobbySteamIds = new[] { HostSteamId }.Concat(_lobby.Select(p => ParseSteamId(p.Identity))).ToArray();
+        LobbyBots = BotCount;
     }
 
     private void BroadcastLobby()
@@ -101,7 +145,7 @@ public sealed class HostSession : GameSession
         SendAll(new NetMessage
         {
             T = NetMessage.Lobby, Names = LobbyNames, Options = RoomOptions, Playing = GameRunning, Busy = LobbyBusy,
-            SteamIds = LobbySteamIds,
+            SteamIds = LobbySteamIds, Bots = LobbyBots,
         });
         RaiseLobbyChanged();
     }
@@ -243,27 +287,35 @@ public sealed class HostSession : GameSession
     // ───────────── 게임 진행 ─────────────
 
     /// <summary>
-    /// 대기방 인원으로 게임을 시작합니다. 빈자리는 봇으로 채웁니다.
+    /// 대기방 인원과 방장이 넣어 둔 봇으로 게임을 시작합니다. (2~4명)
+    /// 인원이 모자라면(방장 혼자, 봇 없음) 시작하지 않고 false를 돌려줍니다.
     /// </summary>
-    public void StartGame()
+    public bool StartGame()
     {
         if (GameRunning && _transport != null)
         {
-            return;
+            return false;
         }
 
-        _seatKinds = new SeatKind[SeatCount];
-        _seatPeers = new long[SeatCount];
-        _bots = new IBot[SeatCount];
-        var names = new string[SeatCount];
-        var steamIds = new ulong[SeatCount];
+        int players = PlannedPlayers;
+        if (players < MinPlayers)
+        {
+            RaiseError($"최소 {MinPlayers}명이 있어야 시작할 수 있어요. 봇을 넣어 주세요.");
+            return false;
+        }
+
+        _seatKinds = new SeatKind[players];
+        _seatPeers = new long[players];
+        _bots = new IBot[players];
+        var names = new string[players];
+        var steamIds = new ulong[players];
 
         _seatKinds[0] = SeatKind.Local;
         names[0] = _hostName;
         steamIds[0] = HostSteamId;
 
         int botLetter = 0;
-        for (int seat = 1; seat < SeatCount; seat++)
+        for (int seat = 1; seat < players; seat++)
         {
             if (seat - 1 < _lobby.Count)
             {
@@ -283,6 +335,7 @@ public sealed class HostSession : GameSession
         Names = names;
         SeatSteamIds = steamIds;
         BeginRound();
+        return true;
     }
 
     /// <summary>
@@ -325,12 +378,12 @@ public sealed class HostSession : GameSession
     private void BeginRound()
     {
         int seed = Environment.TickCount & int.MaxValue;
-        _engine = new GameEngine(SeatCount, seed, RoomOptions) { Names = Names };
+        _engine = new GameEngine(_seatKinds.Length, seed, RoomOptions) { Names = Names };
         _engine.Log = EmitLog;
         _engine.Event += OnEngineEvent;
         Playing = true;
 
-        for (int seat = 0; seat < SeatCount; seat++)
+        for (int seat = 0; seat < _seatKinds.Length; seat++)
         {
             if (_seatKinds[seat] == SeatKind.Remote)
             {

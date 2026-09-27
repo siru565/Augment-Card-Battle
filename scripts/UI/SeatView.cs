@@ -49,6 +49,20 @@ public partial class SeatView : PanelContainer
         _augmentSignature = "-";
     }
 
+    /// <summary>
+    /// 인원이 적어서 쓰지 않는 칸이면 true입니다. 칸 자리는 그대로 두고(배치 유지) 보이지 않게 합니다.
+    /// </summary>
+    public void SetEmpty(bool empty)
+    {
+        Modulate = empty ? Colors.Transparent : Colors.White;
+        MouseFilter = empty ? MouseFilterEnum.Ignore : MouseFilterEnum.Stop;
+        if (empty)
+        {
+            PlayerId = -1;
+            _targetable = false;
+        }
+    }
+
     /// <summary>봇은 마지막 글자(A, B, C), 사람은 첫 글자를 아바타에 씁니다.</summary>
     public static string AvatarLetter(string name) =>
         string.IsNullOrEmpty(name) ? "?" : name.StartsWith("봇 ") ? name[^1..] : name[..1];
