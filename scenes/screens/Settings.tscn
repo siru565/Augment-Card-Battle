@@ -37,6 +37,38 @@ theme_override_font_sizes/font_size = 30
 text = "설정"
 layout_mode = 2
 
+[node name="LanguageRow" type="HBoxContainer" parent="Center/Panel/Box"]
+theme_override_constants/separation = 12
+layout_mode = 2
+
+[node name="Name" type="Label" parent="Center/Panel/Box/LanguageRow"]
+theme_override_font_sizes/font_size = 15
+text = "언어 (Language)"
+custom_minimum_size = Vector2(150, 0)
+size_flags_vertical = 4
+layout_mode = 2
+
+[node name="LanguageOption" type="OptionButton" parent="Center/Panel/Box/LanguageRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 38)
+size_flags_horizontal = 3
+size_flags_vertical = 4
+focus_mode = 0
+mouse_default_cursor_shape = 2
+theme_override_font_sizes/font_size = 15
+item_count = 2
+auto_translate_mode = 2
+popup/item_0/text = "한국어"
+popup/item_0/id = 0
+popup/item_1/text = "English"
+popup/item_1/id = 1
+layout_mode = 2
+
+[node name="LangLine" type="ColorRect" parent="Center/Panel/Box"]
+custom_minimum_size = Vector2(0, 1)
+color = Color(0, 0, 0, 0.35)
+layout_mode = 2
+
 [node name="ScreenCaption" type="Label" parent="Center/Panel/Box"]
 theme_type_variation = &"CaptionLabel"
 text = "화면"

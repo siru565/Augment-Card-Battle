@@ -114,6 +114,9 @@ public partial class GameController : Control
     private HandView _hand = null!;
     private PanelContainer _logPanel = null!;
     private RichTextLabel _logLabel = null!;
+
+    /// <summary>기록 창에 쓴 원문 줄들입니다. 언어를 바꾸면 이것으로 다시 씁니다.</summary>
+    private readonly List<string> _logHistory = new();
     private Control _colorOverlay = null!;
     private Control _gameOverOverlay = null!;
     private Label _gameOverLabel = null!;
@@ -235,6 +238,8 @@ public partial class GameController : Control
 
         GameSettings.Load();
         GameSettings.ApplyAudio();
+        Localization.Apply(GameSettings.Language);
+        Localization.Changed += OnLanguageChanged;
         if (GetViewport() == GetTree().Root && !_displayApplied)
         {
             _displayApplied = true;
@@ -322,7 +327,36 @@ public partial class GameController : Control
     public override void _ExitTree()
     {
         SteamRuntime.AvatarLoaded -= OnAvatarLoaded;
+        Localization.Changed -= OnLanguageChanged;
         _net.Close();
+    }
+
+    /// <summary>
+    /// 언어가 바뀌면 라벨은 Godot가 알아서 다시 번역하고, 직접 그리는 글자(카드, 아바타)와 기록만 여기서 다시 만듭니다.
+    /// </summary>
+    private void OnLanguageChanged()
+    {
+        RedrawAll(this);
+        _logLabel.Clear();
+        foreach (string line in _logHistory)
+        {
+            RenderLog(line);
+        }
+
+        Refresh();
+    }
+
+    private static void RedrawAll(Node node)
+    {
+        if (node is CanvasItem item)
+        {
+            item.QueueRedraw();
+        }
+
+        foreach (var child in node.GetChildren())
+        {
+            RedrawAll(child);
+        }
     }
 
     /// <summary>늦게 도착한 Steam 프로필 사진을 해당 아바타에 다시 그립니다.</summary>
@@ -502,6 +536,7 @@ public partial class GameController : Control
         _abilitySignature = "";
         _augmentSignature = "";
         _logLabel.Clear();
+        _logHistory.Clear();
         ClearPending();
         _notice = "";
         _lastAction = "";
@@ -1744,11 +1779,25 @@ public partial class GameController : Control
             _lastAction = message.Trim();
         }
 
+        // 언어를 바꿨을 때 다시 그릴 수 있게 원문(한국어)을 모아 둡니다.
+        _logHistory.Add(message);
+        if (_logHistory.Count > 600)
+        {
+            _logHistory.RemoveRange(0, 100);
+        }
+
+        RenderLog(message);
+    }
+
+    /// <summary>기록 한 줄을 현재 언어로 바꿔 기록 창에 붙입니다.</summary>
+    private void RenderLog(string original)
+    {
+        string message = Loc.Tr(original);
         string trimmed = message.TrimStart();
         string escaped = Escape(trimmed);
         int indent = message.Length - trimmed.Length;
         string prefix = indent >= 4 ? "      " : indent >= 2 ? "  " : "";
-        string myName = _session?.NameOf(_session.MySeat) ?? "";
+        string myName = Loc.Tr(_session?.NameOf(_session.MySeat) ?? "");
 
         // 엔진 로그의 ★·✦ 표시는 색으로만 강조하고 기호는 지웁니다.
         bool highlight = message.Contains('★');
@@ -1983,6 +2032,19 @@ public partial class GameController : Control
         var settings = GetNode<Control>("%Settings");
         _settingsOverlay = settings;
 
+        _languageOption = settings.GetNode<OptionButton>("%LanguageOption");
+        _languageOption.ItemSelected += index =>
+        {
+            if (_syncingSettings)
+            {
+                return;
+            }
+
+            GameSettings.Language = Localization.Languages[(int)index];
+            GameSettings.Save();
+            Localization.Apply(GameSettings.Language);
+        };
+
         _windowModeOption = settings.GetNode<OptionButton>("%WindowModeOption");
         _windowModeOption.ItemSelected += index =>
         {
@@ -2148,6 +2210,7 @@ public partial class GameController : Control
     private Control _settingsOverlay = null!;
     private OptionButton _windowModeOption = null!;
     private OptionButton _resolutionOption = null!;
+    private OptionButton _languageOption = null!;
     private HSlider _masterSlider = null!;
     private HSlider _sfxSlider = null!;
     private HSlider _musicSlider = null!;
@@ -2174,6 +2237,7 @@ public partial class GameController : Control
     private void SyncSettingsUi()
     {
         _syncingSettings = true;
+        _languageOption.Selected = Math.Max(0, Array.IndexOf(Localization.Languages, GameSettings.Language));
         _windowModeOption.Selected = GameSettings.WindowMode;
         _resolutionOption.Selected = GameSettings.ResolutionIndex;
         _resolutionOption.Disabled = GameSettings.WindowMode != 0;

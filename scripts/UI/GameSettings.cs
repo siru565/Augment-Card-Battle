@@ -5,7 +5,7 @@ using SpCardgame.Audio;
 namespace SpCardgame.UI;
 
 /// <summary>
-/// 화면과 소리 설정입니다. user://settings.cfg에 저장하고, 게임을 켤 때 다시 불러와 적용합니다.
+/// 화면, 소리, 언어 설정입니다. user://settings.cfg에 저장하고, 게임을 켤 때 다시 불러와 적용합니다.
 /// </summary>
 public static class GameSettings
 {
@@ -32,6 +32,9 @@ public static class GameSettings
 
     public static bool Muted { get; set; }
 
+    /// <summary>게임 언어입니다. "ko" 또는 "en"입니다.</summary>
+    public static string Language { get; set; } = Localization.DefaultLanguage();
+
     private static bool _loaded;
 
     public static void Load()
@@ -54,6 +57,8 @@ public static class GameSettings
         SfxVolume = Math.Clamp((float)config.GetValue("audio", "sfx", 0.8f), 0f, 1f);
         MusicVolume = Math.Clamp((float)config.GetValue("audio", "music", 0.6f), 0f, 1f);
         Muted = (bool)config.GetValue("audio", "muted", false);
+        string language = (string)config.GetValue("general", "language", Language);
+        Language = Array.IndexOf(Localization.Languages, language) >= 0 ? language : Language;
     }
 
     public static void Save()
@@ -65,6 +70,7 @@ public static class GameSettings
         config.SetValue("audio", "sfx", SfxVolume);
         config.SetValue("audio", "music", MusicVolume);
         config.SetValue("audio", "muted", Muted);
+        config.SetValue("general", "language", Language);
         config.Save(FilePath);
     }
 

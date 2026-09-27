@@ -125,9 +125,16 @@ public partial class AvatarView : Control
             return;
         }
 
+        // 영어일 때 "봇"은 "Bot"처럼 길어질 수 있어서 원 안에 들어가게 글자를 줄입니다.
         var font = UiTheme.Bold;
-        const int size = 24;
+        string letter = Loc.Tr(_letter);
+        int size = 24;
+        while (size > 10 && font.GetStringSize(letter, HorizontalAlignment.Left, -1, size).X > r * 1.5f)
+        {
+            size--;
+        }
+
         var pos = new Vector2(0, center.Y + font.GetAscent(size) / 2 - 3);
-        DrawString(font, pos, _letter, HorizontalAlignment.Center, Size.X, size, Colors.White);
+        DrawString(font, pos, letter, HorizontalAlignment.Center, Size.X, size, Colors.White);
     }
 }

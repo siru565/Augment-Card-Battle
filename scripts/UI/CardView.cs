@@ -341,11 +341,12 @@ public partial class CardView : Control
         }
 
         var font = UiTheme.Bold;
+        string badge = Loc.Tr(_badge);
         int fontSize = (int)(rect.Size.X * 0.13f);
-        var textSize = font.GetStringSize(_badge, HorizontalAlignment.Left, -1, fontSize);
+        var textSize = font.GetStringSize(badge, HorizontalAlignment.Left, -1, fontSize);
         var box = new Rect2(rect.End.X - textSize.X - 14, rect.Position.Y + 4, textSize.X + 10, fontSize + 8);
         DrawStyleBox(UiTheme.Box(new Color(0.04f, 0.045f, 0.06f, 0.92f), _badgeColor, 1, 4, 0), box);
-        DrawString(font, new Vector2(box.Position.X + 5, box.Position.Y + 4 + font.GetAscent(fontSize)), _badge,
+        DrawString(font, new Vector2(box.Position.X + 5, box.Position.Y + 4 + font.GetAscent(fontSize)), badge,
             HorizontalAlignment.Left, -1, fontSize, _badgeColor);
     }
 
@@ -412,7 +413,7 @@ public partial class CardView : Control
             isPrism ? UiTheme.Gold : suitColor.Lightened(0.45f), 2.5f, true);
 
         // 가운데 값입니다. 글자가 길면 마름모 안에 들어가도록 줄입니다.
-        string label = card.ShortLabel;
+        string label = Loc.Tr(card.ShortLabel);
         bool isNumber = card.Kind == CardKind.Number;
         int bigSize = (int)(size.X * (isNumber ? 0.42f : 0.24f));
         float maxWidth = d * 1.55f;

@@ -20,7 +20,7 @@ public partial class SeatView : PanelContainer
     private Label _name => GetNode<Label>("%Name");
     private Label _count => GetNode<Label>("%Count");
     private Label _badges => GetNode<Label>("%Badges");
-    private HBoxContainer _augments => GetNode<HBoxContainer>("%Augments");
+    private HFlowContainer _augments => GetNode<HFlowContainer>("%Augments");
     private FanView _fan => GetNode<FanView>("%Fan");
     private AvatarView _avatar => GetNode<AvatarView>("%Avatar");
     private bool _targetable;

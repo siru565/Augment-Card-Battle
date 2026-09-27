@@ -1,0 +1,467 @@
+# 번역표: 한국어 원문(게임 안에서 쓰는 문장 또는 {0} 자리가 있는 틀) <TAB> 영어
+# {0:ord} = 서수(1st, 2nd), {0|card|cards} = 숫자에 따라 단수/복수
+2장 중 1장을 가져갑니다. 나머지는 덱 맨 아래로 돌아갑니다.	Keep 1 of the 2 cards. The other goes to the bottom of the deck.
+각성	Awaken
+나	Me
+나가기	Leave
+능력 하나를 골라 바로 발동합니다	Pick one ability to trigger right away
+도박사	Gambler
+로그	Log
+새 게임	New Game
+설정	Settings
+이번 판 동안 계속 적용됩니다	Lasts for the rest of this match
+진행 로그	GAME LOG
+취소	Cancel
+카드 뽑기	Draw Card
+턴 넘기기	End Turn
+특수 증강	Special Augment
+문양 선택	Choose a Suit
+다시 하기	Play Again
+대기방으로	Back to Room
+메인으로 나가기	Main Menu
+우승	Victory
+최종 순위	FINAL STANDINGS
+STEAM 멀티플레이	STEAM MULTIPLAYER
+Steam 오버레이	Steam Overlay
+게임 끝내기	End Game
+게임 설정	GAME OPTIONS
+게임 시작	Start Game
+게임을 켜 둔 친구에게는 게임 안에 알림이 갑니다.	Friends with the game open get an in-game invite.
+방 나가기	Leave Room
+방 만들기	Create Room
+방 코드	Room code
+방장만 바꿀 수 있습니다	Only the host can change this
+새로고침	Refresh
+주소	ADDRESS
+증강 카드 배틀	Augment Card Battle
+직접 연결 (LAN)	DIRECT CONNECT (LAN)
+참가	Join
+참가자  ·  빈자리는 봇	PLAYERS  ·  EMPTY SEATS ARE BOTS
+참가하기	Join
+친구 초대	INVITE FRIENDS
+코드 복사	Copy Code
+포트	PORT
+플레이어 이름	PLAYER NAME
+혼자 하기	Solo Play
+닫기	Close
+모든 소리 끄기	Mute all sound
+배경음악	Music
+소리	SOUND
+전체 볼륨	Master volume
+전체 화면 (독점)	Fullscreen (exclusive)
+전체 화면 (테두리 없음)	Borderless fullscreen
+창 모드	Windowed
+해상도 (창 모드)	Resolution (windowed)
+화면	DISPLAY
+화면 모드	Window mode
+효과음	Sound effects
+효과음 테스트	Test sound
+등급	Tier
+설명	Description
+영구 효과	Permanent effect
+이름	Name
+증강 이름	Augment
+제목	Title
+온라인	Online
+초대	Invite
+친구 이름	Friend
+STEAM 초대	STEAM INVITE
+이유	Reason
+탈락	Out
+강퇴	Kick
+게임 중	In game
+방장	Host
+플레이어	Player
+언어	Language
+광전사	Berserker
+규칙봇	Rule Bot
+랜덤봇	Random Bot
+문양 군주	Suit Lord
+반사의 거울	Mirror Shield
+불사조	Phoenix
+블랙홀	Black Hole
+선견지명	Foresight
+수집가	Collector
+수호천사	Guardian Angel
+시간 도둑	Time Thief
+시간술사	Chronomancer
+쌍둥이	Twins
+어벤져스	Avengers
+역풍	Backlash
+연금술사	Alchemist
+자유로운 영혼	Free Spirit
+저격수	Sniper
+지배자	Overlord
+짝수 애호가	Even Lover
+청소부	Sweeper
+평화주의자	Pacifist
+폭탄마	Bomber
+행운의 7	Lucky 7
+흡혈귀	Vampire
+[음악] {0} 파일이 없어요.	[Music] {0} not found.
+배경음악: "Backbay Lounge" Kevin MacLeod (incompetech.com) · CC BY 4.0	Music: "Backbay Lounge" Kevin MacLeod (incompetech.com) · CC BY 4.0
+균형의 저울	Scales of Balance
+나를 뺀 모두가 2장씩 뽑습니다.	Everyone except you draws 2 cards.
+다음 차례 사람은 지금 문양의 카드가 나올 때까지 직접 계속 뽑아야 합니다. (최대 {0}장)	The next player must keep drawing until a card of the current suit appears. (Up to {0} cards)
+대봉인	Grand Seal
+대회전	Great Rotation
+모두의 차례를 건너뛰고 내 차례가 한 번 더 옵니다.	Skip everyone and take another turn.
+모든 상대가 다음 차례에 숫자 카드만 낼 수 있습니다.	All opponents can only play number cards on their next turn.
+모든 플레이어의 손패를 모아 섞은 뒤 똑같이 나눠 가집니다.	Gather every player's hand, shuffle, and deal it out evenly.
+모든 플레이어의 손패를 통째로 시계 방향(다음 자리)으로 넘깁니다.	Pass every player's whole hand clockwise to the next seat.
+문양 숙청	Suit Purge
+문양 하나를 고릅니다. 내 손패에서 그 문양 숫자 카드를 최대 {0}장 버립니다. (마지막 1장은 남습니다)	Pick a suit. Discard up to {0} number cards of that suit from your hand. (Your last card stays.)
+선물 상자	Gift Box
+시간 정지	Time Stop
+심연의 부름	Call of the Abyss
+운명 교환	Fate Swap
+저주의 낙인	Cursed Mark
+카드 폭풍	Card Storm
+한 명과 문양 하나를 고릅니다. 그 사람은 그 문양의 카드가 나올 때까지 직접 끝없이 뽑아야 합니다.	Pick a player and a suit. They must keep drawing until a card of that suit appears.
+한 명을 골라 내 카드 무작위 {0}장을 떠넘깁니다. (마지막 1장은 남습니다)	Pick a player and give them {0} random cards from your hand. (Your last card stays.)
+한 명을 골라 서로의 손패를 통째로 바꿉니다.	Pick a player and swap entire hands with them.
++카드 공격의 영향을 받지 않습니다. 대신 내가 내는 +카드는 뽑게 하는 효과가 사라집니다.	You are immune to + card attacks. In exchange, your own + cards make no one draw.
+8가지 직업을 모두 모은 채로 내 차례가 다시 돌아오면 승리! 모으는 순간 모두에게 들키니 한 바퀴를 버텨야 합니다. (손패를 다 내도 승리합니다)	Win if your turn comes around while you hold all 8 jobs! Everyone sees the moment you complete them, so you must survive a full round. (Emptying your hand also wins.)
+각성 카드를 내면 능력 선택지가 3개가 아니라 4개 나옵니다.	Awaken cards offer 4 ability choices instead of 3.
+각성 카드를 내면 능력을 하나 고른 뒤, 새 선택지에서 하나를 더 골라 연달아 발동합니다.	After choosing an Awaken ability, pick one more from new choices and trigger both.
+같은 숫자를 네 문양(불꽃·달빛·숲·물결) 모두 손에 모으면 승리! 프리즘 카드 1장은 빠진 문양 하나를 대신합니다. (손패를 다 내도 승리합니다)	Win by holding the same number in all four suits (Flame, Moon, Forest, Wave)! One Prism card can stand in for a missing suit. (Emptying your hand also wins.)
+고르는 순간 내 손에 가장 많은 문양이 '내 문양'이 됩니다. 내 문양의 숫자 카드는 바닥과 상관없이 언제든 낼 수 있습니다.	Your most common suit becomes 'your suit' when you pick this. You can play number cards of your suit at any time.
+궁수	Archer
+기사	Knight
+낚시꾼	Angler
+내 숫자 7 카드는 바닥에 상관없이 언제든 낼 수 있습니다.	You can play your number 7 cards at any time.
+내 숫자 카드가 직업 카드(전사·궁수·해적·도적·마법사·어부·낚시꾼·농부)가 됩니다. 액션·특수·프리즘 카드는 직업이 없습니다.	Your number cards become job cards (Warrior, Archer, Pirate, Rogue, Mage, Fisher, Angler, Farmer). Action, special and Prism cards have no job.
+내 숫자 카드는 바닥 숫자와 1 차이만 나도 문양에 상관없이 낼 수 있습니다.	Your number cards can be played on a number 1 higher or lower, regardless of suit.
+내가 +카드를 얹을 때마다, 내 카드 1장(무작위)을 다음 사람에게 떠넘깁니다.	Each time you stack a + card, pass 1 random card from your hand to the next player.
+내가 얹는 +카드는 1장 더 쌓입니다. (+1이 +2처럼, +4가 +5처럼)	Your + cards stack 1 extra. (+1 counts as +2, +4 as +5)
+내가 얹는 +카드는 두 배로 쌓입니다. 대신 내가 받는 공격도 두 배입니다.	Your + cards stack double. But attacks you take are doubled too.
+농부	Farmer
+도적	Rogue
+리버스를 내면 방향이 바뀌고, 내 차례가 한 번 더 옵니다.	Playing Reverse flips direction and gives you another turn.
+리버스를 내면, 바뀐 방향의 다음 사람이 카드 1장을 뽑습니다.	Playing Reverse makes the next player in the new direction draw 1 card.
+마법사	Mage
+바닥이 짝수 숫자면, 내 짝수 숫자 카드는 문양에 상관없이 낼 수 있습니다.	When the top card is an even number, your even number cards can be played regardless of suit.
+봉인과 저격(멀리서 건너뛰기)에 걸리지 않습니다.	Immune to Seal and Sniper skips.
+사제	Priest
+손패가 2장 이하일 때 쌓인 공격을 받으면 절반(올림)만 받습니다.	With 2 or fewer cards in hand, you take only half (rounded up) of a stacked attack.
+손패가 {0}장이 되는 순간 승리! 카드를 뽑는 게 오히려 이득이 됩니다. (손패를 다 내도 승리합니다)	Win the moment you hold {0} cards! Drawing becomes a good thing. (Emptying your hand also wins.)
+숫자 0을 내면 내 카드 1장(무작위)을 함께 버립니다.	When you play a 0, also discard 1 random card from your hand.
+숫자 카드를 낸 뒤, 같은 문양 숫자 카드를 한 장 더 이어서 낼 수 있습니다.	After playing a number card, you may play one more number card of the same suit.
+숫자 카드를 낸 뒤, 같은 숫자 카드를 문양에 상관없이 원하는 만큼 이어서 낼 수 있습니다.	After playing a number card, you may chain any cards of the same number, regardless of suit.
+스킵을 낼 때 건너뛸 사람을 직접 고르고, 저격당한 사람은 카드 2장을 뽑습니다. 멀리 있는 사람도 저격할 수 있습니다.	Your Skips target any player you choose, and the target draws 2 cards. You can snipe players across the table.
+쌓인 공격을 받을 때 아무리 많아도 최대 {0}장만 받습니다.	You never take more than {0} cards from a stacked attack.
+쌓인 공격을 받을 때, 절반(내림)을 마지막으로 얹은 사람에게 되돌려 보냅니다.	When you take a stacked attack, send half (rounded down) back to the last player who stacked.
+어부	Fisher
+전사	Warrior
+카드를 뽑을 때 2장을 보고, 낼 수 있는 카드를 골라 가집니다. 나머지는 덱 맨 아래로 갑니다.	When drawing, look at 2 cards and keep one. The other goes to the bottom of the deck.
+해적	Pirate
+강탈	Steal
+같은 문양이나 같은 숫자 위에 낼 수 있습니다.	Play on the same suit or the same number.
+교환	Swap
+내면 특수능력 3가지가 나오고, 그중 하나를 골라 즉시 발동합니다.	Reveals 3 special abilities; pick one to trigger immediately.
+다음 사람에게 +{0} 공격! 받은 사람은 문양에 상관없이 같은 +{1}이나 프리즘 +4를 얹어 합산해서 넘길 수 있고, 못 넘기면 자기 차례에 모두 받습니다.	+{0} attack on the next player! They can stack any +{1} (any suit) or a Prism +4 to pass the total on; otherwise they draw it all on their turn.
+다음 사람의 차례를 건너뜁니다.	Skips the next player's turn.
+달빛	Moon
+리버스	Reverse
+모든 플레이어의 증강을 1개씩 무작위로 제거합니다.	Removes 1 random augment from every player.
+물결	Wave
+복사	Copy
+봉인	Seal
+불꽃	Flame
+뽑는 순간 공개되고 무작위 증강을 얻습니다. 대신 카드를 1장 더 뽑습니다.	Revealed when drawn and grants a random augment. You draw 1 extra card.
+숫자	Number
+숲	Forest
+스킵	Skip
+아무 때나 낼 수 있고, 원하는 문양으로 바꿉니다.	Play at any time and change the suit to any you like.
+원하는 문양으로 바꾸고 다음 사람에게 +4 공격! 어떤 +카드 위에도 얹을 수 있고, 받은 사람은 +1·+2·+3·+4 무엇이든 얹어 넘길 수 있습니다.	Change the suit and +4 attack on the next player! Stacks on any + card, and the target can pass it on with any +1, +2, +3 or +4.
+이번 턴에 같은 문양 숫자 카드를 원하는 만큼 연달아 냅니다. 다 내면 '폭주 끝내기'를 누릅니다.	Chain as many number cards of the same suit as you like this turn. Press 'End Chain' when done.
+정화	Purify
+증강	Augment
+증강 카드	Augment Card
+지정한 상대는 다음 차례에 숫자 카드만 낼 수 있습니다.	The chosen player can only play number cards on their next turn.
+지정한 상대와 무작위 카드를 1장씩 맞바꿉니다.	Trade 1 random card with the chosen player.
+지정한 상대의 증강 1개를 빼앗습니다.	Steal 1 augment from the chosen player.
+직전에 발동한 카드 효과를 한 번 더 발동합니다.	Triggers the previous card effect again.
+진행 방향을 바꿉니다.	Reverses the direction of play.
+폭주	Frenzy
+프리즘	Prism
+프리즘 +4	Prism +4
+액션	Action
+와일드	Wild
+특수	Special
+{0}: [{1}] 제거	{0}: [{1}] removed
+→ [{0}] 효과를 복사합니다.	→ Copies the [{0}] effect.
+→ [각성] {0}가 능력 {1}가지 중 하나를 고르는 중입니다.	→ [Awaken] {0} is choosing 1 of {1} abilities.
+→ [균형의 저울] 카드 {0}장을 모두에게 똑같이 나눴습니다.	→ [Scales of Balance] Split {0|card|cards} evenly among everyone.
+→ [대봉인] 모든 상대가 다음 차례에 숫자 카드만 낼 수 있습니다.	→ [Grand Seal] All opponents can only play number cards next turn.
+→ [도박사] 한 장을 골라 가졌습니다.	→ [Gambler] Kept one card.
+→ [문양 군주] {0}의 문양은 {1}입니다.	→ [Suit Lord] {0}'s suit is {1}.
+→ [반사의 거울] {0}장을 {1}에게 되돌려 보냅니다.	→ [Mirror Shield] Sends {0|card|cards} back to {1}.
+→ [불사조] {0}장 중 {1}장만 받습니다.	→ [Phoenix] Takes only {1} of {0} cards.
+→ [수호천사] {0}장 중 절반만 받습니다.	→ [Guardian Angel] Takes only half of {0} cards.
+→ [시간 도둑] {0}의 차례가 한 번 더 옵니다.	→ [Time Thief] {0} takes another turn.
+→ [시간 정지] {0}의 차례가 한 번 더 옵니다.	→ [Time Stop] {0} takes another turn.
+→ [시간술사] {0} 숫자 카드를 한 장 더 낼 수 있습니다.	→ [Chronomancer] May play one more {0} number card.
+→ [쌍둥이] 숫자 {0} 카드를 이어서 낼 수 있습니다.	→ [Twins] May chain number {0} cards.
+→ [역풍] {0}가 1장을 뽑습니다.	→ [Backlash] {0} draws 1 card.
+→ [자유로운 영혼] {0}는 봉인되지 않습니다.	→ [Free Spirit] {0} can't be sealed.
+→ [자유로운 영혼] {0}는 저격당하지 않습니다.	→ [Free Spirit] {0} can't be sniped.
+→ [저격수] {0}의 다음 차례를 건너뛰고 2장을 뽑게 합니다.	→ [Sniper] {0} skips their next turn and draws 2 cards.
+→ [정화] 모두의 증강이 1개씩 사라집니다.	→ [Purify] Everyone loses 1 augment.
+→ [지배자] {0}가 능력을 하나 더 고릅니다.	→ [Overlord] {0} picks one more ability.
+→ [청소부] [{0}]도 함께 버립니다.	→ [Sweeper] Also discards [{0}].
+→ [카드 폭풍] 나를 뺀 모두가 2장씩 직접 뽑아야 합니다.	→ [Card Storm] Everyone else must draw 2 cards.
+→ [평화주의자] {0}는 누적 +{1}의 영향을 받지 않습니다.	→ [Pacifist] {0} is unaffected by the +{1} stack.
+→ [평화주의자] {0}의 +{1}는 뽑게 하지 않습니다.	→ [Pacifist] {0}'s +{1} makes no one draw.
+→ [폭주] {0} 숫자 카드를 연달아 낼 수 있습니다.	→ [Frenzy] May chain {0} number cards.
+→ [흡혈귀] {0}가 카드 1장을 {1}에게 떠넘깁니다.	→ [Vampire] {0} passes 1 card to {1}.
+→ {0} 숫자 카드 {1}장을 버렸습니다.	→ Discarded {1} {0} number card(s).
+→ {0}가 {1}의 [{2}]을 빼앗았습니다.	→ {0} stole [{2}] from {1}.
+→ {0}가 {1}장을 뽑았습니다. ({2}{3})	→ {0} drew {1|card|cards}. ({2}{3})
+→ {0}는 +카드로 넘기거나 {1}장을 받아야 합니다.	→ {0} must pass it on with a + card or draw {1}.
+→ {0}는 {1} 카드가 나올 때까지 직접 뽑아야 합니다.	→ {0} must draw until a {1} card appears.
+→ {0}는 다음 차례에 숫자 카드만 낼 수 있습니다.	→ {0} can only play number cards next turn.
+→ {0}는 저격당해서 차례를 건너뜁니다.	→ {0} was sniped and skips a turn.
+→ {0}에게 카드 {1}장을 떠넘겼습니다.	→ Passed {1|card|cards} to {0}.
+→ {0}에게서 빼앗을 수 있는 증강이 없습니다.	→ {0} has no augment to steal.
+→ {0}와 {1}가 손패를 통째로 바꿨습니다.	→ {0} and {1} swapped hands.
+→ {0}와 {1}가 카드 1장을 맞바꿨습니다.	→ {0} and {1} traded 1 card.
+→ {0}의 차례를 건너뜁니다.	→ {0}'s turn is skipped.
+→ 공격 합산! 누적 +{0} → {1}에게 넘어갑니다.	→ Stacked! Total +{0} → passes to {1}.
+→ 모든 손패가 다음 자리로 넘어갔습니다.	→ Every hand moved to the next seat.
+→ 바꿀 카드가 없습니다.	→ No cards to swap.
+→ 방향이 바뀝니다.	→ Direction reversed.
+→ 복사할 효과가 없습니다.	→ Nothing to copy.
+(덱을 다시 섞었습니다)	(Deck reshuffled)
+{0} {1}등 (마지막까지 남았습니다)	{0} {1:ord} (last one standing)
+{0}: 1장 뽑음	{0}: drew 1 card
+{0}: [{1}]{2}{3} (남은 {4}장)	{0}: [{1}]{2}{3} ({4} left)
+{0}: [도박사] 2장 중 1장을 고르는 중	{0}: [Gambler] choosing 1 of 2 cards
+{0}: 누적 공격을 받아 {1}장을 뽑습니다.	{0}: takes the stack and draws {1|card|cards}.
+{0}: 연속 내기 종료	{0}: chain ended
+{0}: 턴 넘김	{0}: passed
+★ {0}: 각성 능력 [{1}]{2}{3}	★ {0}: Awaken ability [{1}]{2}{3}
+★ {0}: 특수 증강 [{1}] {2} 획득	★ {0}: gained {1} augment {2}
+✦ {0}의 {1}번째 차례 · 특수 증강을 고르는 중입니다.	✦ {0}'s {1:ord} turn · choosing a special augment.
+✦ 모두 첫 특수 증강을 고르는 중입니다.	✦ Everyone is choosing their first special augment.
+모두 골랐습니다. {0}부터 시작합니다.	Everyone has chosen. {0} goes first.
+(대상: {0})	(target: {0})
+· 특수 증강 켜짐 (시작할 때 + {0}턴마다)	· Special augments on (at start + every {0} turns)
+, {0} 카드를 찾을 때까지	, until a {0} card
+{0}, {1} 카드를 찾을 때까지	{0}, until a {1} card
+[{0}]는 지금 낼 수 없습니다.	[{0}] can't be played now.
+{0}가 카드를 뽑는 중입니다.	{0} is drawing cards.
+{0}등	{0:ord}
+{0}등 {1}	{0:ord} {1}
+★★ {0} {1} ★★ ({2}, {3}턴)	★★ {0} {1} ★★ ({2}, turn {3})
+★★ {0} {1}등 ★★ ({2}, {3}턴)	★★ {0} {1:ord} ★★ ({2}, turn {3})
+★★ {0} 탈락 ({1}등) ★★ ({2}, {3}턴)	★★ {0} out ({1:ord}) ★★ ({2}, turn {3})
+게임 시작 · 덱 {0}장{1}	Game start · {0}-card deck{1}
+게임 종료 · 최종 순위: {0}	Game over · Final standings: {0}
+골드	Gold
+누적 +{0} 공격	+{0} stacked attack
+능력에 쓸 문양을 골라야 합니다.	Choose a suit for the ability.
+능력의 대상을 골라야 합니다.	Choose a target for the ability.
+대상 플레이어를 골라야 합니다.	Choose a target player.
+마지막까지 남았습니다	Last one standing
+먼저 각성 능력을 하나 골라야 합니다.	Choose an Awaken ability first.
+먼저 뽑은 2장 중 한 장을 골라야 합니다.	Choose one of the 2 drawn cards first.
+먼저 카드를 뽑아야 합니다.	You must draw first.
+먼저 특수 증강을 하나 골라야 합니다.	Choose a special augment first.
+모두 첫 특수 증강을 고르는 중입니다.	Everyone is choosing their first special augment.
+반사된 +{0}	reflected +{0}
+블랙홀 — 손패 {0}장을 모았습니다	Black Hole — collected {0} cards
+손에 없는 카드입니다.	That card isn't in your hand.
+손패가 {0}장을 넘어 탈락했습니다	Eliminated for holding over {0} cards
+손패를 모두 냈습니다	Emptied their hand
+수집가 — 같은 숫자를 네 문양 모두 모았습니다	Collector — same number in all four suits
+실버	Silver
+어벤져스 — {0}가지 직업을 모두 모았습니다	Avengers — assembled all {0} jobs
+연속 내기 중에는 카드를 뽑을 수 없습니다. 턴을 넘기세요.	You can't draw during a chain. End your turn.
+이 카드는 문양을 골라야 합니다.	This card needs a suit.
+이미 끝난 게임입니다.	The game is already over.
+이번 턴에는 이미 카드를 뽑았습니다.	You already drew this turn.
+자기 차례가 아닙니다.	It's not your turn.
+잘못된 능력 선택입니다.	Invalid ability choice.
+잘못된 선택입니다.	Invalid choice.
+잘못된 증강 선택입니다.	Invalid augment choice.
+저격	Sniped
+지금은 할 수 없는 행동입니다.	You can't do that right now.
+첫 카드 [{0}], 선 플레이어 {1}	First card [{0}], first player {1}
+카드를 뽑기 전에는 턴을 넘길 수 없습니다.	You can't end your turn before drawing.
+카드를 뽑은 뒤에는 뽑은 카드만 낼 수 있습니다.	After drawing, you can only play the drawn card.
+탈락 ({0}등)	Out ({0:ord})
+탈락 — {0}	Out — {0}
+턴 제한 — 손패가 적은 순서	Turn limit — fewest cards
+턴 제한을 넘어서 손패가 적은 순서로 순위를 정합니다.	Turn limit reached; ranking by fewest cards.
+플레이어는 2~8명이어야 합니다.	There must be 2 to 8 players.
+방장이 방에서 내보냈어요.	The host removed you from the room.
+(시드 {0})	(seed {0})
++2 공격	+2 attack
+{0}님을 내보냈어요.	Removed {0}.
+{0}님이 강퇴되어 봇이 이어받습니다.	{0} was kicked; a bot takes over.
+{0}님이 대기방으로 나가서 봇이 이어받습니다.	{0} went back to the room; a bot takes over.
+{0}님이 들어왔어요.	{0} joined.
+{0}님이 들어왔어요. (다음 판부터 함께해요)	{0} joined. (Plays from the next match)
+{0}의 연결이 끊겨서 봇이 이어받습니다.	{0} disconnected; a bot takes over.
+게임 버전이 달라요. (방장 v{0}, 내 게임 {1}) itch 앱에서 업데이트한 뒤 다시 접속해 주세요.	Version mismatch (host v{0}, you {1}). Update in the itch app and join again.
+게임에 사람이 모두 나가서 판을 끝냈어요.	Everyone left the game, so the match ended.
+방이 가득 찼어요.	The room is full.
+방장이 내보낸 방이라 다시 들어갈 수 없어요.	You were removed from this room and can't rejoin.
+봇 {0}	Bot {0}
+알 수 없는 오류	Unknown error
+알 수 없음	Unknown
+플레이어{0}	Player{0}
+접속에 실패했어요. 주소와 포트를 확인해 주세요.	Couldn't connect. Check the address and port.
+호스트와의 연결이 끊겼어요.	Lost connection to the host.
+[Avatar] 움직이는 아바타를 받지 못해 정지 사진을 씁니다: {0}	[Avatar] Animated avatar unavailable, using still image: {0}
+Steam 라이브러리를 불러오지 못했어요: {0}	Couldn't load the Steam library: {0}
+Steam 로비를 만들지 못했어요. ({0})	Couldn't create a Steam lobby. ({0})
+Steam 초기화 실패: {0}	Steam init failed: {0}
+Steam이 실행 중이 아니에요. Steam에 로그인한 뒤 게임을 다시 켜 주세요.	Steam isn't running. Log in to Steam and restart the game.
+방에 들어가지 못했어요. 코드가 맞는지, 방이 아직 열려 있는지 확인해 주세요.	Couldn't join the room. Check the code and that the room is still open.
+이 게임의 방이 아니에요.	That room isn't for this game.
+방장이 강퇴했어요.	The host kicked you.
+호스트가 방을 닫았어요.	The host closed the room.
+호스트에 연결하지 못했어요.	Couldn't connect to the host.
+대상 + 문양 선택	Choose target + suit
+대상 선택	Choose target
+바로 발동	Instant
+승리 조건 추가	Extra win condition
+보냄	Sent
+실패	Failed
+오프라인	Offline
+글꼴: Pretendard, Black Han Sans (SIL OFL 1.1)  ·  효과음·테두리: Kenney (CC0)  ·  천 텍스처: ambientCG (CC0)	Fonts: Pretendard, Black Han Sans (SIL OFL 1.1)  ·  SFX & borders: Kenney (CC0)  ·  Cloth texture: ambientCG (CC0)
+· 봉인	· Sealed
+(같은 직업 {0}장 — 내도 괜찮아요)	({0} of this job — safe to play)
+(하나뿐인 직업!)	(only one of this job!)
++{0} 공격  ·  {1}로 넘기거나 {2}장 받기	+{0} attack  ·  pass with {1} or draw {2}
++{0} 공격  ·  덱을 눌러 {1}장 받기	+{0} attack  ·  click the deck to draw {1}
++{0} 공격이 {1}에게 넘어갔습니다	+{0} attack passed to {1}
++{0} 받기	Take +{0}
++{0}(문양 상관없음)이나 프리즘 +4	+{0} (any suit) or Prism +4
+1등	1st
+Steam 방에 들어가는 중...	Joining Steam room...
+Steam 방을 만드는 중...	Creating Steam room...
+Steam 방을 만들었어요! 친구를 초대하거나 방 코드를 알려 주세요.	Steam room created! Invite friends or share the room code.
+[{0}] 대상을 고르세요. 위쪽의 상대를 클릭하세요.	[{0}] Choose a target: click an opponent above.
+[{0}] 대상을 고르세요. 위쪽의 상대를 클릭하세요. (취소하면 다시 고를 수 있어요)	[{0}] Choose a target: click an opponent above. (Cancel to choose again)
+[{0}] 덱을 눌러 뽑으세요  {1}	[{0}] Click the deck to draw  {1}
+[{0}] 문양을 고르세요.	[{0}] Choose a suit.
+[{0}] 바꿀 문양을 고르세요.	[{0}] Choose the new suit.
+[도박사] 뽑은 2장 중 가질 카드를 고르세요.	[Gambler] Choose which of the 2 drawn cards to keep.
+[쌍둥이] 숫자 {0} 카드를 문양 상관없이 이어서 내거나 '연속 내기 끝'을 누르세요.	[Twins] Chain number {0} cards of any suit, or press 'End Chain'.
+[어벤져스] 직업: {0}	[Avengers] Job: {0}
+{0}의 차례...	{0}'s turn...
+{0}     {1}라운드  ·  턴 {2}	{0}     Round {1}  ·  Turn {2}
+{0} 각성	{0} Awakens
+{0} 계정으로 로그인됨	Signed in as {0}
+{0} 찾는 중 ({1}장)	Looking for {0} ({1} drawn)
+{0} 카드가 나올 때까지 (지금 {1}장)	until a {0} card appears (drawn {1})
+{0} 탈락	{0} Out
+{0}!	{0}!
+나올 때까지 뽑아라!	Draw until it appears!
+{0}/{1}장	{0}/{1}
+{0}:{1} 에 접속하는 중...	Connecting to {0}:{1}...
+{0}가 {1} 카드를 찾아 뽑는 중... ({2}장째)	{0} is drawing for a {1} card... ({2} so far)
+{0}가 각성 능력을 고르는 중...	{0} is choosing an Awaken ability...
+{0}가 카드를 뽑는 중... ({1}/{2})	{0} is drawing... ({1}/{2})
+{0}가 특수 증강을 고르는 중...	{0} is choosing a special augment...
+{0}님에게 초대를 보냈습니다.	Invite sent to {0}.
+{0}님의 초대	Invite from {0}
+{0}등 확정	{0:ord} place
+{0}등 확정  ·	{0:ord} place  ·
+{0}명이 게임 중입니다. '게임 끝내기'로 모두 대기방으로 부를 수 있습니다.	{0} player(s) in game. 'End Game' calls everyone back to the room.
+{0}명이 게임 중입니다. 판이 끝나면 함께할 수 있습니다.	{0} player(s) in game. You can join after this match.
+{0}장 뽑아라!	Draw {0}!
+{0}장{1}	{0|card|cards}{1}
+{0}장	{0|card|cards}
+⚠ 탈락 위험! 손패 {0}/{1}장	⚠ Elimination risk! {0}/{1} cards
+각성 능력을 하나 고르세요	Choose an Awaken ability
+건너뜀	Skipped
+게임 종료	Game Over
+게임 진행 중	Game in progress
+남은 {0}명이 순위를 가리는 중 (관전)	{0} players still competing for places (spectating)
+내 문양: {0}	My suit: {0}
+내 차례	Your turn
+낸 뒤 위쪽 상대를 클릭해서 대상을 골라요.	After playing, click an opponent above to target them.
+낼 수 없어요: {0}	Can't play: {0}
+낼 카드가 없습니다. 덱에서 뽑으세요	No playable cards. Draw from the deck
+누적 +{0} 받는 중	Taking +{0} stack
+다른 사람들이 첫 특수 증강을 고르는 중... ({0}명 남음)	Others are choosing their first augment... ({0} left)
+다음 증강까지 내 차례 {0}번	Next augment in {0} of your turns
+덱 {0}장	Deck {0}
+덱을 눌러 +{0} 받기	Click the deck to take +{0}
+덱을 눌러 뽑기  Space	Click deck to draw  [Space]
+멀티 · 방장	Online · Host
+멀티 · 참가자	Online · Guest
+모두 대기방으로	Everyone to Room
+무효	Blocked
+반시계 방향	Counter-clockwise
+방 코드   {0}	Room code   {0}
+방 코드가 올바르지 않아요.	That room code isn't valid.
+방 코드를 복사했습니다.	Room code copied.
+방을 만들었어요. 포트 {0}	Room created. Port {0}
+같은 PC라면 127.0.0.1, 다른 PC라면 이 PC의 IP로 접속하면 돼요.	Join with 127.0.0.1 on this PC, or this PC's IP from another PC.
+방을 만들지 못했어요. ({0}) 포트 {1}가 이미 쓰이고 있는지 확인해 주세요.	Couldn't create the room. ({0}) Check whether port {1} is already in use.
+방장 대기 중	Waiting for host
+방장에게 연결하는 중...	Connecting to host...
+방장이 게임을 시작하기를 기다리는 중	Waiting for the host to start
+방향 전환	Reverse
+봉인  ·  숫자 카드만 낼 수 있습니다	Sealed  ·  number cards only
+블랙홀 {0}/{1}	Black Hole {0}/{1}
+블랙홀 {0}/{1}장	Black Hole {0}/{1}
+뽑기  {0}	Draw  {0}
+뽑기 ({0}장 남음)	Draw ({0} left)
+뽑기 (찾을 때까지)	Draw (until found)
+뽑는 중 {0}/{1}	Drawing {0}/{1}
+뽑은 카드를 내거나 턴을 넘기세요	Play the drawn card or end your turn
+수집 {0}/4 문양	Collected {0}/4 suits
+시계 방향	Clockwise
+아무 +카드나	any + card
+어벤져스 집결! 다음 차례에 승리 ({0}/{1})	Avengers assembled! Wins next turn ({0}/{1})
+어벤져스 집결! 이대로 내 차례가 다시 오면 승리 — 직업 카드를 지키세요	Avengers assembled! You win when your turn returns — protect your job cards
+연속 내기  ·  {0} 숫자 카드를 계속 낼 수 있습니다	Chain  ·  keep playing {0} number cards
+연속 내기 끝	End Chain
+이번 판 동안 계속 적용됩니다  ·  최대 {0}개	Lasts for the rest of this match  ·  up to {0}
+저격당함 · 다음 차례 건너뜀	Sniped · skips next turn
+접속을 시작하지 못했어요. ({0})	Couldn't start connecting. ({0})
+준비되면 게임을 시작하세요.	Start the game when you're ready.
+증강 고르는 중	Choosing augment
+증강 선택 중	Choosing augment
+지금 내면: [{0}] 효과가 발동해요.	If played now: triggers [{0}].
+지금 내면: 복사할 효과가 없어요.	If played now: nothing to copy.
+지금은 낼 수 없어요.	Can't be played right now.
+직업 {0}/{1}	Jobs {0}/{1}
+직업 {0}/{1} (없음: {2})	Jobs {0}/{1} (missing: {2})
+초대를 보내지 못했습니다. Steam 연결을 확인해 주세요.	Couldn't send the invite. Check your Steam connection.
+친구 목록을 불러오지 못했어요.	Couldn't load your friends list.
+클릭해서 내기	Click to play
+탈락 ({0}등)  ·	Out ({0:ord})  ·
+탈락 · {0}등	Out · {0:ord}
+탈락 위험 {0}/{1}	Elimination risk {0}/{1}
+특수 증강 {0}/{1}	Augments {0}/{1}
+특수 증강 획득	Augment gained
+특수 증강을 하나 고르세요	Choose a special augment
+한 판 더	One More
+현재 문양: {0}	Current suit: {0}
+숫자 카드 · {0}	Number card · {0}
+액션 카드 · {0}	Action card · {0}
+와일드 카드	Wild card
+증강 · {0}	Augment · {0}
+쿨타임: 내 턴 {0}번 남음	Cooldown: {0} of your turns
+특수 카드 · {0}	Special card · {0}
+{0}  (나)	{0}  (me)
+봇	Bot
+빈자리 (봇)	Empty (bot)
+1장 남음	1 card left
+다음 차례	Next
+증강 없음	No augments
+# 설정 화면 제작자 표기
+배경음악: "Backbay Lounge" Kevin MacLeod (incompetech.com) · CC BY 4.0	Music: "Backbay Lounge" Kevin MacLeod (incompetech.com) · CC BY 4.0
+글꼴: Pretendard, Black Han Sans (SIL OFL 1.1)  ·  효과음·테두리: Kenney (CC0)  ·  천 텍스처: ambientCG (CC0)	Fonts: Pretendard, Black Han Sans (SIL OFL 1.1)  ·  SFX & borders: Kenney (CC0)  ·  Felt texture: ambientCG (CC0)
+언어 (Language)	Language
+불꽃 각성	Flame Awaken
+달빛 각성	Moon Awaken
+숲 각성	Forest Awaken
+물결 각성	Wave Awaken

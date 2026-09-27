@@ -16,6 +16,9 @@ public partial class DevlogShots : Node
     private const string Folder = "res://tools/shots/devlog";
     private GameController _game = null!;
 
+    /// <summary>tools/shot_lang.txt에 "en"이 있으면 영어로 찍고 파일 이름 앞에 en_을 붙입니다. (설정 파일은 바꾸지 않습니다)</summary>
+    private string _prefix = "";
+
     private HostSession Host => (HostSession)_game.Session!;
 
     private PlayerView View => _game.Session!.View!;
@@ -39,6 +42,12 @@ public partial class DevlogShots : Node
         DirAccess.MakeDirRecursiveAbsolute(ProjectSettings.GlobalizePath(Folder));
         _game = GD.Load<PackedScene>("res://scenes/Game.tscn").Instantiate<GameController>();
         AddChild(_game);
+        string langFile = ProjectSettings.GlobalizePath("res://tools/shot_lang.txt");
+        if (System.IO.File.Exists(langFile) && System.IO.File.ReadAllText(langFile).Trim() == "en")
+        {
+            Localization.Apply("en");
+            _prefix = "en_";
+        }
 
         // 1. 메인 화면과 설정 창
         await Wait(1.5);
@@ -60,6 +69,9 @@ public partial class DevlogShots : Node
         _game.BotDelay = 999f;
         await Wait(2.2);
         await Capture("04_table.png");
+        var dump = new System.Text.StringBuilder();
+        DumpMin(_game, 0, dump);
+        System.IO.File.WriteAllText(ProjectSettings.GlobalizePath($"{Folder}/{_prefix}minsize.txt"), dump.ToString());
 
         // 4. +카드 공격이 쌓여서 넘어온 순간과 누적 상태
         Host.DebugPenalty(5);
@@ -170,6 +182,25 @@ public partial class DevlogShots : Node
         }
     }
 
+    /// <summary>화면 배치가 넘칠 때 원인을 찾으려고, 최소 너비가 큰 컨트롤을 적어 둡니다.</summary>
+    private static void DumpMin(Node node, int depth, System.Text.StringBuilder sb)
+    {
+        if (node is Control { Visible: true } c && c.GetCombinedMinimumSize().X > 200)
+        {
+            sb.AppendLine($"{new string(' ', depth * 2)}{c.Name} min={c.GetCombinedMinimumSize()} size={c.Size}");
+        }
+
+        if (depth > 12)
+        {
+            return;
+        }
+
+        foreach (var child in node.GetChildren())
+        {
+            DumpMin(child, depth + 1, sb);
+        }
+    }
+
     private async Task Wait(double seconds) =>
         await ToSignal(GetTree().CreateTimer(seconds), SceneTreeTimer.SignalName.Timeout);
 
@@ -177,7 +208,7 @@ public partial class DevlogShots : Node
     {
         await ToSignal(RenderingServer.Singleton, RenderingServerInstance.SignalName.FramePostDraw);
         var image = GetViewport().GetTexture().GetImage();
-        image.SavePng(ProjectSettings.GlobalizePath($"{Folder}/{name}"));
+        image.SavePng(ProjectSettings.GlobalizePath($"{Folder}/{_prefix}{name}"));
         GD.Print($"[개발일지 스샷] {name}");
     }
 }

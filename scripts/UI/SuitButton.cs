@@ -31,6 +31,6 @@ public partial class SuitButton : Button
 
         const int fontSize = 18;
         var pos = new Vector2(0, Size.Y - 14);
-        DrawString(UiTheme.Bold, pos, Card.ColorName(_suit), HorizontalAlignment.Center, Size.X, fontSize, Colors.White);
+        DrawString(UiTheme.Bold, pos, Loc.Tr(Card.ColorName(_suit)), HorizontalAlignment.Center, Size.X, fontSize, Colors.White);
     }
 }
