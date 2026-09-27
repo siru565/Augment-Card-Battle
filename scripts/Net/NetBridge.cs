@@ -69,6 +69,18 @@ public partial class NetBridge : Node
 
         if (Multiplayer.MultiplayerPeer is ENetMultiplayerPeer peer)
         {
+            // 바로 끊지 않고 상대에게 "연결 종료"를 알린 뒤 닫습니다.
+            // 그냥 닫으면 상대는 시간 초과(수십 초)가 될 때까지 내가 아직 있다고 생각합니다.
+            if (peer.GetConnectionStatus() == MultiplayerPeer.ConnectionStatus.Connected)
+            {
+                foreach (int id in Multiplayer.GetPeers())
+                {
+                    peer.GetPeer(id)?.PeerDisconnect();
+                }
+
+                peer.Host?.Flush();
+            }
+
             peer.Close();
         }
 

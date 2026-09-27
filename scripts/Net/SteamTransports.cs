@@ -75,6 +75,25 @@ public sealed class SteamServerTransport : IServerTransport, IPollingTransport, 
     {
         _listen = SteamNetworkingSockets.CreateListenSocketP2P(0, 0, null);
         SteamRuntime.ConnectionStatusChanged += OnStatusChanged;
+        SteamRuntime.LobbyMemberLeft += OnLobbyMemberLeft;
+    }
+
+    /// <summary>
+    /// Steam 로비에서 나간 사람의 연결을 바로 정리합니다.
+    /// P2P 연결 종료 알림은 늦거나 오지 않을 때가 있어서(방장 화면에 계속 남는 문제), 로비 알림을 함께 씁니다.
+    /// </summary>
+    private void OnLobbyMemberLeft(ulong steamId)
+    {
+        foreach (var connection in _connections.ToArray())
+        {
+            if (SteamNetworkingSockets.GetConnectionInfo(connection, out var info)
+                && info.m_identityRemote.GetSteamID().m_SteamID == steamId)
+            {
+                _connections.Remove(connection);
+                SteamNetworkingSockets.CloseConnection(connection, 0, "", false);
+                PeerDisconnected?.Invoke(connection.m_HSteamNetConnection);
+            }
+        }
     }
 
     private void OnStatusChanged(SteamNetConnectionStatusChangedCallback_t data)
@@ -164,6 +183,7 @@ public sealed class SteamServerTransport : IServerTransport, IPollingTransport, 
     public void Dispose()
     {
         SteamRuntime.ConnectionStatusChanged -= OnStatusChanged;
+        SteamRuntime.LobbyMemberLeft -= OnLobbyMemberLeft;
         foreach (var connection in _connections)
         {
             SteamNetworkingSockets.CloseConnection(connection, 0, "호스트가 방을 닫았어요.", false);
@@ -239,6 +259,7 @@ public sealed class SteamClientTransport : IClientTransport, IPollingTransport, 
     public void Dispose()
     {
         SteamRuntime.ConnectionStatusChanged -= OnStatusChanged;
-        SteamNetworkingSockets.CloseConnection(_connection, 0, "", false);
+        // linger = true: 방금 보낸 작별 인사(bye)가 방장에게 도착한 뒤에 연결을 닫습니다.
+        SteamNetworkingSockets.CloseConnection(_connection, 0, "", true);
     }
 }

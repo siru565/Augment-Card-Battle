@@ -517,3 +517,4 @@ AI 상대	AI opponents
 수집가: 같은 숫자를 네 문양 모두 손에 모으면 승리	Collector: win by holding the same number in all four suits
 탈락 규칙	Elimination
 손패가 30장이 되면 탈락하고 가장 낮은 순위가 됩니다. (블랙홀 증강이 있으면 탈락하지 않습니다)	Reach 30 cards and you're eliminated with the lowest rank. (Not with the Black Hole augment)
+{0}님이 방을 나갔어요.	{0} left the room.

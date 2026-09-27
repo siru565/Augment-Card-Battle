@@ -25,6 +25,7 @@ public static class SteamRuntime
     private static Callback<GameLobbyJoinRequested_t>? _joinRequested;
     private static Callback<SteamNetConnectionStatusChangedCallback_t>? _connectionStatus;
     private static Callback<LobbyInvite_t>? _lobbyInvite;
+    private static Callback<LobbyChatUpdate_t>? _lobbyChatUpdate;
     private static Callback<AvatarImageLoaded_t>? _avatarLoaded;
     private static readonly Dictionary<ulong, ImageTexture?> AvatarCache = new();
     private static Callback<GameRichPresenceJoinRequested_t>? _presenceJoin;
@@ -49,6 +50,12 @@ public static class SteamRuntime
 
     /// <summary>게임 안에서 친구의 방 초대를 받았을 때 호출합니다. (보낸 사람 이름, 로비)</summary>
     public static event Action<string, CSteamID>? InviteReceived;
+
+    /// <summary>
+    /// 지금 들어가 있는 Steam 로비에서 누군가 나갔을 때 호출합니다. (Steam ID)
+    /// 나간 사람의 게임이 연결을 제대로 닫지 못해도(강제 종료 등) Steam이 로비에서 빼 주므로, 방장이 빨리 알아챌 수 있습니다.
+    /// </summary>
+    public static event Action<ulong>? LobbyMemberLeft;
 
     /// <summary>P2P 연결 상태가 바뀔 때 호출합니다. 전송 계층이 구독합니다.</summary>
     public static event Action<SteamNetConnectionStatusChangedCallback_t>? ConnectionStatusChanged;
@@ -150,6 +157,7 @@ public static class SteamRuntime
             _joinRequested = Callback<GameLobbyJoinRequested_t>.Create(data => JoinRequested?.Invoke(data.m_steamIDLobby));
             _connectionStatus = Callback<SteamNetConnectionStatusChangedCallback_t>.Create(data => ConnectionStatusChanged?.Invoke(data));
             _lobbyInvite = Callback<LobbyInvite_t>.Create(OnLobbyInvite);
+            _lobbyChatUpdate = Callback<LobbyChatUpdate_t>.Create(OnLobbyChatUpdate);
             _avatarLoaded = Callback<AvatarImageLoaded_t>.Create(data =>
             {
                 ulong id = data.m_steamID.m_SteamID;
@@ -256,6 +264,17 @@ public static class SteamRuntime
     /// </summary>
     public static bool InviteFriend(CSteamID friend) =>
         IsReady && CurrentLobby != CSteamID.Nil && SteamMatchmaking.InviteUserToLobby(CurrentLobby, friend);
+
+    /// <summary>나감(2) · 연결 끊김(4) · 추방(8) · 차단(16) 중 하나면 로비를 떠난 것입니다.</summary>
+    private const uint MemberGoneFlags = 2 | 4 | 8 | 16;
+
+    private static void OnLobbyChatUpdate(LobbyChatUpdate_t data)
+    {
+        if (data.m_ulSteamIDLobby == CurrentLobby.m_SteamID && (data.m_rgfChatMemberStateChange & MemberGoneFlags) != 0)
+        {
+            LobbyMemberLeft?.Invoke(data.m_ulSteamIDUserChanged);
+        }
+    }
 
     private static void OnLobbyInvite(LobbyInvite_t data)
     {

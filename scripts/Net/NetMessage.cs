@@ -15,6 +15,9 @@ public sealed record NetMessage
     public const string Action = "action";
     public const string Leave = "leave";
 
+    /// <summary>방을 완전히 나갑니다. (연결을 끊기 직전에 보내는 작별 인사)</summary>
+    public const string Bye = "bye";
+
     // 호스트 → 클라이언트
     public const string Lobby = "lobby";
     public const string Start = "start";

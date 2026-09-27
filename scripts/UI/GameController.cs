@@ -202,6 +202,9 @@ public partial class GameController : Control
         StartHosting();
     }
 
+    /// <summary>대기방의 '방 나가기'를 누른 것과 같습니다. (멀티 테스트용)</summary>
+    public void DebugLeaveRoom() => BackToLobby("");
+
     public void DebugJoin(string address, int port)
     {
         _addressEdit.Text = address;
@@ -478,6 +481,7 @@ public partial class GameController : Control
 
     private void LeaveSession()
     {
+        (_session as ClientSession)?.SayGoodbye();
         _transport?.Dispose();
         _transport = null;
         _session = null;

@@ -30,6 +30,9 @@ public sealed class ClientSession : GameSession
     private void OnConnected() =>
         _transport.Send(new NetMessage { T = NetMessage.Hello, Text = _name, Version = _version }.ToJson());
 
+    /// <summary>방을 나가기 직전에 방장에게 알립니다. 방장 화면의 참가자 목록에서 바로 빠지게 합니다.</summary>
+    public void SayGoodbye() => _transport.Send(new NetMessage { T = NetMessage.Bye }.ToJson());
+
     public override void LeaveGame()
     {
         if (!Playing)

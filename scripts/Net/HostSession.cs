@@ -232,11 +232,12 @@ public sealed class HostSession : GameSession
         string name = _lobby[index].Name;
         _lobby.RemoveAt(index);
 
-        if (_engine != null)
+        if (_engine != null && IsSeated(peer))
         {
             HandOverToBot(peer, $"{name}의 연결이 끊겨서 봇이 이어받습니다.");
         }
 
+        EmitRoomLog($"{name}님이 방을 나갔어요.");
         BroadcastLobby();
     }
 
@@ -691,6 +692,12 @@ public sealed class HostSession : GameSession
 
             case NetMessage.Leave:
                 HandleLeave(peer);
+                break;
+
+            case NetMessage.Bye:
+                // 방을 나간 사람은 바로 목록에서 빼고, 연결은 잠시 뒤에 닫습니다.
+                OnPeerDisconnected(peer);
+                _pendingKicks.Add((peer, KickDelay));
                 break;
         }
     }

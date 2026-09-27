@@ -130,8 +130,27 @@ public partial class NetTest : Node
         bool kicked = client.Session == null && host.Session!.LobbyNames.Length == 1;
         report.AppendLine($"강퇴: 참가자 퇴장={client.Session == null}, 방 인원={host.Session!.LobbyNames.Length}");
 
+        // 다시 들어온 참가자가 스스로 '방 나가기'를 누르면, 방장 화면에서도 바로 빠져야 합니다.
+        client.DebugJoin("127.0.0.1", Port);
+        for (int i = 0; i < 50 && host.Session!.LobbyNames.Length < 2; i++)
+        {
+            await Wait(0.1);
+        }
+
+        bool rejoined = host.Session!.LobbyNames.Length == 2;
+        client.DebugLeaveRoom();
+        int waitedMs = 0;
+        while (waitedMs < 5000 && host.Session!.LobbyNames.Length > 1)
+        {
+            await Wait(0.05);
+            waitedMs += 50;
+        }
+
+        bool leftSeen = host.Session!.LobbyNames.Length == 1;
+        report.AppendLine($"스스로 나가기: 재입장={rejoined}, 방장 화면에서 빠짐={leftSeen} ({waitedMs}ms)");
+
         // 강퇴 뒤에 방장은 계속 방을 유지해야 합니다.
-        bool ok = clientInRoom && second.StartsWith("끝") && kicked && client.Session == null;
+        bool ok = clientInRoom && second.StartsWith("끝") && kicked && rejoined && leftSeen && waitedMs <= 1000;
         return (ok ? "성공\n" : "실패\n") + report;
     }
 
