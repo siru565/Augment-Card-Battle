@@ -72,6 +72,29 @@ public sealed class PlayerState
     /// <summary>잭팟: 마지막으로 나온 릴입니다. (화면 표시용)</summary>
     public string LastJackpot { get; set; } = "";
 
+    /// <summary>빙고 테마: 내 빙고판 9칸입니다. (모두에게 공개)</summary>
+    public BingoCell[] Bingo { get; set; } = Array.Empty<BingoCell>();
+
+    /// <summary>카드 레이스 테마: 지금 위치(칸)입니다.</summary>
+    public int RacePos { get; set; }
+
+    /// <summary>영토 전쟁 테마: 문양별로 낸 카드 수입니다.</summary>
+    public int[] SuitPlays { get; } = new int[4];
+
+    /// <summary>비밀 임무 테마: 내 임무와 진행도입니다.</summary>
+    public Mission? Mission { get; set; }
+
+    public int MissionProgress { get; set; }
+
+    /// <summary>비밀 임무(연속 숫자): 마지막으로 낸 숫자입니다. 없으면 -1</summary>
+    public int MissionLast { get; set; } = -1;
+
+    /// <summary>보스 레이드 테마: 이 사람이 보스를 쓰러뜨렸습니다.</summary>
+    public bool BossKill { get; set; }
+
+    /// <summary>시한폭탄 테마: 받은 메달 수입니다.</summary>
+    public int Medals { get; set; }
+
     public PlayerState(int id) => Id = id;
 
     public bool Has(SpecialAugmentId id) => Augments.Contains(id);
@@ -164,6 +187,23 @@ public sealed class GameState
     public ArcadeRound? Arcade { get; set; }
 
     public int ArcadeCounter { get; set; }
+
+    /// <summary>영토 전쟁 테마: 문양(0~3)별 깃발 주인입니다. 없으면 -1</summary>
+    public int[] Flags { get; } = { -1, -1, -1, -1 };
+
+    /// <summary>보스 레이드 테마: 보스 남은 체력과 분노 단계(0~2)입니다.</summary>
+    public int BossHp { get; set; }
+
+    public int BossRage { get; set; }
+
+    /// <summary>보스 레이드 테마: 지금까지 쓰러뜨린 보스 수입니다.</summary>
+    public int BossKills { get; set; }
+
+    /// <summary>시한폭탄 테마: 남은 도화선(카드 몇 장이 더 나오면 터지는지)입니다. 아무에게도 알려 주지 않습니다.</summary>
+    public int BombFuse { get; set; }
+
+    /// <summary>시한폭탄 테마: 지금까지 터진 횟수입니다.</summary>
+    public int BombBlasts { get; set; }
 
     /// <summary>미니게임마다 붙이는 번호입니다. 화면이 새 미니게임인지 알아보는 데 씁니다.</summary>
     public int MinigameCounter { get; set; }
@@ -329,6 +369,40 @@ public sealed class GameState
                 ? YachtRules.All.Where(c => !me.YachtDone.Contains(c) && YachtRules.Find(me.Hand, c) != null).ToList()
                 : new List<YachtCategory>(),
             Arcade = Arcade == null ? null : new ArcadeInfo(Arcade.Id, Arcade.Game, Arcade.Seed, Arcade.Players, Arcade.Scores.Keys.ToArray()),
+            Board = ThemeBoardFor(playerId),
+        };
+    }
+
+    /// <summary>
+    /// 빙고 · 레이스 · 영토 · 임무 · 보스 · 폭탄 테마의 공개 정보입니다.
+    /// 비밀 임무는 내 것만 보이고, 남의 임무는 절반 이상 진행했을 때부터 보입니다.
+    /// </summary>
+    private ThemeBoard? ThemeBoardFor(int playerId)
+    {
+        if (Theme is ThemeId.None or ThemeId.Arcade or ThemeId.Yacht)
+        {
+            return null;
+        }
+
+        bool Revealed(PlayerState p) => p.Id == playerId || IsFinished || (p.Mission != null && p.MissionProgress * 2 >= p.Mission.Target);
+        return new ThemeBoard(
+            Players.Select(p => p.RacePos).ToArray(),
+            Flags.Select(f => f >= 0 && Players[f].Active ? f : -1).ToArray(),
+            Players.Select(p => p.SuitPlays.ToArray()).ToArray(),
+            BossHp,
+            BossRage,
+            Players.Select(p => p.Medals).ToArray(),
+            Theme == ThemeId.Bomb && BombFuse <= BombRules.DangerFuse,
+            BombBlasts,
+            Players.Select(p => p.Bingo.ToArray()).ToArray(),
+            Players.Select(p => p.Mission == null || !Revealed(p) ? "" : p.Mission.Describe()).ToArray(),
+            Players.Select(p => p.Mission == null || !Revealed(p) ? -1 : p.MissionProgress).ToArray(),
+            Players.Select(p => p.Mission?.Target ?? 0).ToArray())
+        {
+            MyMission = Players[playerId].Mission,
+            MyMissionLast = Players[playerId].MissionLast,
+            BossMaxHp = BossRules.MaxHpFor(PlayerCount),
+            FlagsNeeded = TerritoryRules.FlagsFor(PlayerCount),
         };
     }
 
@@ -367,6 +441,37 @@ public sealed class GameState
 
         return goals;
     }
+}
+
+/// <summary>
+/// 테마 공개 정보입니다. 배열은 모두 자리 번호 순서입니다.
+/// Missions가 ""이고 MissionProgress가 -1이면 아직 비밀입니다.
+/// </summary>
+public sealed record ThemeBoard(
+    int[] RacePos,
+    int[] Flags,
+    int[][] SuitPlays,
+    int BossHp,
+    int BossRage,
+    int[] Medals,
+    bool BombDanger,
+    int BombBlasts,
+    BingoCell[][] Bingo,
+    string[] Missions,
+    int[] MissionProgress,
+    int[] MissionTarget)
+{
+    /// <summary>내 비밀 임무입니다. (봇 판단용, 나에게만 보냅니다)</summary>
+    public Mission? MyMission { get; init; }
+
+    /// <summary>내 연속 숫자 임무에서 마지막으로 낸 숫자입니다.</summary>
+    public int MyMissionLast { get; init; } = -1;
+
+    /// <summary>이번 판 보스 최대 체력입니다.</summary>
+    public int BossMaxHp { get; init; }
+
+    /// <summary>이번 판 영토 전쟁에서 이기려면 지켜야 하는 깃발 수입니다.</summary>
+    public int FlagsNeeded { get; init; }
 }
 
 /// <summary>어벤져스 증강을 가진 사람에게 보여 주는 카드별 직업입니다.</summary>
@@ -444,6 +549,9 @@ public sealed record PlayerView(
 
     /// <summary>진행 중인 미니게임 대회입니다.</summary>
     public ArcadeInfo? Arcade { get; init; }
+
+    /// <summary>빙고 · 레이스 · 영토 · 임무 · 보스 · 폭탄 테마의 공개 정보입니다. (그 외 테마면 null)</summary>
+    public ThemeBoard? Board { get; init; }
 
     /// <summary>내가 아직 점수를 안 낸 미니게임 대회입니다.</summary>
     public ArcadeInfo? MyArcade => Arcade != null && Arcade.Players.Contains(PlayerId) && !Arcade.Submitted.Contains(PlayerId) ? Arcade : null;

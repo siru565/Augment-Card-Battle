@@ -306,6 +306,7 @@ public sealed class GameEngine
         Emit($"  {NameOf(playerId)}: [{card}]{colorNote}{targetNote} (남은 {player.Hand.Count}장)");
         Raise(new GameEvent(GameEventType.CardPlayed, playerId, action.Target, card));
         TrackAltWinPlay(player, card);
+        ThemePlay(player, card);
 
         // 손패를 다 내면 순위가 정해집니다. 게임은 남은 사람끼리 계속되고, 마지막 카드의 효과도 발동합니다.
         bool wentOut = CheckWin(playerId);
@@ -539,6 +540,14 @@ public sealed class GameEngine
         {
             Emit($"    → [불사조] {amount}장 중 {SpecialAugments.PhoenixCap}장만 받습니다.");
             amount = SpecialAugments.PhoenixCap;
+        }
+
+        // 카드 레이스: 받은 장수만큼 뒤로 밀립니다.
+        if (State.Theme == ThemeId.Race && me.RacePos > 0)
+        {
+            int back = Math.Min(me.RacePos, amount * RaceRules.PenaltyKnockback);
+            MoveRacer(me, -back);
+            Emit($"    → [레이스] {NameOf(playerId)}가 {back}칸 뒤로 밀립니다.");
         }
 
         // 받는 사람의 빚이 먼저 오도록 맨 앞에 넣습니다.
@@ -867,6 +876,20 @@ public sealed class GameEngine
         var info = Themes.Info(State.Theme);
         Emit($"✦ 이번 판 테마: {info.Name} — {info.Summary}");
         Raise(new GameEvent(GameEventType.ThemeRevealed, Amount: (int)State.Theme, Text: info.Name));
+        InitTheme();
+    }
+
+    /// <summary>테마별 준비물(빙고판, 비밀 임무, 보스 체력, 폭탄 도화선)을 마련합니다.</summary>
+    private void InitTheme()
+    {
+        foreach (var p in State.Players)
+        {
+            p.Bingo = State.Theme == ThemeId.Bingo ? BingoRules.MakeBoard(Rng) : Array.Empty<BingoCell>();
+            p.Mission = State.Theme == ThemeId.Mission ? MissionRules.Roll(Rng) : null;
+        }
+
+        State.BossHp = BossRules.MaxHpFor(State.PlayerCount);
+        State.BombFuse = Rng.Next(BombRules.FuseMin, BombRules.FuseMax + 1);
     }
 
     private void StartArcade()
@@ -971,6 +994,253 @@ public sealed class GameEngine
         FinishTurn(1);
         return ActionResult.Success();
     }
+
+    // ───────────── 빙고 · 레이스 · 영토 · 임무 · 보스 · 폭탄 테마 ─────────────
+
+    /// <summary>카드를 한 장 낼 때마다 테마 진행을 갱신합니다. (승리 판정은 CheckAltWins와 차례 시작에서 합니다)</summary>
+    private void ThemePlay(PlayerState player, Card card)
+    {
+        switch (State.Theme)
+        {
+            case ThemeId.Bingo:
+                // 진짜 빙고처럼, 누가 냈든 바닥에 나온 카드로 모두의 판이 찍힙니다. (낸 사람부터)
+                for (int i = 0; i < State.PlayerCount; i++)
+                {
+                    var p = State.Players[(player.Id + i) % State.PlayerCount];
+                    if (p.Active && (BingoRules.Shared || p == player))
+                    {
+                        MarkBingo(p, card);
+                    }
+                }
+
+                break;
+            case ThemeId.Race:
+                MoveRacer(player, RaceRules.Step(card));
+                break;
+            case ThemeId.Territory:
+                PlantFlag(player, card);
+                break;
+            case ThemeId.Mission:
+                AdvanceMission(player, card);
+                break;
+            case ThemeId.Boss:
+                HitBoss(player, card);
+                break;
+            case ThemeId.Bomb:
+                TickBomb(player);
+                break;
+        }
+    }
+
+    /// <summary>빙고: 이 카드로 찍을 수 있는 칸 중 줄을 가장 많이 만드는 칸을 찍습니다. 프리즘은 아무 칸이나 찍습니다.</summary>
+    private void MarkBingo(PlayerState player, Card card)
+    {
+        var board = player.Bingo;
+        int best = -1;
+        int bestScore = -1;
+        for (int i = 0; i < board.Length; i++)
+        {
+            if (board[i].Marked || !(card.IsWild ? !board[i].Free : board[i].Matches(card)))
+            {
+                continue;
+            }
+
+            var trial = board.ToArray();
+            trial[i] = trial[i] with { Marked = true };
+            // 줄 수를 가장 중요하게, 그다음은 가운데·모서리처럼 줄이 많이 지나가는 칸을 고릅니다.
+            int score = BingoRules.LinesDone(trial) * 10 + (i == 4 ? 4 : i % 2 == 0 ? 3 : 2);
+            if (score > bestScore)
+            {
+                bestScore = score;
+                best = i;
+            }
+        }
+
+        if (best < 0)
+        {
+            return;
+        }
+
+        int before = BingoRules.LinesDone(board);
+        board[best] = board[best] with { Marked = true };
+        int lines = BingoRules.LinesDone(board);
+        Raise(new GameEvent(GameEventType.BingoMarked, player.Id, lines, Amount: best, Text: board[best].Label));
+        if (lines > before)
+        {
+            Emit($"    → [빙고] {NameOf(player.Id)} 빙고! ({lines}/{BingoRules.LinesToWin}줄)");
+        }
+    }
+
+    /// <summary>레이스: 말을 움직입니다. 뒤로 밀려도 출발점 밑으로는 안 갑니다.</summary>
+    private void MoveRacer(PlayerState player, int steps)
+    {
+        int before = player.RacePos;
+        player.RacePos = Math.Clamp(player.RacePos + steps, 0, RaceRules.Finish);
+        if (player.RacePos != before)
+        {
+            Raise(new GameEvent(GameEventType.RaceMoved, player.Id, player.RacePos, Amount: player.RacePos - before));
+        }
+    }
+
+    /// <summary>영토: 문양별로 가장 많이 낸 사람이 깃발을 가집니다. 같으면 원래 주인이 지킵니다.</summary>
+    private void PlantFlag(PlayerState player, Card card)
+    {
+        if (card.IsWild || (int)card.Color > 3)
+        {
+            return;
+        }
+
+        int suit = (int)card.Color;
+        player.SuitPlays[suit]++;
+        int owner = State.Flags[suit];
+        if (owner == player.Id)
+        {
+            return;
+        }
+
+        int ownerCount = owner >= 0 && State.Players[owner].Active ? State.Players[owner].SuitPlays[suit] : 0;
+        if (player.SuitPlays[suit] <= ownerCount || player.SuitPlays[suit] < TerritoryRules.MinPlays)
+        {
+            return;
+        }
+
+        State.Flags[suit] = player.Id;
+        int held = State.Flags.Count(f => f == player.Id);
+        Emit(owner >= 0 && State.Players[owner].Active
+            ? $"    → [영토] {NameOf(player.Id)}가 {NameOf(owner)}에게서 {Card.ColorName(card.Color)} 깃발을 빼앗았습니다! ({held}/{TerritoryRules.FlagsFor(State.PlayerCount)})"
+            : $"    → [영토] {NameOf(player.Id)}가 {Card.ColorName(card.Color)} 깃발을 차지했습니다! ({held}/{TerritoryRules.FlagsFor(State.PlayerCount)})");
+        Raise(new GameEvent(GameEventType.FlagCaptured, player.Id, owner, Amount: suit));
+    }
+
+    /// <summary>영토: 순위가 정해져 빠진 사람의 깃발은 남은 사람 중 가장 많이 낸 사람(한 명일 때)에게 넘어갑니다.</summary>
+    private void RecountFlags()
+    {
+        for (int suit = 0; suit < 4; suit++)
+        {
+            int owner = State.Flags[suit];
+            if (owner < 0 || State.Players[owner].Active)
+            {
+                continue;
+            }
+
+            var active = State.Players.Where(p => p.Active && p.SuitPlays[suit] > 0).OrderByDescending(p => p.SuitPlays[suit]).ToList();
+            State.Flags[suit] = active.Count > 0 && active[0].SuitPlays[suit] >= TerritoryRules.MinPlays
+                && (active.Count == 1 || active[0].SuitPlays[suit] > active[1].SuitPlays[suit])
+                ? active[0].Id
+                : -1;
+        }
+    }
+
+    private int FlagsOf(int playerId) => State.Flags.Count(f => f == playerId);
+
+    /// <summary>비밀 임무: 진행도를 올립니다. 연속 숫자 임무는 조건에 안 맞는 카드를 내면 끊깁니다.</summary>
+    private void AdvanceMission(PlayerState player, Card card)
+    {
+        var mission = player.Mission;
+        if (mission == null)
+        {
+            return;
+        }
+
+        int before = player.MissionProgress;
+        if (mission.Kind == MissionKind.Ladder)
+        {
+            if (card.Kind != CardKind.Number)
+            {
+                player.MissionProgress = 0;
+                player.MissionLast = -1;
+            }
+            else
+            {
+                player.MissionProgress = player.MissionLast >= 0 && card.Number == player.MissionLast + 1 ? player.MissionProgress + 1 : 1;
+                player.MissionLast = card.Number;
+            }
+        }
+        else if (MissionRules.Counts(mission, card, player.MissionLast))
+        {
+            player.MissionProgress++;
+        }
+
+        // 절반을 넘는 순간 모두에게 임무가 공개됩니다.
+        if (before * 2 < mission.Target && player.MissionProgress * 2 >= mission.Target && player.MissionProgress < mission.Target)
+        {
+            Emit($"    → [비밀 임무] {NameOf(player.Id)}의 임무가 드러났습니다: {mission.Describe()} ({player.MissionProgress}/{mission.Target})");
+        }
+    }
+
+    /// <summary>보스: 카드만큼 피해를 줍니다. 체력이 3분의 1씩 줄 때마다 보스가 분노해서 모두 1장씩 뽑습니다.</summary>
+    private void HitBoss(PlayerState player, Card card)
+    {
+        int damage = BossRules.Damage(card);
+        if (damage <= 0)
+        {
+            return;
+        }
+
+        State.BossHp = Math.Max(0, State.BossHp - damage);
+        Raise(new GameEvent(GameEventType.BossHit, player.Id, State.BossHp, Amount: damage));
+        if (State.BossHp == 0)
+        {
+            player.BossKill = true;
+            State.BossKills++;
+            State.BossHp = BossRules.MaxHpFor(State.PlayerCount);
+            State.BossRage = 0;
+            Emit($"    → [보스] {NameOf(player.Id)}가 마지막 일격으로 보스를 쓰러뜨렸습니다! ({damage} 피해)");
+            return;
+        }
+
+        int rage = State.BossHp * 3 <= BossRules.MaxHpFor(State.PlayerCount) ? 2 : State.BossHp * 3 <= BossRules.MaxHpFor(State.PlayerCount) * 2 ? 1 : 0;
+        if (rage > State.BossRage)
+        {
+            State.BossRage = rage;
+            Emit($"    → [보스] 보스가 분노했습니다! 모두 1장씩 뽑습니다. (남은 체력 {State.BossHp})");
+            foreach (var p in State.Players.Where(p => p.Active))
+            {
+                DrawCards(p.Id, 1);
+            }
+        }
+    }
+
+    /// <summary>
+    /// 시한폭탄: 카드가 나올 때마다 도화선이 줄어듭니다. 0이 되면 그 카드를 낸 사람 손에서 터져 5장을 받고,
+    /// 그 순간 손패가 가장 적은 사람이 메달을 받습니다.
+    /// </summary>
+    private void TickBomb(PlayerState player)
+    {
+        State.BombFuse--;
+        if (State.BombFuse > 0)
+        {
+            return;
+        }
+
+        State.BombBlasts++;
+        State.BombFuse = Rng.Next(BombRules.FuseMin, BombRules.FuseMax + 1);
+        DrawCards(player.Id, BombRules.BlastCards);
+        var active = State.Players.Where(p => p.Active).ToList();
+        int fewest = active.Min(p => p.Hand.Count);
+        var medalists = active.Where(p => p.Hand.Count == fewest).ToList();
+        foreach (var m in medalists)
+        {
+            m.Medals++;
+        }
+
+        Emit($"  💥 [시한폭탄] {NameOf(player.Id)} 손에서 폭탄이 터졌습니다! {BombRules.BlastCards}장을 받습니다.");
+        Emit($"    → 손패가 가장 적은 {string.Join(", ", medalists.Select(m => NameOf(m.Id)))}에게 메달! " +
+             $"({string.Join(", ", medalists.Select(m => $"{m.Medals}/{BombRules.MedalsToWin}"))})");
+        Raise(new GameEvent(GameEventType.BombExploded, player.Id, medalists.Count == 1 ? medalists[0].Id : -1, Amount: BombRules.BlastCards));
+    }
+
+    /// <summary>테마 승리 조건을 채웠으면 그 이유를 돌려줍니다. (영토 전쟁은 차례 시작에 따로 봅니다)</summary>
+    private string? ThemeWinReason(PlayerState p) => State.Theme switch
+    {
+        ThemeId.Bingo when p.Bingo.Length == 9 && BingoRules.LinesDone(p.Bingo) >= BingoRules.LinesToWin
+            => $"빙고 — {BingoRules.LinesToWin}줄을 완성했습니다",
+        ThemeId.Race when p.RacePos >= RaceRules.Finish => "카드 레이스 — 결승선을 가장 먼저 통과했습니다",
+        ThemeId.Mission when p.Mission != null && p.MissionProgress >= p.Mission.Target => $"비밀 임무 완수 — {p.Mission.Describe()}",
+        ThemeId.Boss when p.BossKill => "보스 레이드 — 보스에게 마지막 일격을 날렸습니다",
+        ThemeId.Bomb when p.Medals >= BombRules.MedalsToWin => $"시한폭탄 — 메달 {BombRules.MedalsToWin}개를 모았습니다",
+        _ => null,
+    };
 
     // ───────────── 승리 조건 미니게임 (컬링 · 잭팟 · 도미노 · 예언자 · 정밀 사수) ─────────────
 
@@ -1573,6 +1843,10 @@ public sealed class GameEngine
             {
                 reason = $"도미노 — 숫자를 {StreakRules.DominoTarget}번 연속으로 이었습니다";
             }
+            else
+            {
+                reason = ThemeWinReason(player);
+            }
 
             if (reason != null)
             {
@@ -1655,6 +1929,11 @@ public sealed class GameEngine
 
         State.DrawQueue.RemoveAll(d => d.Player == playerId);
 
+        if (State.Theme == ThemeId.Territory)
+        {
+            RecountFlags();
+        }
+
         string title = eliminated ? $"탈락 ({player.Rank}등)" : $"{player.Rank}등";
         Emit($"★★ {NameOf(playerId)} {title} ★★ ({reason}, {State.TurnCount + 1}턴)");
         Raise(new GameEvent(player.Rank == 1 ? GameEventType.Win : GameEventType.Placed, playerId,
@@ -1676,6 +1955,17 @@ public sealed class GameEngine
         }
     }
 
+    /// <summary>도박사로 뽑아 둔 카드를 고르기 전에 차례가 끝나면 버린 더미 아래로 돌려보냅니다. (카드가 사라지지 않게)</summary>
+    private void ReturnGambleCards()
+    {
+        foreach (var card in State.GambleCards)
+        {
+            State.DiscardPile.Insert(0, card);
+        }
+
+        State.GambleCards.Clear();
+    }
+
     /// <summary>모든 순위가 정해져서 게임을 끝냅니다. Winner는 1등입니다.</summary>
     private void EndGame()
     {
@@ -1687,7 +1977,7 @@ public sealed class GameEngine
         State.PendingAugments.Clear();
         State.PendingMinigame = null;
         State.Arcade = null;
-        State.GambleCards.Clear();
+        ReturnGambleCards();
         Emit($"게임 종료 · 최종 순위: {string.Join(", ", State.Players.OrderBy(p => p.Rank).Select(p => $"{p.Rank}등 {NameOf(p.Id)}"))}");
     }
 
@@ -1714,7 +2004,7 @@ public sealed class GameEngine
             State.PendingAbilities.Clear();
             State.PendingAugments.Clear();
             State.PendingMinigame = null;
-            State.GambleCards.Clear();
+            ReturnGambleCards();
             EndTurn(1);
         }
     }
@@ -1794,6 +2084,13 @@ public sealed class GameEngine
             Emit($"    → [평화주의자] {NameOf(next.Id)}는 누적 +{State.PendingPenalty}의 영향을 받지 않습니다.");
             Raise(new GameEvent(GameEventType.Immune, -1, next.Id, Text: "평화주의자"));
             State.PendingPenalty = 0;
+        }
+
+        // 영토 전쟁: 깃발을 충분히 지킨 채로 내 차례가 돌아오면 승리합니다.
+        if (State.Theme == ThemeId.Territory && FlagsOf(next.Id) >= TerritoryRules.FlagsFor(State.PlayerCount))
+        {
+            WinAtTurnStart(next, $"영토 전쟁 — 깃발 {TerritoryRules.FlagsFor(State.PlayerCount)}개를 한 바퀴 동안 지켰습니다");
+            return;
         }
 
         // 야추 테마: 차례가 시작되면 주사위를 굴리듯 카드를 더 뽑습니다.

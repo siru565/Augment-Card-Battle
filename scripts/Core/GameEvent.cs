@@ -43,6 +43,21 @@ public enum GameEventType
 
     /// <summary>야추 족보를 등록했습니다. Text = 족보 이름, Amount = 등록한 족보 수</summary>
     YachtRegistered,
+
+    /// <summary>빙고 칸이 찍혔습니다. Amount = 칸 번호(0~8), Target = 완성한 줄 수</summary>
+    BingoMarked,
+
+    /// <summary>레이스 말이 움직였습니다. Amount = 움직인 칸 (뒤로 밀리면 음수)</summary>
+    RaceMoved,
+
+    /// <summary>영토 깃발 주인이 바뀌었습니다. Amount = 문양 번호, Target = 이전 주인</summary>
+    FlagCaptured,
+
+    /// <summary>보스가 맞았습니다. Amount = 피해, Target = 남은 체력</summary>
+    BossHit,
+
+    /// <summary>폭탄이 터졌습니다. Player = 폭탄을 들고 있던 사람, Target = 메달을 받은 사람(여럿이면 -1)</summary>
+    BombExploded,
 }
 
 /// <summary>

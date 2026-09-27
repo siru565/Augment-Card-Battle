@@ -267,7 +267,15 @@ public partial class GuideView : ColorRect
             $"미니게임 대회: {Themes.Info(ThemeId.Arcade).Summary}",
             "미니게임은 벽돌깨기 · 두더지 카드 · 미로 탈출이 돌아가며 나오고, 모두 같은 판을 동시에 합니다.",
             $"야추: {Themes.Info(ThemeId.Yacht).Summary}",
-            "야추 족보: 트리플 · 투 페어 · 스트레이트 · 플러시 · 풀하우스 · 야추 (내 차례에 족보판 버튼을 누르면 등록, 등록하면 차례가 끝납니다)");
+            "야추 족보: 트리플 · 투 페어 · 스트레이트 · 플러시 · 풀하우스 · 야추 (내 차례에 족보판 버튼을 누르면 등록, 등록하면 차례가 끝납니다)",
+            $"빙고: {Themes.Info(ThemeId.Bingo).Summary}",
+            $"카드 레이스: {Themes.Info(ThemeId.Race).Summary}",
+            $"영토 전쟁: {Themes.Info(ThemeId.Territory).Summary}",
+            $"비밀 임무: {Themes.Info(ThemeId.Mission).Summary}",
+            "임무 종류: 정해진 문양 카드 내기 · +카드로 공격하기 · 액션 카드 내기 · 짝수 카드 내기 · 프리즘 카드 내기 · 숫자를 1씩 커지게 이어서 내기",
+            $"보스 레이드: {Themes.Info(ThemeId.Boss).Summary}",
+            $"시한폭탄: {Themes.Info(ThemeId.Bomb).Summary}",
+            "빙고판 · 레이스 트랙 · 깃발 · 임무 · 보스 · 폭탄은 테이블 오른쪽 테마 판에 보입니다. 어느 테마든 손패를 먼저 다 내도 이깁니다. (야추 제외)");
 
         Section("탈락 규칙",
             $"손패가 {Rules.EliminationLimit}장이 되면 탈락하고 가장 낮은 순위가 됩니다. (블랙홀 증강이 있으면 탈락하지 않습니다)");

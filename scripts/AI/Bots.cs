@@ -289,6 +289,124 @@ public static class BotUtil
         };
     }
 
+    /// <summary>
+    /// 빙고 · 레이스 · 영토 · 임무 · 보스 테마에서 이 카드를 낼 때의 가산점입니다.
+    /// (시한폭탄은 언제 터질지 모르니 따로 계산하지 않습니다)
+    /// </summary>
+    public static int ThemeBonus(Card card, PlayerView view)
+    {
+        var board = view.Board;
+        if (board == null)
+        {
+            return 0;
+        }
+
+        int me = view.PlayerId;
+        switch (view.Theme)
+        {
+            case ThemeId.Bingo:
+            {
+                // 모두의 판이 같이 찍히므로, 내 줄은 늘리고 남의 줄은 안 늘리는 카드를 고릅니다.
+                int mine = BingoGain(board.Bingo[me], card);
+                int theirs = 0;
+                for (int seat = 0; seat < view.PlayerCount; seat++)
+                {
+                    if (seat != me && view.IsActive(seat) && BingoRules.Shared)
+                    {
+                        theirs = Math.Max(theirs, BingoGain(board.Bingo[seat], card));
+                    }
+                }
+
+                return mine - theirs * 11 / 10;
+            }
+
+            case ThemeId.Race:
+            {
+                int step = RaceRules.Step(card);
+                return board.RacePos[me] + step >= RaceRules.Finish ? 600 : step * 4;
+            }
+
+            case ThemeId.Territory:
+            {
+                if (card.IsWild || (int)card.Color > 3)
+                {
+                    return 0;
+                }
+
+                int suit = (int)card.Color;
+                int owner = board.Flags[suit];
+                if (owner == me)
+                {
+                    return 5;
+                }
+
+                int ownerCount = owner >= 0 ? board.SuitPlays[owner][suit] : 0;
+                return board.SuitPlays[me][suit] + 1 > ownerCount && board.SuitPlays[me][suit] + 1 >= TerritoryRules.MinPlays ? 45 : 10;
+            }
+
+            case ThemeId.Mission:
+            {
+                var mission = board.MyMission;
+                if (mission == null)
+                {
+                    return 0;
+                }
+
+                int progress = board.MissionProgress[me];
+                if (mission.Kind == MissionKind.Ladder)
+                {
+                    int last = board.MyMissionLast;
+                    if (card.Kind == CardKind.Number && last >= 0 && card.Number == last + 1)
+                    {
+                        return progress + 1 >= mission.Target ? 600 : 60 + progress * 30;
+                    }
+
+                    return progress >= 2 ? -40 : 0;
+                }
+
+                if (!MissionRules.Counts(mission, card, -1))
+                {
+                    return 0;
+                }
+
+                return progress + 1 >= mission.Target ? 600 : 60;
+            }
+
+            case ThemeId.Boss:
+            {
+                int damage = BossRules.Damage(card);
+                return damage >= board.BossHp ? 600 : 0;
+            }
+        }
+
+        return 0;
+    }
+
+    /// <summary>이 카드로 판이 찍혔을 때의 가치입니다. 이기면 600, 줄이 늘면 90, 칸만 찍히면 25</summary>
+    private static int BingoGain(BingoCell[] cells, Card card)
+    {
+        if (cells.Length != 9)
+        {
+            return 0;
+        }
+
+        int before = BingoRules.LinesDone(cells);
+        int best = -1;
+        for (int i = 0; i < 9; i++)
+        {
+            if (cells[i].Marked || !(card.IsWild ? !cells[i].Free : cells[i].Matches(card)))
+            {
+                continue;
+            }
+
+            var trial = cells.ToArray();
+            trial[i] = trial[i] with { Marked = true };
+            best = Math.Max(best, BingoRules.LinesDone(trial));
+        }
+
+        return best < 0 ? 0 : best >= BingoRules.LinesToWin ? 600 : best > before ? 90 : 25;
+    }
+
     public static bool Has(PlayerView view, string augmentName) =>
         view.Augments[view.PlayerId].Any(a => a.Name == augmentName);
 
@@ -432,7 +550,7 @@ public class RuleBasedBot : IBot
         bool nextIsDanger = view.HandCounts[view.NextSeat] <= DangerHand;
 
         var chosen = playable
-            .OrderByDescending(c => Score(c, view, nextIsDanger) + BotUtil.AltWinBonus(c, view))
+            .OrderByDescending(c => Score(c, view, nextIsDanger) + BotUtil.AltWinBonus(c, view) + BotUtil.ThemeBonus(c, view))
             .First();
 
         return BotUtil.MakePlay(chosen, view, rng, randomChoices: false);
@@ -579,7 +697,8 @@ public sealed class HardBot : RuleBasedBot
 
     public override PlayerAction Decide(PlayerView view, Random rng)
     {
-        if (!view.MustDraw && view.DrawChoices.Count == 0 && view.AugmentChoices.Count > 0)
+        // 미니게임 대회 중이면 증강보다 점수 내기가 먼저입니다.
+        if (view.MyArcade == null && view.Arcade == null && !view.MustDraw && view.DrawChoices.Count == 0 && view.AugmentChoices.Count > 0)
         {
             int best = Enumerable.Range(0, view.AugmentChoices.Count)
                 .OrderByDescending(i => WinRate(view, view.AugmentChoices[i]))
@@ -599,7 +718,8 @@ public sealed class HardBot : RuleBasedBot
         }
 
         // 규칙봇은 큰 숫자부터 내지만, 이 게임은 점수 계산이 없어서 숫자 크기는 상관없습니다.
-        if (card.Kind == CardKind.Number)
+        // (레이스·보스 테마는 큰 숫자가 유리하므로 빼지 않습니다)
+        if (card.Kind == CardKind.Number && view.Theme is not (ThemeId.Race or ThemeId.Boss))
         {
             score -= card.Number;
         }

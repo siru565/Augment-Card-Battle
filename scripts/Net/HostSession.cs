@@ -494,6 +494,19 @@ public sealed class HostSession : GameSession
         Broadcast();
     }
 
+    /// <summary>개발용: 게임 중에도 다음 판 테마를 정합니다.</summary>
+    public void DebugForceNextTheme(ThemeId theme) => RoomOptions = RoomOptions with { ForcedTheme = (int)theme };
+
+    /// <summary>개발용: 게임 상태를 직접 바꾸고 화면을 갱신합니다. (스크린샷용)</summary>
+    public void DebugEditState(Action<GameState> edit)
+    {
+        if (_engine != null)
+        {
+            edit(_engine.State);
+            Broadcast();
+        }
+    }
+
     /// <summary>개발용: 잭팟 슬롯을 바로 돌립니다.</summary>
     public void DebugSpinJackpot(int seat)
     {

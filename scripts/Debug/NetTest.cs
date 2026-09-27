@@ -116,9 +116,16 @@ public partial class NetTest : Node
         report.AppendLine($"2판 (특수 증강 ON, 참가자 중간 퇴장): 참가자 대기방={clientLeft}, {second}");
 
         // 3판: 바로 한 판 더 → 대기방에 있던 참가자도 불려 옵니다. 이번엔 방장이 중간에 나갑니다.
+        //      비밀 임무 테마로 해서, 참가자 화면에 내 임무만 보이고 남의 임무는 가려지는지 봅니다.
+        ((SpCardgame.Net.HostSession)host.Session!).DebugForceNextTheme(SpCardgame.Core.ThemeId.Mission);
         host.Session!.Restart();
         await Wait(1.0);
         bool pulled = client.Session.Playing;
+        var board = client.Session.View?.Board;
+        int mySeat = client.Session.MySeat;
+        bool missionMasked = board != null && board.Missions[mySeat].Length > 0 && board.MyMission != null
+                             && Enumerable.Range(0, board.Missions.Length).Where(s => s != mySeat).All(s => (board.MissionProgress[s] == -1 && board.Missions[s] == "") || board.MissionProgress[s] * 2 >= board.MissionTarget[s]);
+        report.AppendLine($"3판 비밀 임무: 참가자 내 임무 보임·남의 임무 가림={missionMasked}");
 
         // 참가자에게 정밀 사수를 줘서, 참가자 화면에서 미니게임이 뜨고 결과가 방장에게 전달되는지 봅니다.
         ((SpCardgame.Net.HostSession)host.Session!).DebugGiveAugmentTo(client.Session.MySeat, SpCardgame.Core.SpecialAugmentId.Marksman);
@@ -129,7 +136,7 @@ public partial class NetTest : Node
         string third = await WaitWinner(client);
         report.AppendLine($"3판 (방장 중간 퇴장): 참가자 합류={pulled}, 방장 대기방={hostLeft}, 참가자 미니게임={_sawClientMinigame}, {third}");
         await Wait(0.5);
-        second = yachtTheme && _sawClientMinigame && secondPlayers == 3 && client.Session?.LobbyBotLevel == SpCardgame.AI.BotLevel.Hard && clientLeft && pulled && hostLeft && third.StartsWith("끝") ? second : "실패";
+        second = yachtTheme && missionMasked && _sawClientMinigame && secondPlayers == 3 && client.Session?.LobbyBotLevel == SpCardgame.AI.BotLevel.Hard && clientLeft && pulled && hostLeft && third.StartsWith("끝") ? second : "실패";
 
         // 다시 대기방으로 돌아간 뒤 참가자를 강퇴합니다.
         host.Session!.ReturnToRoom();

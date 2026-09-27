@@ -557,6 +557,7 @@ public partial class GameController : Control
             return;
         }
 
+        _bingoLines.Clear();
         Audio.Sfx.Play("deal", -4f);
         Audio.Music.SetInGame(true);
         _wasMyTurn = false;
@@ -960,6 +961,7 @@ public partial class GameController : Control
         RefreshArcade(view, finished);
         ShowThemeBannerWhenFree(view);
         RefreshYachtBar(view, finished);
+        _themeTable.SetView(view, seat => _session!.NameOf(seat));
 
         if (finished)
         {
@@ -1669,6 +1671,27 @@ public partial class GameController : Control
         {
             parts.Add($"족보 {view.YachtDone[seat].Count}/{YachtRules.CategoriesToWin}");
         }
+        else if (view.Board is { } board && seat < board.RacePos.Length)
+        {
+            switch (view.Theme)
+            {
+                case ThemeId.Bingo when board.Bingo[seat].Length == 9:
+                    parts.Add($"빙고 {BingoRules.LinesDone(board.Bingo[seat])}/{BingoRules.LinesToWin}");
+                    break;
+                case ThemeId.Race:
+                    parts.Add($"레이스 {board.RacePos[seat]}/{RaceRules.Finish}");
+                    break;
+                case ThemeId.Territory:
+                    parts.Add($"깃발 {board.Flags.Count(f => f == seat)}/{board.FlagsNeeded}");
+                    break;
+                case ThemeId.Mission:
+                    parts.Add(board.MissionProgress[seat] < 0 ? "임무 ???" : $"임무 {board.MissionProgress[seat]}/{board.MissionTarget[seat]}");
+                    break;
+                case ThemeId.Bomb:
+                    parts.Add($"메달 {board.Medals[seat]}/{BombRules.MedalsToWin}");
+                    break;
+            }
+        }
 
         if (seat < view.WinGoals.Length)
         {
@@ -1939,6 +1962,53 @@ public partial class GameController : Control
             case GameEventType.ArcadeResult:
                 _arcade.ShowResult(e, seat => _session!.NameOf(seat), _session?.View?.Stars ?? Array.Empty<int>());
                 Audio.Sfx.Play(e.Target == _session?.MySeat ? "win" : "augment_gain", -2f);
+                break;
+
+            case GameEventType.BossHit:
+            {
+                var at = _themeTable.OnEvent(e);
+                _fx.FloatText(at + new Vector2(0, -30), $"-{e.Amount}", e.Amount >= 10 ? UiTheme.Gold : Colors.White, e.Amount >= 10 ? 40 : 30, 0.35f);
+                _fx.Burst(at, Color.FromHtml("#e5534b"), 10 + e.Amount, 240f, 4f);
+                break;
+            }
+
+            case GameEventType.BombExploded:
+            {
+                var at = _themeTable.OnEvent(e);
+                _fx.Burst(at, Color.FromHtml("#ffb347"), 70, 520f, 7f);
+                _fx.Ring(at, UiTheme.Danger, 260, 0.6f);
+                _fx.Burst(SeatAnchor(e.Player), UiTheme.Danger, 40, 380f, 6f);
+                _fx.FloatText(SeatAnchor(e.Player), $"펑! +{e.Amount}", UiTheme.Danger, me ? 48 : 36, 0.8f);
+                if (e.Target >= 0)
+                {
+                    _fx.FloatText(SeatAnchor(e.Target) + new Vector2(0, -40), "메달!", UiTheme.Gold, e.Target == _session.MySeat ? 44 : 32, 0.8f);
+                }
+
+                _fx.Shake(14f, 0.5f);
+                Audio.Sfx.Play("attack", 0f, 0.7f);
+                break;
+            }
+
+            case GameEventType.FlagCaptured:
+                _themeTable.OnEvent(e);
+                _fx.FloatText(SeatAnchor(e.Player), $"{Card.ColorName((CardColor)e.Amount)} 깃발!", UiTheme.CardColor((CardColor)e.Amount), me ? 40 : 30, 0.6f);
+                Audio.Sfx.Play("augment_gain", me ? -2f : -8f);
+                break;
+
+            case GameEventType.RaceMoved when e.Amount < 0:
+                _fx.FloatText(SeatAnchor(e.Player), $"뒤로 {-e.Amount}칸", UiTheme.Danger, me ? 38 : 28, 0.5f);
+                break;
+
+            case GameEventType.BingoMarked:
+                _themeTable.OnEvent(e);
+                if (e.Target > _bingoLines.GetValueOrDefault(e.Player))
+                {
+                    _fx.FloatText(SeatAnchor(e.Player), $"빙고 {e.Target}줄!", UiTheme.Gold, me ? 44 : 32, 0.7f);
+                    _fx.Ring(SeatAnchor(e.Player), UiTheme.Gold, 170, 0.5f);
+                    Audio.Sfx.Play("augment_gain", me ? 0f : -5f);
+                }
+
+                _bingoLines[e.Player] = e.Target;
                 break;
 
             case GameEventType.YachtRegistered:
@@ -2247,6 +2317,8 @@ public partial class GameController : Control
 
         _discard = GetNode<CardView>("%Discard");
         _colorPill = GetNode<PanelContainer>("%ColorPill");
+        _themeTable = new ThemeTableView { Visible = false };
+        _table.AddChild(_themeTable);
         _colorPillLabel = GetNode<Label>("%ColorPillLabel");
         _penaltyBadge = GetNode<PanelContainer>("%PenaltyBadge");
         _penaltyLabel = GetNode<Label>("%PenaltyLabel");
@@ -2577,7 +2649,20 @@ public partial class GameController : Control
         _penaltyBadge.PivotOffset = _penaltyBadge.Size / 2;
         _penaltyBadge.Scale = new Vector2(pulse, pulse);
         _penaltyBadge.Position = center + new Vector2(-_penaltyBadge.Size.X / 2, -81 - _penaltyBadge.Size.Y - 6);
+
+        // 테마 판: 문양 표시 오른쪽 빈자리에 둡니다. (자리가 모자라면 덱 왼쪽)
+        float right = Mathf.Max(center.X + 262, _colorPill.Position.X + _colorPill.Size.X + 10);
+        float rightWidth = size.X - right - 4;
+        float leftWidth = center.X - 250 - 64;
+        float width = rightWidth >= leftWidth ? Mathf.Min(rightWidth, 250) : Mathf.Min(leftWidth, 250);
+        _themeTable.Size = new Vector2(Mathf.Max(width, 150), Mathf.Max(size.Y - 8, 180));
+        _themeTable.Position = rightWidth >= leftWidth
+            ? new Vector2(size.X - 4 - _themeTable.Size.X, (size.Y - _themeTable.Size.Y) / 2)
+            : new Vector2(4, (size.Y - _themeTable.Size.Y) / 2);
     }
+
+    private ThemeTableView _themeTable = null!;
+    private readonly System.Collections.Generic.Dictionary<int, int> _bingoLines = new();
 
     // ───────────── UI 생성 ─────────────
 

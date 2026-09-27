@@ -229,6 +229,35 @@ public partial class DevlogShots : Node
         _game.Session.Submit(PlayerAction.YachtRegister(option));
         await Wait(1.0);
         await Capture("32_yacht_registered.png");
+
+        // 8-4. 판 테마: 빙고 · 카드 레이스 · 영토 전쟁 · 비밀 임무 · 보스 레이드 · 시한폭탄
+        //      자동으로 몇 바퀴 둔 뒤 내 차례에 멈춰서 테이블 오른쪽 테마 판을 찍습니다.
+        var boardThemes = new[] { ThemeId.Bingo, ThemeId.Race, ThemeId.Territory, ThemeId.Mission, ThemeId.Boss, ThemeId.Bomb };
+        for (int t = 0; t < boardThemes.Length; t++)
+        {
+            _game.DebugForcedTheme = (int)boardThemes[t];
+            _game.DebugStartSolo(specialAugments: false);
+            _game.BotDelay = 0.05f;
+            _game.DebugAutoPlay = true;
+            int goal = boardThemes[t] == ThemeId.Bingo ? 7 : 12;
+            for (int i = 0; i < 400 && (View.TurnCount < goal || View.Theme != boardThemes[t]) && View.Winner == null; i++)
+            {
+                await Wait(0.05);
+            }
+
+            _game.DebugAutoPlay = false;
+            _game.BotDelay = 0.3f;
+            await WaitMyTurn(minTurn: 0);
+            _game.BotDelay = 999f;
+            if (boardThemes[t] == ThemeId.Bomb)
+            {
+                Host.DebugEditState(s => s.BombFuse = 2);
+            }
+
+            await Wait(1.2);
+            await Capture($"{33 + t}_theme_{boardThemes[t].ToString().ToLowerInvariant()}.png");
+        }
+
         _game.DebugForcedTheme = -2;
 
         // 9. 대기방

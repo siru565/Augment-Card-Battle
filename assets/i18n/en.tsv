@@ -597,7 +597,7 @@ AI 상대	AI opponents
 이번 판 테마	This match's theme
 테마: {0}	Theme: {0}
 ✦ 이번 판 테마: {0} — {1}	✦ This match's theme: {0} — {1}
-{0}턴마다 모두가 같은 미니게임을 동시에 합니다. 1등은 별 1개! 별 {1}개를 모으면 승리	Every {0} turns everyone plays the same minigame at once. The top score earns a star! Collect {1} stars to win
+{0}턴마다 모두가 같은 미니게임을 동시에 합니다. 1등은 별 1개! 별 {1}개를 모으면 승리	Every {0|turn|turns} everyone plays the same minigame at once. The top score earns a star! Collect {1|star|stars} to win
 원카드 규칙이 바뀝니다! 차례마다 카드를 1장 더 뽑고, 손패를 다 내도 이기지 않고 새 카드 {0}장을 받습니다. 손패로 족보를 등록해서 {1}종류를 먼저 채우면 승리	The rules change! You draw 1 extra card every turn, and emptying your hand doesn't win — you get {0} new cards instead. Register combos from your hand; the first to fill {1} kinds wins
 ✦ 미니게임 대회! 이번 종목은 [{0}]입니다.	✦ Minigame tournament! This round: [{0}].
 ★ [{0}] {1} 우승! 별 +1 ({2})	★ [{0}] {1} wins! +1 star ({2})
@@ -648,3 +648,69 @@ AI 상대	AI opponents
 야추: {0}	Yacht: {0}
 미니게임은 벽돌깨기 · 두더지 카드 · 미로 탈출이 돌아가며 나오고, 모두 같은 판을 동시에 합니다.	The minigames rotate between Breakout, Whack-a-Card and Maze Escape, and everyone plays the same board at the same time.
 야추 족보: 트리플 · 투 페어 · 스트레이트 · 플러시 · 풀하우스 · 야추 (내 차례에 족보판 버튼을 누르면 등록, 등록하면 차례가 끝납니다)	Yacht combos: Triple · Two Pair · Straight · Flush · Full House · Yacht (press a combo button on your turn to register it — registering ends your turn)
+빙고	Bingo
+카드 레이스	Card Race
+영토 전쟁	Territory War
+비밀 임무	Secret Mission
+보스 레이드	Boss Raid
+시한폭탄	Time Bomb
+각자 숫자가 적힌 {0}×{1} 빙고판을 받습니다. 내가 낸 숫자 카드로 내 칸이 찍히고, 프리즘은 아무 칸이나 찍습니다. {2}줄을 먼저 완성하면 승리	Everyone gets a {0}×{1} bingo card of numbers. Number cards you play mark your cells, and a Prism marks any cell. The first to complete {2|line|lines} wins
+숫자 카드는 그 숫자만큼, 다른 카드는 {0}칸 전진! 누적 공격을 받으면 받은 장수 × {1}칸 뒤로 밀립니다. {2}칸에 먼저 도착하면 승리	Number cards move you forward by their number, other cards by {0}! Taking a stacked attack pushes you back {1} spaces per card. The first to reach space {2} wins
+문양 깃발 {0}개는 그 문양 카드를 가장 많이 낸 사람이 차지합니다. (최소 {1}장) 깃발 {2}개({3}인은 {4}개)를 쥔 채로 내 차례가 돌아오면 승리	The {0} suit flags go to whoever has played the most cards of that suit (at least {1}). Hold {2|flag|flags} ({4} in a {3}-player game) when your turn comes around to win
+각자 남모르는 임무를 받습니다. 먼저 완수하면 승리! 절반을 넘기면 다른 사람에게도 임무와 진행도가 보입니다	Everyone gets a secret mission. Complete it first to win! Once you pass the halfway mark, others can see your mission and progress
+모두 함께 보스를 공격합니다. 숫자 카드는 그 숫자만큼, +카드는 뽑게 하는 장수의 {0}배, 다른 카드는 {1}. 체력이 줄면 보스가 분노해서 모두 {2}장씩 뽑습니다. 마지막 일격을 넣은 사람이 승리	Everyone attacks the boss together. Number cards deal their number, + cards deal {0}× the cards they force, other cards deal {1}. As its HP drops the boss rages and everyone draws {2|card|cards}. Whoever lands the final blow wins
+카드가 나올 때마다 폭탄의 도화선이 타들어 갑니다. 다 탄 순간 카드를 낸 사람은 {0}장을 받고, 그때 손패가 가장 적은 사람이 메달을 받습니다. 메달 {1}개면 승리	Every card played burns the bomb's fuse. Whoever plays the card as it runs out draws {0|card|cards}, and the player with the fewest cards at that moment gets a medal. {1|medal|medals} wins
+→ [빙고] {0} 빙고! ({1}/{2}줄)	→ [Bingo] {0} Bingo! ({1}/{2} lines)
+→ [레이스] {0}가 {1}칸 뒤로 밀립니다.	→ [Race] {0} is pushed back {1|space|spaces}.
+→ [영토] {0}가 {1}에게서 {2} 깃발을 빼앗았습니다! ({3}/{4})	→ [Territory] {0} seized the {2} flag from {1}! ({3}/{4})
+→ [영토] {0}가 {1} 깃발을 차지했습니다! ({2}/{3})	→ [Territory] {0} claimed the {1} flag! ({2}/{3})
+→ [비밀 임무] {0}의 임무가 드러났습니다: {1} ({2}/{3})	→ [Secret Mission] {0}'s mission is revealed: {1} ({2}/{3})
+→ [보스] {0}가 마지막 일격으로 보스를 쓰러뜨렸습니다! ({1} 피해)	→ [Boss] {0} defeated the boss with the final blow! ({1} damage)
+→ [보스] 보스가 분노했습니다! 모두 {0}장씩 뽑습니다. (남은 체력 {1})	→ [Boss] The boss is enraged! Everyone draws {0|card|cards}. ({1} HP left)
+💥 [시한폭탄] {0} 손에서 폭탄이 터졌습니다! {1}장을 받습니다.	💥 [Time Bomb] The bomb exploded in {0}'s hand! Draws {1|card|cards}.
+→ 손패가 가장 적은 {0}에게 메달! ({1})	→ Medal for the fewest cards: {0}! ({1})
+빙고 — {0}줄을 완성했습니다	Bingo — completed {0|line|lines}
+카드 레이스 — 결승선을 가장 먼저 통과했습니다	Card Race — crossed the finish line first
+영토 전쟁 — 깃발 {0}개를 한 바퀴 동안 지켰습니다	Territory War — held {0|flag|flags} for a full round
+비밀 임무 완수 — {0}	Secret mission complete — {0}
+보스 레이드 — 보스에게 마지막 일격을 날렸습니다	Boss Raid — landed the final blow on the boss
+시한폭탄 — 메달 {0}개를 모았습니다	Time Bomb — collected {0|medal|medals}
+{0} 카드 {1}장 내기	Play {1} {0} cards
++카드로 {0}번 공격하기	Attack {0|time|times} with + cards
+액션 카드(스킵·리버스·교환·봉인·복사·폭주·각성) {0}장 내기	Play {0} action cards (Skip·Reverse·Swap·Seal·Copy·Frenzy·Awaken)
+짝수 숫자 카드 {0}장 내기	Play {0} even number cards
+프리즘 카드 {0}장 내기	Play {0|Prism card|Prism cards}
+숫자 카드를 1씩 커지게 {0}번 이어서 내기	Play number cards going up by 1, {0} in a row
+내 빙고 {0}/{1}줄	My bingo {0}/{1} lines
+{0}: {1}/{2}줄 · {3}칸	{0}: {1}/{2} lines · {3} marked
+결승선 {0}칸	Finish at space {0}
+내 깃발 {0}/{1}	My flags {0}/{1}
+주인 없음	No owner
+나 {0}장 · 최다 {1}장	Me {0} · Most {1}
+내 임무	My mission
+{0}: ??? (비밀)	{0}: ??? (secret)
+평온	Calm
+분노 {0}단계	Rage {0}
+마지막 일격을 넣으면 승리	Land the final blow to win
+폭탄: {0}	Bomb: {0}
+곧 터짐!	About to blow!
+빙고 {0}/{1}	Bingo {0}/{1}
+레이스 {0}/{1}	Race {0}/{1}
+깃발 {0}/{1}	Flags {0}/{1}
+임무 ???	Mission ???
+임무 ???{0}	Mission ???{0}
+임무 {0}/{1}	Mission {0}/{1}
+메달 {0}/{1}	Medals {0}/{1}
+펑! +{0}	Boom! +{0}
+메달!	Medal!
+{0} 깃발!	{0} flag!
+뒤로 {0}칸	Back {0}
+빙고 {0}줄!	Bingo ×{0}!
+임무 종류: 정해진 문양 카드 내기 · +카드로 공격하기 · 액션 카드 내기 · 짝수 카드 내기 · 프리즘 카드 내기 · 숫자를 1씩 커지게 이어서 내기	Mission types: play cards of a given suit · attack with + cards · play action cards · play even cards · play Prism cards · play numbers going up by 1 in a row
+빙고판 · 레이스 트랙 · 깃발 · 임무 · 보스 · 폭탄은 테이블 오른쪽 테마 판에 보입니다. 어느 테마든 손패를 먼저 다 내도 이깁니다. (야추 제외)	The bingo card, race track, flags, missions, boss and bomb are shown on the theme board to the right of the table. In every theme you can still win by emptying your hand first (except Yacht).
+빙고: {0}	Bingo: {0}
+카드 레이스: {0}	Card Race: {0}
+영토 전쟁: {0}	Territory War: {0}
+비밀 임무: {0}	Secret Mission: {0}
+보스 레이드: {0}	Boss Raid: {0}
+시한폭탄: {0}	Time Bomb: {0}

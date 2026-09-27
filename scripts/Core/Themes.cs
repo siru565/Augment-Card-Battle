@@ -18,6 +18,24 @@ public enum ThemeId
 
     /// <summary>야추: 손패로 족보(풀하우스, 스트레이트…)를 만들어 등록합니다. 족보를 모으면 승리.</summary>
     Yacht = 1,
+
+    /// <summary>빙고: 각자 공개된 3×3 빙고판. 바닥에 나온 카드로 칸이 찍히고, 줄을 완성하면 승리.</summary>
+    Bingo = 2,
+
+    /// <summary>카드 레이스: 낸 카드만큼 말이 전진, 공격을 받으면 뒤로. 결승선에 먼저 도착하면 승리.</summary>
+    Race = 3,
+
+    /// <summary>영토 전쟁: 문양 깃발 4개. 그 문양을 가장 많이 낸 사람이 점령. 3개를 쥔 채로 차례가 오면 승리.</summary>
+    Territory = 4,
+
+    /// <summary>비밀 임무: 각자 남모르는 임무. 먼저 완수하면 승리.</summary>
+    Mission = 5,
+
+    /// <summary>보스 레이드: 모두 함께 보스를 때리고, 마지막 일격을 넣은 사람이 승리.</summary>
+    Boss = 6,
+
+    /// <summary>시한폭탄: 카드를 낼 때마다 폭탄이 넘어갑니다. 터질 때 손패가 가장 적은 사람이 메달, 메달을 모으면 승리.</summary>
+    Bomb = 7,
 }
 
 public sealed record ThemeInfo(ThemeId Id, string Name, string Summary);
@@ -25,7 +43,11 @@ public sealed record ThemeInfo(ThemeId Id, string Name, string Summary);
 public static class Themes
 {
     /// <summary>지금 무작위로 뽑히는 테마들입니다. (만든 테마만 들어갑니다)</summary>
-    public static readonly ThemeId[] Pool = { ThemeId.Arcade, ThemeId.Yacht };
+    public static readonly ThemeId[] Pool =
+    {
+        ThemeId.Arcade, ThemeId.Yacht, ThemeId.Bingo, ThemeId.Race,
+        ThemeId.Territory, ThemeId.Mission, ThemeId.Boss, ThemeId.Bomb,
+    };
 
     public static ThemeInfo Info(ThemeId id) => id switch
     {
@@ -33,6 +55,18 @@ public static class Themes
             $"{ArcadeRules.Every}턴마다 모두가 같은 미니게임을 동시에 합니다. 1등은 별 1개! 별 {ArcadeRules.StarsToWin}개를 모으면 승리"),
         ThemeId.Yacht => new ThemeInfo(id, "야추",
             $"원카드 규칙이 바뀝니다! 차례마다 카드를 1장 더 뽑고, 손패를 다 내도 이기지 않고 새 카드 {YachtRules.RerollCards}장을 받습니다. 손패로 족보를 등록해서 {YachtRules.CategoriesToWin}종류를 먼저 채우면 승리"),
+        ThemeId.Bingo => new ThemeInfo(id, "빙고",
+            $"각자 숫자가 적힌 3×3 빙고판을 받습니다. 내가 낸 숫자 카드로 내 칸이 찍히고, 프리즘은 아무 칸이나 찍습니다. {BingoRules.LinesToWin}줄을 먼저 완성하면 승리"),
+        ThemeId.Race => new ThemeInfo(id, "카드 레이스",
+            $"숫자 카드는 그 숫자만큼, 다른 카드는 {RaceRules.ActionStep}칸 전진! 누적 공격을 받으면 받은 장수 × {RaceRules.PenaltyKnockback}칸 뒤로 밀립니다. {RaceRules.Finish}칸에 먼저 도착하면 승리"),
+        ThemeId.Territory => new ThemeInfo(id, "영토 전쟁",
+            $"문양 깃발 4개는 그 문양 카드를 가장 많이 낸 사람이 차지합니다. (최소 {TerritoryRules.MinPlays}장) 깃발 {TerritoryRules.FlagsToWin}개(2인은 {TerritoryRules.FlagsToWinTwoPlayers}개)를 쥔 채로 내 차례가 돌아오면 승리"),
+        ThemeId.Mission => new ThemeInfo(id, "비밀 임무",
+            "각자 남모르는 임무를 받습니다. 먼저 완수하면 승리! 절반을 넘기면 다른 사람에게도 임무와 진행도가 보입니다"),
+        ThemeId.Boss => new ThemeInfo(id, "보스 레이드",
+            $"모두 함께 보스를 공격합니다. 숫자 카드는 그 숫자만큼, +카드는 뽑게 하는 장수의 2배, 다른 카드는 {BossRules.ActionDamage}. 체력이 줄면 보스가 분노해서 모두 1장씩 뽑습니다. 마지막 일격을 넣은 사람이 승리"),
+        ThemeId.Bomb => new ThemeInfo(id, "시한폭탄",
+            $"카드가 나올 때마다 폭탄의 도화선이 타들어 갑니다. 다 탄 순간 카드를 낸 사람은 {BombRules.BlastCards}장을 받고, 그때 손패가 가장 적은 사람이 메달을 받습니다. 메달 {BombRules.MedalsToWin}개면 승리"),
         _ => new ThemeInfo(id, "", ""),
     };
 }
@@ -308,4 +342,180 @@ public static class YachtRules
             }
         }
     }
+}
+
+
+// ───────────── 빙고 ─────────────
+
+/// <summary>빙고 칸입니다. Suit가 Wild가 아니면 그 문양 카드, Number가 0 이상이면 그 숫자 카드로 찍힙니다. 가운데는 무료 칸입니다.</summary>
+public sealed record BingoCell(CardColor Suit, int Number, bool Marked)
+{
+    public bool Free => Suit == CardColor.Wild && Number < 0;
+
+    public bool Matches(Card card) =>
+        !Free && ((Suit != CardColor.Wild && card.Color == Suit) || (Number >= 0 && card.Kind == CardKind.Number && card.Number == Number));
+
+    public string Label => Free ? "FREE" : Suit != CardColor.Wild ? Card.ColorName(Suit) : Number.ToString();
+}
+
+public static class BingoRules
+{
+    public static int LinesToWin { get; set; } = 3;
+
+    /// <summary>true면 누가 내든 모두의 판이 찍히고, false면 내가 낸 카드로 내 판만 찍힙니다.</summary>
+    public static bool Shared { get; set; } = false;
+
+    /// <summary>문양 칸 수입니다. (나머지는 숫자 칸) 문양 칸이 많을수록 쉽게 찍힙니다.</summary>
+    public static int SuitCells { get; set; } = 0;
+
+    private static readonly int[][] Lines =
+    {
+        new[] { 0, 1, 2 }, new[] { 3, 4, 5 }, new[] { 6, 7, 8 },
+        new[] { 0, 3, 6 }, new[] { 1, 4, 7 }, new[] { 2, 5, 8 },
+        new[] { 0, 4, 8 }, new[] { 2, 4, 6 },
+    };
+
+    public static BingoCell[] MakeBoard(Random rng)
+    {
+        var cells = new List<BingoCell>();
+        var suits = Deck.Colors.OrderBy(_ => rng.Next()).Take(SuitCells).ToList();
+        cells.AddRange(suits.Select(s => new BingoCell(s, -1, false)));
+        var numbers = Enumerable.Range(0, 10).OrderBy(_ => rng.Next()).Take(8 - SuitCells).ToList();
+        cells.AddRange(numbers.Select(n => new BingoCell(CardColor.Wild, n, false)));
+        cells = cells.OrderBy(_ => rng.Next()).ToList();
+        cells.Insert(4, new BingoCell(CardColor.Wild, -1, true));
+        return cells.ToArray();
+    }
+
+    public static int LinesDone(IReadOnlyList<BingoCell> board) => Lines.Count(line => line.All(i => board[i].Marked));
+}
+
+// ───────────── 카드 레이스 ─────────────
+
+public static class RaceRules
+{
+    public static int Finish { get; set; } = 50;
+
+    /// <summary>숫자가 아닌 카드를 냈을 때 전진 칸 수입니다.</summary>
+    public static int ActionStep { get; set; } = 2;
+
+    /// <summary>쌓인 공격을 받을 때 받은 장수 1장당 뒤로 밀리는 칸 수입니다.</summary>
+    public static int PenaltyKnockback { get; set; } = 2;
+
+    public static int Step(Card card) => card.Kind == CardKind.Number ? Math.Max(1, card.Number) : ActionStep;
+}
+
+// ───────────── 영토 전쟁 ─────────────
+
+public static class TerritoryRules
+{
+    public static int FlagsToWin { get; set; } = 2;
+
+    /// <summary>2인 게임에서 필요한 깃발 수입니다.</summary>
+    public static int FlagsToWinTwoPlayers { get; set; } = 3;
+
+    /// <summary>4인 게임에서 필요한 깃발 수입니다.</summary>
+    public static int FlagsToWinFourPlayers { get; set; } = 2;
+
+    /// <summary>깃발을 차지하려면 그 문양 카드를 적어도 이만큼 내야 합니다.</summary>
+    public static int MinPlays { get; set; } = 3;
+
+    public static int FlagsFor(int players) => players <= 2 ? FlagsToWinTwoPlayers : players >= 4 ? FlagsToWinFourPlayers : FlagsToWin;
+}
+
+// ───────────── 비밀 임무 ─────────────
+
+public enum MissionKind
+{
+    /// <summary>정해진 문양 카드 N장 내기</summary>
+    SuitCards,
+
+    /// <summary>+카드로 N번 공격하기</summary>
+    Attacks,
+
+    /// <summary>액션 카드(스킵·리버스·교환·봉인·복사·폭주·각성) N장 내기</summary>
+    Actions,
+
+    /// <summary>짝수 숫자 카드 N장 내기</summary>
+    EvenNumbers,
+
+    /// <summary>프리즘 카드 N장 내기</summary>
+    Prisms,
+
+    /// <summary>숫자 카드를 1씩 커지게 N번 이어서 내기 (내 카드끼리, 사이에 다른 카드를 내면 끊김)</summary>
+    Ladder,
+}
+
+/// <summary>비밀 임무입니다. Suit는 SuitCards일 때만 씁니다.</summary>
+public sealed record Mission(MissionKind Kind, int Target, CardColor Suit = CardColor.Wild)
+{
+    public string Describe() => Kind switch
+    {
+        MissionKind.SuitCards => $"{Card.ColorName(Suit)} 카드 {Target}장 내기",
+        MissionKind.Attacks => $"+카드로 {Target}번 공격하기",
+        MissionKind.Actions => $"액션 카드(스킵·리버스·교환·봉인·복사·폭주·각성) {Target}장 내기",
+        MissionKind.EvenNumbers => $"짝수 숫자 카드 {Target}장 내기",
+        MissionKind.Prisms => $"프리즘 카드 {Target}장 내기",
+        _ => $"숫자 카드를 1씩 커지게 {Target}번 이어서 내기",
+    };
+}
+
+public static class MissionRules
+{
+    /// <summary>임무 목표치입니다. (종류 순서: 문양, 공격, 액션, 짝수, 프리즘, 연속 숫자)</summary>
+    public static int[] Targets { get; set; } = { 7, 3, 5, 6, 2, 3 };
+
+    public static Mission Roll(Random rng)
+    {
+        int kind = rng.Next(6);
+        return new Mission((MissionKind)kind, Targets[kind], kind == 0 ? Deck.Colors[rng.Next(4)] : CardColor.Wild);
+    }
+
+    /// <summary>이 카드가 임무 진행에 도움이 되는지 봅니다. 연속 임무는 마지막 숫자(last)를 기준으로 봅니다.</summary>
+    public static bool Counts(Mission mission, Card card, int last) => mission.Kind switch
+    {
+        MissionKind.SuitCards => card.Color == mission.Suit,
+        MissionKind.Attacks => Card.IsDrawAttack(card.Kind),
+        MissionKind.Actions => card.IsAction && !card.IsWild && !Card.IsDrawAttack(card.Kind),
+        MissionKind.EvenNumbers => card.Kind == CardKind.Number && card.Number % 2 == 0,
+        MissionKind.Prisms => card.IsWild,
+        _ => card.Kind == CardKind.Number && (last < 0 || card.Number == last + 1),
+    };
+}
+
+// ───────────── 보스 레이드 ─────────────
+
+public static class BossRules
+{
+    /// <summary>보스 체력 = 기본 + 사람 수 × 1인당 체력입니다. (여럿이 때릴수록 튼튼해집니다)</summary>
+    public static int BaseHp { get; set; } = 60;
+
+    public static int HpPerPlayer { get; set; } = 45;
+
+    public static int MaxHpFor(int players) => BaseHp + HpPerPlayer * players;
+
+    public static int ActionDamage { get; set; } = 3;
+
+    public static int Damage(Card card) =>
+        card.Kind == CardKind.Number ? card.Number
+        : Card.IsDrawAttack(card.Kind) ? Card.DrawAmount(card.Kind) * 2
+        : ActionDamage;
+}
+
+// ───────────── 시한폭탄 ─────────────
+
+public static class BombRules
+{
+    public static int MedalsToWin { get; set; } = 3;
+
+    /// <summary>폭탄이 터지면 들고 있던 사람이 받는 장수입니다.</summary>
+    public static int BlastCards { get; set; } = 5;
+
+    /// <summary>도화선 길이(카드 몇 장이 나오면 터지는지)입니다. 이 범위에서 무작위이고, 아무도 모릅니다.</summary>
+    public static int FuseMin { get; set; } = 6;
+
+    public static int FuseMax { get; set; } = 16;
+
+    /// <summary>도화선이 이만큼 이하로 남으면 "곧 터짐" 경고를 보여 줍니다.</summary>
+    public const int DangerFuse = 3;
 }
