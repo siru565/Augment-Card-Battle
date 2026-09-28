@@ -180,17 +180,19 @@ public partial class DevlogShots : Node
         Host.DebugOpenMinigame(MinigameKind.Marksman);
         await Wait(0.8);
         await Capture("21_marksman.png");
-        var marks = View.Minigame!;
-        float stop = Enumerable.Range(0, 6000).Select(i => 0.9f + i * 0.001f).First(t => MarksmanRules.IsHit(marks, t));
-        _game.Session.Submit(PlayerAction.Minigame(stop));
-        await Wait(0.3);
-        await Capture("22_marksman_hit.png");
-        await Wait(1.6);
+        if (View.Minigame is { } marks)
+        {
+            float stop = Enumerable.Range(0, 6000).Select(i => 0.9f + i * 0.001f).First(t => MarksmanRules.IsHit(marks, t));
+            _game.Session!.Submit(PlayerAction.Minigame(stop));
+            await Wait(0.3);
+            await Capture("22_marksman_hit.png");
+            await Wait(1.6);
+        }
 
         Host.DebugOpenMinigame(MinigameKind.Oracle);
         await Wait(0.5);
         await Capture("23_oracle.png");
-        _game.Session.Submit(PlayerAction.Minigame(0, 0, CardColor.Blue));
+        _game.Session!.Submit(PlayerAction.Minigame(0, 0, CardColor.Blue));
         await Wait(0.5);
 
         // 8. 끝까지 자동으로 둬서 최종 순위표
@@ -251,6 +253,21 @@ public partial class DevlogShots : Node
 
             await Wait(1.2);
             await Capture($"{33 + t}_theme_{boardThemes[t].ToString().ToLowerInvariant()}.png");
+            if (boardThemes[t] == ThemeId.Boss)
+            {
+                // 분노 1·2단계 보스
+                for (int rage = 1; rage <= 2; rage++)
+                {
+                    int level = rage;
+                    Host.DebugEditState(s =>
+                    {
+                        s.BossRage = level;
+                        s.BossHp = BossRules.MaxHpFor(s.PlayerCount) * (3 - level) / 3 - 5;
+                    });
+                    await Wait(0.9);
+                    await Capture($"37_theme_boss_rage{rage}.png");
+                }
+            }
         }
 
         _game.DebugForcedTheme = -2;

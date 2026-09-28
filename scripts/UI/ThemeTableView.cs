@@ -99,6 +99,7 @@ public partial class ThemeTableView : Control
         _bossHpShown = Mathf.MoveToward(_bossHpShown, board.BossHp, dt * 90f);
         _bossShake = Mathf.Max(0, _bossShake - dt);
         _bossFlash = Mathf.Max(0, _bossFlash - dt * 3f);
+        _ragePop = Mathf.Max(0, _ragePop - dt * 1.8f);
         _blastFlash = Mathf.Max(0, _blastFlash - dt * 1.2f);
         _bingoPulse = Mathf.Max(0, _bingoPulse - dt * 1.5f);
         QueueRedraw();
@@ -391,7 +392,15 @@ public partial class ThemeTableView : Control
                 .Distinct().OrderBy(f => f, StringComparer.Ordinal);
             foreach (var name in names)
             {
-                if (ResourceLoader.Load<Texture2D>($"res://assets/textures/boss/{name}") is { } tex)
+                string path = $"res://assets/textures/boss/{name}";
+                // 에디터가 아직 가져오기(import)를 안 한 새 그림이면 파일을 직접 읽습니다.
+                var tex = ResourceLoader.Exists(path) ? ResourceLoader.Load<Texture2D>(path) : null;
+                if (tex == null && Image.LoadFromFile(path) is { } image)
+                {
+                    tex = ImageTexture.CreateFromImage(image);
+                }
+
+                if (tex != null)
                 {
                     list.Add(tex);
                 }
@@ -402,13 +411,68 @@ public partial class ThemeTableView : Control
         return _bossSprites;
     }
 
+    /// <summary>
+    /// 보스 그림을 움직여서 그립니다. (그림 한 장을 코드로 움직입니다)
+    /// - 평소: 위아래로 둥실둥실 + 숨쉬듯 커졌다 작아짐 + 살짝 좌우로 기울기
+    /// - 분노할수록: 더 빠르게 움직이고, 뒤쪽 오라가 붉어지고, 2단계는 부르르 떱니다
+    /// - 맞으면: 찌그러졌다 돌아오며 하얗게 번쩍, 분노 단계가 오르면: 크게 부풀었다 돌아옴
+    /// </summary>
+    private void DrawBossSprite(Texture2D[] sprites, int rage, Vector2 c, float r)
+    {
+        if (rage != _lastRage)
+        {
+            if (_lastRage >= 0 && rage > _lastRage)
+            {
+                _ragePop = 1f;
+                _bossShake = 0.3f;
+            }
+
+            _lastRage = rage;
+        }
+
+        var tex = sprites[Math.Min(rage, sprites.Length - 1)];
+        float speed = 1.6f + rage * 1.3f;
+        float bob = Mathf.Sin(_time * speed) * (3f + rage);
+        float breathe = 1f + 0.035f * Mathf.Sin(_time * speed * 2f);
+        float sway = Mathf.Sin(_time * speed * 0.5f) * (0.04f + rage * 0.02f);
+        var jitter = rage >= 2 ? new Vector2(Mathf.Sin(_time * 53f), Mathf.Cos(_time * 47f)) * 1.6f : Vector2.Zero;
+        float hit = Mathf.Clamp(_bossShake / 0.3f, 0f, 1f);
+        float pop = _ragePop * _ragePop;
+        var scale = new Vector2(breathe * (1f + 0.14f * hit), breathe * (1f - 0.12f * hit)) * (1f + 0.3f * pop);
+        var center = c + new Vector2(0, -r * 0.25f + bob) + jitter;
+
+        // 뒤쪽 오라
+        var aura = rage switch
+        {
+            0 => Color.FromHtml("#7b4dff"),
+            1 => Color.FromHtml("#ff3fa4"),
+            _ => Color.FromHtml("#ff6a1f"),
+        };
+        float auraPulse = 1f + 0.08f * Mathf.Sin(_time * speed * 1.5f);
+        for (int k = 3; k >= 1; k--)
+        {
+            DrawCircle(center, r * (0.7f + 0.22f * k) * auraPulse, new Color(aura, (0.05f + 0.03f * rage) * (1f + pop)));
+        }
+
+        float h = r * 2.7f;
+        float w = h * tex.GetWidth() / Math.Max(1, tex.GetHeight());
+        // 맞았을 때와 분노할 때는 하얗게 번쩍입니다. (1보다 큰 색은 더 밝게 그려집니다)
+        float glow = 1f + 1.4f * Mathf.Max(_bossFlash, pop);
+        DrawSetTransform(center, sway, scale);
+        DrawTextureRect(tex, new Rect2(-w / 2, -h / 2, w, h), false, new Color(glow, glow, glow));
+        DrawSetTransform(Vector2.Zero, 0, Vector2.One);
+    }
+
+    private int _lastRage = -1;
+    private float _ragePop;
+
     private Vector2 BossCenter() => new(Size.X / 2, Mathf.Min(Size.Y * 0.45f, 110));
 
     // 보스: 뿔 달린 머리, 분노할수록 붉어지고 눈이 커집니다.
     private void DrawBoss(ThemeBoard board, float top)
     {
         var c = BossCenter() + (_bossShake > 0 ? new Vector2(Mathf.Sin(_time * 90) * 5 * _bossShake / 0.3f, 0) : Vector2.Zero);
-        float r = Mathf.Min(46, (Size.Y - top - 70) / 2);
+        float r = Mathf.Min(BossSprites().Length > 0 ? 52 : 46, (Size.Y - top - 70) / 2);
         var skin = board.BossRage switch
         {
             0 => Color.FromHtml("#6a4c93"),
@@ -421,17 +485,7 @@ public partial class ThemeTableView : Control
         var sprites = BossSprites();
         if (sprites.Length > 0)
         {
-            var tex = sprites[Math.Min(board.BossRage, sprites.Length - 1)];
-            float breathe = 1f + 0.03f * Mathf.Sin(_time * (2f + board.BossRage * 1.5f));
-            float h = r * 2.5f * breathe;
-            float w = h * tex.GetWidth() / Math.Max(1, tex.GetHeight());
-            var rageTint = board.BossRage switch
-            {
-                0 => Colors.White,
-                1 => new Color(1f, 0.82f, 0.82f),
-                _ => new Color(1f, 0.6f, 0.55f),
-            };
-            DrawTextureRect(tex, new Rect2(c - new Vector2(w / 2, h * 0.58f), new Vector2(w, h)), false, rageTint.Lerp(Colors.White, _bossFlash));
+            DrawBossSprite(sprites, board.BossRage, c, r);
             DrawBossHp(board, c.Y + r + 14);
             return;
         }
