@@ -1632,7 +1632,8 @@ public sealed class GameEngine
         }
 
         // 지배자: 각성 능력을 한 번 더 고릅니다.
-        if (!wentOut && !State.AwakenSecondPick && State.Players[playerId].Has(SpecialAugmentId.Dominator) && !State.PayingDebt)
+        // 첫 능력이 상대에게 카드를 뽑게 했으면(대상 지정 능력 등) 그 사람이 다 뽑은 뒤에 두 번째 능력을 고릅니다.
+        if (!wentOut && !State.AwakenSecondPick && State.Players[playerId].Has(SpecialAugmentId.Dominator))
         {
             State.AwakenSecondPick = true;
             State.PendingAbilities.AddRange(AbilityPool.RollChoices(Rng)

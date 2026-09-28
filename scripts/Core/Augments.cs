@@ -124,7 +124,7 @@ public static class SpecialAugments
             "내가 +카드를 얹을 때마다, 내 카드 1장(무작위)을 다음 사람에게 떠넘깁니다."),
         [SpecialAugmentId.Mirror] = ("반사의 거울", AugmentTier.Prism,
             "쌓인 공격을 받을 때, 절반(내림)을 마지막으로 얹은 사람에게 되돌려 보냅니다."),
-        [SpecialAugmentId.Phoenix] = ("불사조", AugmentTier.Silver,
+        [SpecialAugmentId.Phoenix] = ("불사조", AugmentTier.Prism,
             $"쌓인 공격을 받을 때 아무리 많아도 최대 {PhoenixCap}장만 받습니다."),
         [SpecialAugmentId.Bomber] = ("폭탄마", AugmentTier.Silver,
             "내가 얹는 +카드는 1장 더 쌓입니다. (+1이 +2처럼, +4가 +5처럼)"),
