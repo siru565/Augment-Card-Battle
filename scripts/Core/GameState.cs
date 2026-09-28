@@ -66,9 +66,6 @@ public sealed class PlayerState
     /// <summary>미니게임 대회 테마: 모은 별 수입니다.</summary>
     public int Stars { get; set; }
 
-    /// <summary>야추 테마: 등록한 족보입니다.</summary>
-    public HashSet<YachtCategory> YachtDone { get; } = new();
-
     /// <summary>잭팟: 마지막으로 나온 릴입니다. (화면 표시용)</summary>
     public string LastJackpot { get; set; } = "";
 
@@ -364,10 +361,6 @@ public sealed class GameState
             WinGoals = Players.Select(WinGoalsOf).ToArray(),
             Theme = Theme,
             Stars = Players.Select(p => p.Stars).ToArray(),
-            YachtDone = Players.Select(p => (IReadOnlyList<YachtCategory>)p.YachtDone.OrderBy(c => c).ToList()).ToArray(),
-            YachtOptions = Theme == ThemeId.Yacht && myTurn && !blocked && !FrenzyActive && PendingPenalty == 0
-                ? YachtRules.All.Where(c => !me.YachtDone.Contains(c) && YachtRules.Find(me.Hand, c) != null).ToList()
-                : new List<YachtCategory>(),
             Arcade = Arcade == null ? null : new ArcadeInfo(Arcade.Id, Arcade.Game, Arcade.Seed, Arcade.Players, Arcade.Scores.Keys.ToArray()),
             Board = ThemeBoardFor(playerId),
         };
@@ -379,7 +372,7 @@ public sealed class GameState
     /// </summary>
     private ThemeBoard? ThemeBoardFor(int playerId)
     {
-        if (Theme is ThemeId.None or ThemeId.Arcade or ThemeId.Yacht)
+        if (Theme is ThemeId.None or ThemeId.Arcade)
         {
             return null;
         }
@@ -540,12 +533,6 @@ public sealed record PlayerView(
 
     /// <summary>자리마다 모은 별 (미니게임 대회 테마)</summary>
     public int[] Stars { get; init; } = Array.Empty<int>();
-
-    /// <summary>자리마다 등록한 족보 (야추 테마) — 모두에게 공개됩니다.</summary>
-    public IReadOnlyList<YachtCategory>[] YachtDone { get; init; } = Array.Empty<IReadOnlyList<YachtCategory>>();
-
-    /// <summary>지금 내가 등록할 수 있는 족보입니다. (야추 테마, 내 차례)</summary>
-    public IReadOnlyList<YachtCategory> YachtOptions { get; init; } = Array.Empty<YachtCategory>();
 
     /// <summary>진행 중인 미니게임 대회입니다.</summary>
     public ArcadeInfo? Arcade { get; init; }

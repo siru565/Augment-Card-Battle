@@ -158,15 +158,24 @@ public partial class DevlogShots : Node
         await Capture("18_jackpot.png");
         await Wait(1.2);
 
+        // 억지 뽑기나 증강 고르기가 남아 있으면 미니게임이 가려지므로 먼저 끝냅니다.
+        for (int i = 0; i < 40 && (View.MustDraw || View.AugmentChoices.Count > 0); i++)
+        {
+            _game.Session!.Submit(View.MustDraw ? PlayerAction.ForcedDraw() : PlayerAction.ChooseAugment(0));
+            await Wait(0.05);
+        }
+
         Host.DebugOpenMinigame(MinigameKind.Curling);
         await Wait(0.6);
         await Capture("19_curling.png");
-        var curling = View.Minigame!;
-        var (aim, power) = CurlingSim.BestThrow(curling.A, curling.B);
-        _game.Session.Submit(PlayerAction.Minigame(aim + 0.05f, power + 0.02f));
-        await Wait(1.2);
-        await Capture("20_curling_throw.png");
-        await Wait(3.2);
+        if (View.Minigame is { } curling)
+        {
+            var (aim, power) = CurlingSim.BestThrow(curling.A, curling.B);
+            _game.Session!.Submit(PlayerAction.Minigame(aim + 0.05f, power + 0.02f));
+            await Wait(1.2);
+            await Capture("20_curling_throw.png");
+            await Wait(3.2);
+        }
 
         Host.DebugOpenMinigame(MinigameKind.Marksman);
         await Wait(0.8);
@@ -215,20 +224,6 @@ public partial class DevlogShots : Node
             await Capture($"{26 + round * 2}_arcade_{round}_result.png");
             await Wait(3.2);
         }
-
-        // 8-3. 판 테마: 야추
-        _game.DebugForcedTheme = (int)ThemeId.Yacht;
-        _game.DebugStartSolo(specialAugments: false);
-        _game.BotDelay = 0.35f;
-        await WaitMyTurn(minTurn: 0);
-        _game.BotDelay = 999f;
-        Host.DebugYachtHand();
-        await Wait(0.8);
-        await Capture("31_yacht.png");
-        var option = View.YachtOptions.OrderByDescending(c => (int)c).FirstOrDefault();
-        _game.Session.Submit(PlayerAction.YachtRegister(option));
-        await Wait(1.0);
-        await Capture("32_yacht_registered.png");
 
         // 8-4. 판 테마: 빙고 · 카드 레이스 · 영토 전쟁 · 비밀 임무 · 보스 레이드 · 시한폭탄
         //      자동으로 몇 바퀴 둔 뒤 내 차례에 멈춰서 테이블 오른쪽 테마 판을 찍습니다.

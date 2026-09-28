@@ -56,7 +56,7 @@ public partial class ArcadeOverlay : ColorRect
         _stage.Visible = true;
         if (playing)
         {
-            _stage.Begin(arcade.Game, arcade.Seed);
+            _stage.Begin(arcade.Game, arcade.Seed, (arcade.Id - 1) / 3);
             _status.Text = "";
             Audio.Sfx.Play("augment_offer", 0f, 1f, 0f);
         }

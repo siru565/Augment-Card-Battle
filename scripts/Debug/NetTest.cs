@@ -95,17 +95,17 @@ public partial class NetTest : Node
         await Wait(0.3);
         report.AppendLine($"설정 전달: 참가자 특수 증강={client.Session?.RoomOptions.SpecialAugments}");
 
-        // 2판은 봇 1명(어려움)을 넣어 3인으로, 야추 테마로 합니다.
+        // 2판은 봇 1명(어려움)을 넣어 3인으로, 보스 레이드 테마로 합니다.
         room.AddBot();
-        room.SetOptions(room.RoomOptions with { ForcedTheme = (int)SpCardgame.Core.ThemeId.Yacht });
+        room.SetOptions(room.RoomOptions with { ForcedTheme = (int)SpCardgame.Core.ThemeId.Boss });
         room.SetBotLevel(SpCardgame.AI.BotLevel.Hard);
         await Wait(0.3);
         report.AppendLine($"봇 난이도 전달: 참가자 화면={client.Session?.LobbyBotLevel}");
         host.DebugStartGame();
         await Wait(2.0);
         int secondPlayers = client.Session?.View?.PlayerCount ?? -1;
-        bool yachtTheme = client.Session?.View?.Theme == SpCardgame.Core.ThemeId.Yacht;
-        report.AppendLine($"2판 테마 전달: 참가자 화면 야추={yachtTheme}");
+        bool bossTheme = client.Session?.View?.Theme == SpCardgame.Core.ThemeId.Boss && client.Session.View.Board?.BossMaxHp > 0;
+        report.AppendLine($"2판 테마 전달: 참가자 화면 보스 레이드={bossTheme}");
         report.AppendLine($"봇 넣기: 참가자 화면 봇 수={client.Session?.LobbyBots}, 2판 인원={secondPlayers}");
 
         // 2판: 참가자가 중간에 나가기 → 대기방으로, 자리는 봇이 이어받고 게임은 계속됩니다.
@@ -136,7 +136,7 @@ public partial class NetTest : Node
         string third = await WaitWinner(client);
         report.AppendLine($"3판 (방장 중간 퇴장): 참가자 합류={pulled}, 방장 대기방={hostLeft}, 참가자 미니게임={_sawClientMinigame}, {third}");
         await Wait(0.5);
-        second = yachtTheme && missionMasked && _sawClientMinigame && secondPlayers == 3 && client.Session?.LobbyBotLevel == SpCardgame.AI.BotLevel.Hard && clientLeft && pulled && hostLeft && third.StartsWith("끝") ? second : "실패";
+        second = bossTheme && missionMasked && _sawClientMinigame && secondPlayers == 3 && client.Session?.LobbyBotLevel == SpCardgame.AI.BotLevel.Hard && clientLeft && pulled && hostLeft && third.StartsWith("끝") ? second : "실패";
 
         // 다시 대기방으로 돌아간 뒤 참가자를 강퇴합니다.
         host.Session!.ReturnToRoom();

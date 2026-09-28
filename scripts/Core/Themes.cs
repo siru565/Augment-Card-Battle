@@ -16,8 +16,7 @@ public enum ThemeId
     /// <summary>미니게임 대회: 몇 턴마다 모두가 같은 미니게임을 동시에 하고, 1등이 별을 받습니다. 별을 모으면 승리.</summary>
     Arcade = 0,
 
-    /// <summary>야추: 손패로 족보(풀하우스, 스트레이트…)를 만들어 등록합니다. 족보를 모으면 승리.</summary>
-    Yacht = 1,
+    // 1번은 예전 야추 테마 자리입니다. (v0.5.1에서 뺐습니다. 번호는 그대로 둡니다)
 
     /// <summary>빙고: 각자 공개된 3×3 빙고판. 바닥에 나온 카드로 칸이 찍히고, 줄을 완성하면 승리.</summary>
     Bingo = 2,
@@ -45,7 +44,7 @@ public static class Themes
     /// <summary>지금 무작위로 뽑히는 테마들입니다. (만든 테마만 들어갑니다)</summary>
     public static readonly ThemeId[] Pool =
     {
-        ThemeId.Arcade, ThemeId.Yacht, ThemeId.Bingo, ThemeId.Race,
+        ThemeId.Arcade, ThemeId.Bingo, ThemeId.Race,
         ThemeId.Territory, ThemeId.Mission, ThemeId.Boss, ThemeId.Bomb,
     };
 
@@ -53,8 +52,6 @@ public static class Themes
     {
         ThemeId.Arcade => new ThemeInfo(id, "미니게임 대회",
             $"{ArcadeRules.Every}턴마다 모두가 같은 미니게임을 동시에 합니다. 1등은 별 1개! 별 {ArcadeRules.StarsToWin}개를 모으면 승리"),
-        ThemeId.Yacht => new ThemeInfo(id, "야추",
-            $"원카드 규칙이 바뀝니다! 차례마다 카드를 1장 더 뽑고, 손패를 다 내도 이기지 않고 새 카드 {YachtRules.RerollCards}장을 받습니다. 손패로 족보를 등록해서 {YachtRules.CategoriesToWin}종류를 먼저 채우면 승리"),
         ThemeId.Bingo => new ThemeInfo(id, "빙고",
             $"각자 숫자가 적힌 3×3 빙고판을 받습니다. 내가 낸 숫자 카드로 내 칸이 찍히고, 프리즘은 아무 칸이나 찍습니다. {BingoRules.LinesToWin}줄을 먼저 완성하면 승리"),
         ThemeId.Race => new ThemeInfo(id, "카드 레이스",
@@ -114,8 +111,8 @@ public static class ArcadeRules
 
     public static string HowTo(ArcadeGame game) => game switch
     {
-        ArcadeGame.Breakout => "마우스로 패들을 움직여 공을 튕기세요. 벽돌을 많이 깰수록 점수가 높습니다. 공을 3번 놓치면 끝!",
-        ArcadeGame.Whack => "튀어나오는 카드를 재빨리 누르세요. 빨간 폭탄 카드는 누르면 감점!",
+        ArcadeGame.Breakout => "마우스로 패들을 움직여 공을 튕기세요. 벽돌을 많이 깰수록 점수가 높습니다. 떨어지는 아이템(M 멀티볼 · W 넓은 패들 · F 불공)을 받으세요. 공은 점점 빨라지고, 3번 놓치면 끝!",
+        ArcadeGame.Whack => "구멍에서 올라오는 카드를 재빨리 누르세요. 빨간 폭탄 카드는 누르면 감점!",
         _ => "방향키(또는 WASD)로 움직여 금색 출구로 나가세요. 빨리 나올수록 점수가 높습니다.",
     };
 
@@ -214,136 +211,6 @@ public static class ArcadeRules
     public static int MazeScore(bool escaped, float timeLeft, float progress) =>
         escaped ? 1000 + (int)(timeLeft * 10) : (int)(Math.Clamp(progress, 0f, 1f) * 500);
 }
-
-// ───────────── 야추 ─────────────
-
-public enum YachtCategory
-{
-    /// <summary>같은 숫자 3장</summary>
-    Triple,
-
-    /// <summary>같은 숫자 2장 + 같은 숫자 2장</summary>
-    TwoPair,
-
-    /// <summary>숫자 4장이 연속 (예: 3-4-5-6)</summary>
-    Straight,
-
-    /// <summary>같은 문양 숫자 4장</summary>
-    Flush,
-
-    /// <summary>같은 숫자 3장 + 같은 숫자 2장</summary>
-    FullHouse,
-
-    /// <summary>같은 숫자 4장 (야추!)</summary>
-    Yacht,
-}
-
-public static class YachtRules
-{
-    /// <summary>족보를 이만큼 종류별로 등록하면 승리합니다.</summary>
-    public static int CategoriesToWin { get; set; } = 3;
-
-    /// <summary>야추 테마에서는 손패를 다 내도 이기지 않고, 이만큼 새로 받습니다. (주사위를 다시 굴리듯)</summary>
-    public static int RerollCards { get; set; } = 5;
-
-    /// <summary>야추 테마: 내 차례가 시작될 때 주사위를 굴리듯 카드를 이만큼 더 뽑습니다.</summary>
-    public static int DrawPerTurn { get; set; } = 1;
-
-    public static readonly YachtCategory[] All =
-    {
-        YachtCategory.Triple, YachtCategory.TwoPair, YachtCategory.Straight,
-        YachtCategory.Flush, YachtCategory.FullHouse, YachtCategory.Yacht,
-    };
-
-    public static string Name(YachtCategory c) => c switch
-    {
-        YachtCategory.Triple => "트리플",
-        YachtCategory.TwoPair => "투 페어",
-        YachtCategory.Straight => "스트레이트",
-        YachtCategory.Flush => "플러시",
-        YachtCategory.FullHouse => "풀하우스",
-        _ => "야추",
-    };
-
-    public static string Describe(YachtCategory c) => c switch
-    {
-        YachtCategory.Triple => "같은 숫자 3장",
-        YachtCategory.TwoPair => "같은 숫자 2장 + 같은 숫자 2장",
-        YachtCategory.Straight => "연속된 숫자 4장 (예: 3·4·5·6)",
-        YachtCategory.Flush => "같은 문양 숫자 카드 4장",
-        YachtCategory.FullHouse => "같은 숫자 3장 + 같은 숫자 2장",
-        _ => "같은 숫자 4장",
-    };
-
-    /// <summary>
-    /// 손패에서 족보에 쓸 카드를 찾습니다. 없으면 null입니다.
-    /// 숫자 카드만 씁니다. 여러 조합이 되면 작은 숫자부터 씁니다.
-    /// </summary>
-    public static List<Card>? Find(IReadOnlyList<Card> hand, YachtCategory category)
-    {
-        var numbers = hand.Where(c => c.Kind == CardKind.Number).ToList();
-        var byNumber = numbers.GroupBy(c => c.Number).OrderBy(g => g.Key).ToList();
-
-        List<Card>? Same(int count, int exceptNumber = -1) =>
-            byNumber.Where(g => g.Key != exceptNumber && g.Count() >= count).Select(g => g.Take(count).ToList()).FirstOrDefault();
-
-        switch (category)
-        {
-            case YachtCategory.Triple:
-                return Same(3);
-
-            case YachtCategory.Yacht:
-                return Same(4);
-
-            case YachtCategory.TwoPair:
-            {
-                var first = Same(2);
-                if (first == null)
-                {
-                    return null;
-                }
-
-                var second = Same(2, first[0].Number);
-                return second == null ? null : first.Concat(second).ToList();
-            }
-
-            case YachtCategory.FullHouse:
-            {
-                foreach (var three in byNumber.Where(g => g.Count() >= 3))
-                {
-                    var two = Same(2, three.Key);
-                    if (two != null)
-                    {
-                        return three.Take(3).Concat(two).ToList();
-                    }
-                }
-
-                return null;
-            }
-
-            case YachtCategory.Straight:
-            {
-                var present = byNumber.Select(g => g.Key).ToHashSet();
-                for (int start = 0; start <= 6; start++)
-                {
-                    if (Enumerable.Range(start, 4).All(present.Contains))
-                    {
-                        return Enumerable.Range(start, 4).Select(n => byNumber.First(g => g.Key == n).First()).ToList();
-                    }
-                }
-
-                return null;
-            }
-
-            default:
-            {
-                var suit = numbers.GroupBy(c => c.Color).FirstOrDefault(g => g.Count() >= 4);
-                return suit?.OrderBy(c => c.Number).Take(4).ToList();
-            }
-        }
-    }
-}
-
 
 // ───────────── 빙고 ─────────────
 

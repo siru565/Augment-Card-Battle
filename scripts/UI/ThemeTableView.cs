@@ -35,13 +35,13 @@ public partial class ThemeTableView : Control
     }
 
     public static bool Supports(ThemeId theme) =>
-        theme is ThemeId.Bingo or ThemeId.Race or ThemeId.Territory or ThemeId.Mission or ThemeId.Boss or ThemeId.Bomb;
+        theme is ThemeId.Arcade or ThemeId.Bingo or ThemeId.Race or ThemeId.Territory or ThemeId.Mission or ThemeId.Boss or ThemeId.Bomb;
 
     public void SetView(PlayerView view, Func<int, string> nameOf)
     {
         _view = view;
         _nameOf = nameOf;
-        Visible = view.Board != null && Supports(view.Theme);
+        Visible = (view.Board != null || view.Theme == ThemeId.Arcade) && Supports(view.Theme);
         if (view.Board is { } board && _raceShown.Length != board.RacePos.Length)
         {
             _raceShown = board.RacePos.Select(p => (float)p).ToArray();
@@ -76,8 +76,15 @@ public partial class ThemeTableView : Control
 
     public override void _Process(double delta)
     {
-        if (!Visible || _view?.Board == null)
+        if (!Visible || _view == null)
         {
+            return;
+        }
+
+        if (_view.Board == null)
+        {
+            _time += (float)delta;
+            QueueRedraw();
             return;
         }
 
@@ -103,10 +110,12 @@ public partial class ThemeTableView : Control
 
     public override void _Draw()
     {
-        if (_view?.Board is not { } board)
+        if (_view == null || !Visible)
         {
             return;
         }
+
+        var board = _view.Board;
 
         var rect = new Rect2(Vector2.Zero, Size);
         DrawStyleBox(UiTheme.Box(new Color(0.07f, 0.09f, 0.12f, 0.82f), new Color(UiTheme.Gold, 0.35f), 1, 8, 0), rect);
@@ -114,6 +123,16 @@ public partial class ThemeTableView : Control
         Text(UiTheme.Title, new Vector2(Pad, Pad + 17), Loc.Tr(info.Name), 18, UiTheme.Gold);
 
         float top = Pad + 30;
+        if (board == null)
+        {
+            if (_view.Theme == ThemeId.Arcade)
+            {
+                DrawArcade(top);
+            }
+
+            return;
+        }
+
         switch (_view.Theme)
         {
             case ThemeId.Bingo:
@@ -150,6 +169,41 @@ public partial class ThemeTableView : Control
     }
 
     private bool Active(int seat) => _view!.IsActive(seat);
+
+    // 미니게임 대회: 다음 대회까지 남은 턴과 별 현황
+    private void DrawArcade(float top)
+    {
+        var view = _view!;
+        int every = ArcadeRules.Every;
+        int left = every - (view.TurnCount % every);
+        if (left <= 0)
+        {
+            left = every;
+        }
+
+        Text(UiTheme.Bold, new Vector2(Pad, top + 12), Loc.Tr($"다음 대회까지 {left}턴"), 13, left <= 2 ? UiTheme.Danger : UiTheme.Text);
+        Bar(new Rect2(Pad, top + 22, Size.X - Pad * 2, 8), 1f - (left - 1) / (float)every, Color.FromHtml("#ff4fd8"));
+        Text(UiTheme.Regular, new Vector2(Pad, top + 48), Loc.Tr($"1등은 별 1개 · 별 {ArcadeRules.StarsToWin}개면 승리"), 11, UiTheme.TextDim, Size.X - Pad * 2);
+
+        float y = top + 74;
+        for (int s = 0; s < view.PlayerCount; s++)
+        {
+            Text(UiTheme.Bold, new Vector2(Pad, y), ShortName(s), 12, Active(s) ? UiTheme.Text : new Color(UiTheme.TextDim, 0.4f));
+            int stars = s < view.Stars.Length ? view.Stars[s] : 0;
+            for (int k = 0; k < ArcadeRules.StarsToWin; k++)
+            {
+                var at = new Vector2(Size.X - Pad - 8 - (ArcadeRules.StarsToWin - 1 - k) * 20, y - 5);
+                float pulse = k < stars ? 1f + 0.08f * Mathf.Sin(_time * 3 + k) : 1f;
+                SuitIcons.DrawStar(this, at, 7.5f * pulse, k < stars ? UiTheme.Gold : new Color(1, 1, 1, 0.14f));
+            }
+
+            y += 22;
+        }
+
+        // 종목 순서 안내
+        string next = ArcadeRules.Name((ArcadeGame)(view.TurnCount / every % 3));
+        Text(UiTheme.Regular, new Vector2(Pad, y + 8), Loc.Tr($"다음 종목: {next}"), 11, UiTheme.TextDim, Size.X - Pad * 2);
+    }
 
     // 빙고: 내 판을 크게, 다른 사람은 줄 수만 아래에 적습니다.
     private void DrawBingo(ThemeBoard board, float top)
@@ -317,6 +371,37 @@ public partial class ThemeTableView : Control
         }
     }
 
+    private static Texture2D[]? _bossSprites;
+
+    /// <summary>보스 그림을 한 번만 찾아 둡니다. 없으면 코드로 그린 보스를 씁니다.</summary>
+    private static Texture2D[] BossSprites()
+    {
+        if (_bossSprites != null)
+        {
+            return _bossSprites;
+        }
+
+        var list = new System.Collections.Generic.List<Texture2D>();
+        using var dir = DirAccess.Open("res://assets/textures/boss");
+        if (dir != null)
+        {
+            // 내보낸 게임에서는 .png 대신 .png.import만 보이므로 둘 다 봅니다.
+            var names = dir.GetFiles().Select(f => f.EndsWith(".import") ? f[..^7] : f)
+                .Where(f => f.EndsWith(".png") || f.EndsWith(".webp") || f.EndsWith(".jpg"))
+                .Distinct().OrderBy(f => f, StringComparer.Ordinal);
+            foreach (var name in names)
+            {
+                if (ResourceLoader.Load<Texture2D>($"res://assets/textures/boss/{name}") is { } tex)
+                {
+                    list.Add(tex);
+                }
+            }
+        }
+
+        _bossSprites = list.ToArray();
+        return _bossSprites;
+    }
+
     private Vector2 BossCenter() => new(Size.X / 2, Mathf.Min(Size.Y * 0.45f, 110));
 
     // 보스: 뿔 달린 머리, 분노할수록 붉어지고 눈이 커집니다.
@@ -331,6 +416,26 @@ public partial class ThemeTableView : Control
             _ => Color.FromHtml("#c0392b"),
         };
         skin = skin.Lerp(Colors.White, _bossFlash * 0.7f);
+
+        // assets/textures/boss/ 에 그림이 있으면 그걸 씁니다. (이름순: 평상시 → 분노 1 → 분노 2, 모자라면 마지막 그림)
+        var sprites = BossSprites();
+        if (sprites.Length > 0)
+        {
+            var tex = sprites[Math.Min(board.BossRage, sprites.Length - 1)];
+            float breathe = 1f + 0.03f * Mathf.Sin(_time * (2f + board.BossRage * 1.5f));
+            float h = r * 2.5f * breathe;
+            float w = h * tex.GetWidth() / Math.Max(1, tex.GetHeight());
+            var rageTint = board.BossRage switch
+            {
+                0 => Colors.White,
+                1 => new Color(1f, 0.82f, 0.82f),
+                _ => new Color(1f, 0.6f, 0.55f),
+            };
+            DrawTextureRect(tex, new Rect2(c - new Vector2(w / 2, h * 0.58f), new Vector2(w, h)), false, rageTint.Lerp(Colors.White, _bossFlash));
+            DrawBossHp(board, c.Y + r + 14);
+            return;
+        }
+
         // 뿔
         DrawColoredPolygon(new[] { c + new Vector2(-r * 0.8f, -r * 0.4f), c + new Vector2(-r * 1.1f, -r * 1.3f), c + new Vector2(-r * 0.35f, -r * 0.8f) }, UiTheme.Silver);
         DrawColoredPolygon(new[] { c + new Vector2(r * 0.8f, -r * 0.4f), c + new Vector2(r * 1.1f, -r * 1.3f), c + new Vector2(r * 0.35f, -r * 0.8f) }, UiTheme.Silver);
@@ -356,8 +461,12 @@ public partial class ThemeTableView : Control
             DrawColoredPolygon(new[] { mouth + new Vector2(k * r * 0.25f - 4, 0), mouth + new Vector2(k * r * 0.25f + 4, 0), mouth + new Vector2(k * r * 0.25f, 7) }, Colors.White);
         }
 
+        DrawBossHp(board, c.Y + r + 14);
+    }
+
+    private void DrawBossHp(ThemeBoard board, float barY)
+    {
         float max = Math.Max(1, board.BossMaxHp);
-        float barY = c.Y + r + 14;
         var hpRect = new Rect2(Pad, barY, Size.X - Pad * 2, 12);
         Bar(hpRect, _bossHpShown / max, Color.FromHtml("#e5534b"));
         // 분노 구간 표시

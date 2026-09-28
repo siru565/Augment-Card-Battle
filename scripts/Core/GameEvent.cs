@@ -41,8 +41,6 @@ public enum GameEventType
     /// <summary>미니게임 대회 결과입니다. Text = "자리:점수,자리:점수…", Target = 별을 받은 사람(여럿이면 -1), Amount = 최고 점수</summary>
     ArcadeResult,
 
-    /// <summary>야추 족보를 등록했습니다. Text = 족보 이름, Amount = 등록한 족보 수</summary>
-    YachtRegistered,
 
     /// <summary>빙고 칸이 찍혔습니다. Amount = 칸 번호(0~8), Target = 완성한 줄 수</summary>
     BingoMarked,

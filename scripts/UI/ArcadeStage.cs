@@ -8,7 +8,7 @@ namespace SpCardgame.UI;
 /// <summary>
 /// 미니게임 대회의 게임 화면입니다. (ArcadeOverlay가 씁니다)
 /// 모두가 같은 시드로 같은 판을 하고, 끝나면 점수를 알려 줍니다.
-/// - 벽돌깨기: 마우스로 패들, 공 3개, 점수 = 깬 벽돌 수
+/// - 벽돌깨기: 마우스로 패들, 공 3개, 점수 = 깬 벽돌 수 (아이템: 멀티볼 · 넓은 패들 · 불공, 공은 점점 빨라짐)
 /// - 두더지 카드: 튀어나오는 카드를 클릭 (폭탄은 -2)
 /// - 미로 탈출: 방향키/WASD, 빨리 나올수록 높은 점수
 /// 그림은 전부 코드로 그려서 따로 에셋이 필요 없습니다.
@@ -32,8 +32,10 @@ public partial class ArcadeStage : Control
     /// <summary>시작 전 카운트다운(초)입니다. 0보다 크면 아직 시작 전입니다.</summary>
     public float Countdown => _countdown;
 
-    public void Begin(ArcadeGame game, int seed)
+    /// <param name="level">이번 판에서 같은 종목을 몇 번째 하는지(0부터)입니다. 벽돌깨기는 높을수록 공이 빨라집니다.</param>
+    public void Begin(ArcadeGame game, int seed, int level = 0)
     {
+        _level = level;
         _game = game;
         _time = 0;
         _countdown = 2.0f;
@@ -42,11 +44,12 @@ public partial class ArcadeStage : Control
         switch (game)
         {
             case ArcadeGame.Breakout:
-                SetupBreakout();
+                SetupBreakout(seed);
                 break;
             case ArcadeGame.Whack:
                 _moles = ArcadeRules.Moles(seed);
-                _moleHit = new bool[_moles.Count];
+                _moleHitAt = new float[_moles.Count];
+                Array.Fill(_moleHitAt, -1f);
                 break;
             default:
                 SetupMaze(seed);
@@ -159,37 +162,87 @@ public partial class ArcadeStage : Control
     }
 
     // ───────────── 벽돌깨기 ─────────────
+    // 벽돌을 깨면 가끔 아이템이 떨어집니다. (멀티볼 · 넓은 패들 · 관통 불공)
+    // 공은 시간이 갈수록 빨라지고, 같은 판에서 벽돌깨기를 다시 할 때마다 처음 속도도 빨라집니다.
 
     private const int BrickCols = 10;
-    private const int BrickRows = 5;
-    private const float PaddleWidth = 96f;
+    private const int BrickRows = 6;
+    private const float BasePaddleWidth = 96f;
     private const float BallRadius = 6f;
-    private bool[,] _bricks = new bool[BrickCols, BrickRows];
+    private const float WideTime = 7f;
+    private const float FireTime = 5f;
+    private const int MaxBalls = 6;
+
+    private enum PowerUp
+    {
+        None,
+        MultiBall,
+        Wide,
+        Fire,
+    }
+
+    private sealed class Ball
+    {
+        public Vector2 Pos;
+        public Vector2 Vel;
+    }
+
+    private sealed class Drop
+    {
+        public Vector2 Pos;
+        public PowerUp Kind;
+    }
+
+    /// <summary>벽돌 내구도입니다. 0이면 깨진 벽돌, 맨 윗줄은 2번 맞아야 깨집니다.</summary>
+    private int[,] _bricks = new int[BrickCols, BrickRows];
+
+    /// <summary>벽돌마다 들어 있는 아이템입니다. 시드로 정해서 모두 같은 자리에 같은 아이템이 있습니다.</summary>
+    private PowerUp[,] _brickItems = new PowerUp[BrickCols, BrickRows];
+
+    private readonly List<Ball> _balls = new();
+    private readonly List<Drop> _drops = new();
     private float _paddleX;
-    private Vector2 _ball;
-    private Vector2 _velocity;
     private int _lives;
     private float _serveDelay;
+    private float _wideLeft;
+    private float _fireLeft;
+    private int _level;
+    private float _flash;
+    private string _powerText = "";
+    private float _powerTextLeft;
+
+    private float PaddleWidth => _wideLeft > 0 ? BasePaddleWidth * 1.6f : BasePaddleWidth;
 
     private float PaddleY => Size.Y - 24f;
+
+    /// <summary>지금 공 속도입니다. 20초 동안 1.0배 → 1.9배까지 올라가고, 판을 거듭할수록 시작 속도도 올라갑니다.</summary>
+    private float TargetSpeed => 330f * (1f + 0.15f * _level) * (1f + 0.9f * Mathf.Clamp(_time / ArcadeRules.TimeLimit, 0f, 1f));
 
     private Rect2 BrickRect(int c, int r)
     {
         float w = (Size.X - 20f) / BrickCols;
-        return new Rect2(10 + c * w + 2, 30 + r * 22, w - 4, 16);
+        return new Rect2(10 + c * w + 2, 30 + r * 20, w - 4, 15);
     }
 
-    private void SetupBreakout()
+    private void SetupBreakout(int seed)
     {
-        _bricks = new bool[BrickCols, BrickRows];
+        var rng = new Random(seed);
+        _bricks = new int[BrickCols, BrickRows];
+        _brickItems = new PowerUp[BrickCols, BrickRows];
         for (int c = 0; c < BrickCols; c++)
         {
             for (int r = 0; r < BrickRows; r++)
             {
-                _bricks[c, r] = true;
+                _bricks[c, r] = r == 0 ? 2 : 1;
+                double roll = rng.NextDouble();
+                _brickItems[c, r] = roll < 0.07 ? PowerUp.MultiBall : roll < 0.12 ? PowerUp.Wide : roll < 0.16 ? PowerUp.Fire : PowerUp.None;
             }
         }
 
+        _drops.Clear();
+        _wideLeft = 0;
+        _fireLeft = 0;
+        _powerTextLeft = 0;
         _paddleX = Size.X / 2;
         _lives = 3;
         Serve();
@@ -198,8 +251,8 @@ public partial class ArcadeStage : Control
     private void Serve()
     {
         _serveDelay = 0.5f;
-        _ball = new Vector2(_paddleX, PaddleY - 20);
-        _velocity = new Vector2(120f, -320f);
+        _balls.Clear();
+        _balls.Add(new Ball { Pos = new Vector2(_paddleX, PaddleY - 20), Vel = new Vector2(0.35f, -1f).Normalized() * TargetSpeed });
     }
 
     private void UpdateBreakout(float dt)
@@ -209,91 +262,137 @@ public partial class ArcadeStage : Control
             _paddleX = Size.X / 2;
         }
 
+        _wideLeft = Mathf.Max(0, _wideLeft - dt);
+        _fireLeft = Mathf.Max(0, _fireLeft - dt);
+        _flash = Mathf.Max(0, _flash - dt * 3);
+        _powerTextLeft = Mathf.Max(0, _powerTextLeft - dt);
+        _paddleX = Mathf.Clamp(_paddleX, PaddleWidth / 2, Size.X - PaddleWidth / 2);
+        UpdateDrops(dt);
+
         if (_serveDelay > 0)
         {
             _serveDelay -= dt;
-            _ball = new Vector2(_paddleX, PaddleY - 20);
+            _balls[0].Pos = new Vector2(_paddleX, PaddleY - 20);
             return;
         }
 
-        // 빠른 공이 벽돌을 뚫지 않도록 작은 걸음으로 나눠서 움직입니다.
-        const int steps = 4;
-        for (int i = 0; i < steps; i++)
+        float speed = TargetSpeed;
+        for (int b = _balls.Count - 1; b >= 0; b--)
         {
-            _ball += _velocity * dt / steps;
+            var ball = _balls[b];
+            // 속도는 시간에 맞춰 조금씩 올립니다. (방향은 그대로)
+            ball.Vel = ball.Vel.Normalized() * Mathf.MoveToward(ball.Vel.Length(), speed, 60f * dt);
 
-            if (_ball.X < BallRadius || _ball.X > Size.X - BallRadius)
+            // 빠른 공이 벽돌을 뚫지 않도록 작은 걸음으로 나눠서 움직입니다.
+            int steps = Mathf.CeilToInt(ball.Vel.Length() * dt / 4f);
+            bool lost = false;
+            for (int i = 0; i < steps && !lost && _running; i++)
             {
-                _velocity.X = -_velocity.X;
-                _ball.X = Mathf.Clamp(_ball.X, BallRadius, Size.X - BallRadius);
+                ball.Pos += ball.Vel * dt / steps;
+                lost = StepBall(ball);
             }
 
-            if (_ball.Y < BallRadius)
+            if (lost)
             {
-                _velocity.Y = Mathf.Abs(_velocity.Y);
+                _balls.RemoveAt(b);
             }
 
-            // 패들: 맞은 위치에 따라 튕기는 각도가 달라집니다.
-            if (_velocity.Y > 0 && _ball.Y + BallRadius >= PaddleY && _ball.Y < PaddleY + 10
-                && Mathf.Abs(_ball.X - _paddleX) <= PaddleWidth / 2 + BallRadius)
+            if (!_running)
             {
-                float offset = (_ball.X - _paddleX) / (PaddleWidth / 2);
-                float speed = _velocity.Length();
-                _velocity = new Vector2(offset * 0.8f, -1f).Normalized() * speed;
-                Audio.Sfx.Play("play", -12f, 1.4f);
+                return;
             }
+        }
 
-            if (_ball.Y > Size.Y + 10)
+        if (_balls.Count == 0)
+        {
+            _lives--;
+            if (_lives <= 0)
             {
-                _lives--;
-                if (_lives <= 0)
-                {
-                    Finish();
-                    return;
-                }
-
-                Serve();
+                Finish();
                 return;
             }
 
-            HitBricks();
+            Serve();
         }
     }
 
-    private void HitBricks()
+    /// <summary>공 하나를 한 걸음 움직인 뒤 벽·패들·벽돌과 부딪히는지 봅니다. 바닥으로 빠지면 true</summary>
+    private bool StepBall(Ball ball)
+    {
+        if (ball.Pos.X < BallRadius || ball.Pos.X > Size.X - BallRadius)
+        {
+            ball.Vel.X = -ball.Vel.X;
+            ball.Pos.X = Mathf.Clamp(ball.Pos.X, BallRadius, Size.X - BallRadius);
+        }
+
+        if (ball.Pos.Y < BallRadius)
+        {
+            ball.Vel.Y = Mathf.Abs(ball.Vel.Y);
+        }
+
+        // 패들: 맞은 위치에 따라 튕기는 각도가 달라집니다.
+        if (ball.Vel.Y > 0 && ball.Pos.Y + BallRadius >= PaddleY && ball.Pos.Y < PaddleY + 10
+            && Mathf.Abs(ball.Pos.X - _paddleX) <= PaddleWidth / 2 + BallRadius)
+        {
+            float offset = (ball.Pos.X - _paddleX) / (PaddleWidth / 2);
+            ball.Vel = new Vector2(offset * 0.85f, -1f).Normalized() * ball.Vel.Length();
+            Audio.Sfx.Play("play", -12f, 1.4f);
+        }
+
+        if (ball.Pos.Y > Size.Y + 10)
+        {
+            return true;
+        }
+
+        HitBricks(ball);
+        return false;
+    }
+
+    private void HitBricks(Ball ball)
     {
         for (int c = 0; c < BrickCols; c++)
         {
             for (int r = 0; r < BrickRows; r++)
             {
-                if (!_bricks[c, r])
+                if (_bricks[c, r] <= 0)
                 {
                     continue;
                 }
 
                 var rect = BrickRect(c, r).Grow(BallRadius);
-                if (!rect.HasPoint(_ball))
+                if (!rect.HasPoint(ball.Pos))
                 {
                     continue;
                 }
 
-                _bricks[c, r] = false;
-                Score++;
+                // 불공은 한 번에 깨고 튕기지 않고 뚫고 지나갑니다.
+                bool fire = _fireLeft > 0;
+                _bricks[c, r] = fire ? 0 : _bricks[c, r] - 1;
                 Audio.Sfx.Play("draw", -10f, 1.2f + r * 0.08f);
-
-                // 덜 파고든 쪽으로 튕깁니다.
-                float dx = Mathf.Min(_ball.X - rect.Position.X, rect.End.X - _ball.X);
-                float dy = Mathf.Min(_ball.Y - rect.Position.Y, rect.End.Y - _ball.Y);
-                if (dx < dy)
+                if (_bricks[c, r] == 0)
                 {
-                    _velocity.X = -_velocity.X;
-                }
-                else
-                {
-                    _velocity.Y = -_velocity.Y;
+                    Score++;
+                    if (_brickItems[c, r] != PowerUp.None)
+                    {
+                        _drops.Add(new Drop { Pos = BrickRect(c, r).GetCenter(), Kind = _brickItems[c, r] });
+                    }
                 }
 
-                _velocity *= 1.02f;
+                if (!fire)
+                {
+                    // 덜 파고든 쪽으로 튕깁니다.
+                    float dx = Mathf.Min(ball.Pos.X - rect.Position.X, rect.End.X - ball.Pos.X);
+                    float dy = Mathf.Min(ball.Pos.Y - rect.Position.Y, rect.End.Y - ball.Pos.Y);
+                    if (dx < dy)
+                    {
+                        ball.Vel.X = -ball.Vel.X;
+                    }
+                    else
+                    {
+                        ball.Vel.Y = -ball.Vel.Y;
+                    }
+                }
+
                 if (Score >= BrickCols * BrickRows)
                 {
                     // 다 깨면 남은 시간만큼 보너스를 주고 끝냅니다.
@@ -306,36 +405,172 @@ public partial class ArcadeStage : Control
         }
     }
 
+    /// <summary>떨어지는 아이템을 움직이고, 패들로 받으면 효과를 켭니다.</summary>
+    private void UpdateDrops(float dt)
+    {
+        for (int i = _drops.Count - 1; i >= 0; i--)
+        {
+            var drop = _drops[i];
+            drop.Pos.Y += 150f * dt;
+            bool caught = drop.Pos.Y >= PaddleY - 6 && drop.Pos.Y <= PaddleY + 14 && Mathf.Abs(drop.Pos.X - _paddleX) <= PaddleWidth / 2 + 10;
+            if (caught)
+            {
+                ApplyPowerUp(drop.Kind);
+                _drops.RemoveAt(i);
+            }
+            else if (drop.Pos.Y > Size.Y + 12)
+            {
+                _drops.RemoveAt(i);
+            }
+        }
+    }
+
+    private void ApplyPowerUp(PowerUp kind)
+    {
+        _flash = 1f;
+        _powerTextLeft = 1.2f;
+        Audio.Sfx.Play("augment_gain", -8f, 1.3f);
+        switch (kind)
+        {
+            case PowerUp.MultiBall:
+            {
+                // 공마다 좌우로 하나씩 더 만듭니다.
+                _powerText = Loc.Tr("멀티볼!");
+                foreach (var ball in _balls.ToArray())
+                {
+                    foreach (float angle in new[] { -0.45f, 0.45f })
+                    {
+                        if (_balls.Count >= MaxBalls)
+                        {
+                            break;
+                        }
+
+                        var vel = ball.Vel.Rotated(angle);
+                        if (vel.Y > -60f)
+                        {
+                            vel = new Vector2(vel.X, -Mathf.Abs(vel.Y) - 60f);
+                        }
+
+                        _balls.Add(new Ball { Pos = ball.Pos, Vel = vel });
+                    }
+                }
+
+                break;
+            }
+
+            case PowerUp.Wide:
+                _powerText = Loc.Tr("패들 확장!");
+                _wideLeft = WideTime;
+                break;
+            default:
+                _powerText = Loc.Tr("불공! 벽돌을 뚫습니다");
+                _fireLeft = FireTime;
+                break;
+        }
+    }
+
+    private static Color PowerColor(PowerUp kind) => kind switch
+    {
+        PowerUp.MultiBall => Color.FromHtml("#5ec8f0"),
+        PowerUp.Wide => Color.FromHtml("#8fdc6a"),
+        _ => Color.FromHtml("#ff8a3d"),
+    };
+
+    private static string PowerLetter(PowerUp kind) => kind switch
+    {
+        PowerUp.MultiBall => "M",
+        PowerUp.Wide => "W",
+        _ => "F",
+    };
+
     private void DrawBreakout()
     {
-        var colors = new[] { UiTheme.CardColor(CardColor.Red), UiTheme.CardColor(CardColor.Yellow), UiTheme.CardColor(CardColor.Green), UiTheme.CardColor(CardColor.Blue), UiTheme.Gold };
+        var colors = new[]
+        {
+            UiTheme.Silver, UiTheme.CardColor(CardColor.Red), UiTheme.CardColor(CardColor.Yellow),
+            UiTheme.CardColor(CardColor.Green), UiTheme.CardColor(CardColor.Blue), UiTheme.Gold,
+        };
         for (int c = 0; c < BrickCols; c++)
         {
             for (int r = 0; r < BrickRows; r++)
             {
-                if (_bricks[c, r])
+                if (_bricks[c, r] <= 0)
                 {
-                    var rect = BrickRect(c, r);
-                    DrawRect(rect, colors[r].Darkened(0.1f));
-                    DrawRect(new Rect2(rect.Position, new Vector2(rect.Size.X, 4)), colors[r].Lightened(0.25f));
+                    continue;
+                }
+
+                var rect = BrickRect(c, r);
+                var color = colors[r];
+                if (r == 0 && _bricks[c, r] == 1)
+                {
+                    color = color.Darkened(0.35f); // 한 번 맞은 단단한 벽돌
+                }
+
+                DrawRect(rect, color.Darkened(0.1f));
+                DrawRect(new Rect2(rect.Position, new Vector2(rect.Size.X, 4)), color.Lightened(0.25f));
+                if (_brickItems[c, r] != PowerUp.None)
+                {
+                    // 아이템이 든 벽돌은 가운데에 작은 보석이 박혀 있습니다.
+                    DrawCircle(rect.GetCenter(), 3.5f, PowerColor(_brickItems[c, r]).Lightened(0.3f), true, -1f, true);
                 }
             }
         }
 
+        foreach (var drop in _drops)
+        {
+            var box = new Rect2(drop.Pos - new Vector2(13, 8), new Vector2(26, 16));
+            var color = PowerColor(drop.Kind);
+            DrawStyleBox(UiTheme.Box(color.Darkened(0.2f), color.Lightened(0.4f), 1, 8, 0), box);
+            DrawString(UiTheme.Title, new Vector2(box.Position.X, box.Position.Y + 13), PowerLetter(drop.Kind), HorizontalAlignment.Center, box.Size.X, 13, Colors.White);
+        }
+
+        var paddleColor = _wideLeft > 0 ? PowerColor(PowerUp.Wide).Lightened(0.3f) : Colors.White;
         var paddle = new Rect2(_paddleX - PaddleWidth / 2, PaddleY, PaddleWidth, 10);
-        DrawRect(paddle, Colors.White);
-        DrawCircle(_ball, BallRadius, UiTheme.Gold, true, -1f, true);
+        DrawStyleBox(UiTheme.Box(paddleColor, paddleColor, 0, 5, 0), paddle);
+
+        foreach (var ball in _balls)
+        {
+            if (_fireLeft > 0)
+            {
+                DrawCircle(ball.Pos - ball.Vel.Normalized() * 6, BallRadius * 1.1f, new Color(1f, 0.45f, 0.1f, 0.35f), true, -1f, true);
+                DrawCircle(ball.Pos, BallRadius + 1.5f, Color.FromHtml("#ff8a3d"), true, -1f, true);
+                DrawCircle(ball.Pos, BallRadius * 0.55f, Color.FromHtml("#fff1c1"), true, -1f, true);
+            }
+            else
+            {
+                DrawCircle(ball.Pos, BallRadius, UiTheme.Gold, true, -1f, true);
+            }
+        }
 
         for (int i = 0; i < 3; i++)
         {
             DrawCircle(new Vector2(Size.X - 16 - i * 16, 14), 5f, i < _lives ? UiTheme.Gold : new Color(1, 1, 1, 0.15f), true, -1f, true);
         }
+
+        // 속도계: 공이 얼마나 빨라졌는지 보여 줍니다.
+        float ratio = _balls.Count > 0 ? _balls[0].Vel.Length() / 330f : 1f;
+        DrawString(UiTheme.Bold, new Vector2(10, 20), Loc.Tr($"속도 x{ratio:0.0}"), HorizontalAlignment.Left, -1, 12,
+            ratio >= 1.6f ? UiTheme.Danger : UiTheme.TextDim);
+
+        if (_powerTextLeft > 0)
+        {
+            float a = Mathf.Clamp(_powerTextLeft / 0.4f, 0, 1);
+            DrawString(UiTheme.Title, new Vector2(0, Size.Y * 0.55f), _powerText, HorizontalAlignment.Center, Size.X, 30, new Color(UiTheme.Gold, a));
+        }
+
+        if (_flash > 0)
+        {
+            DrawRect(new Rect2(Vector2.Zero, Size), new Color(1, 1, 1, 0.12f * _flash));
+        }
     }
 
     // ───────────── 두더지 카드 ─────────────
+    // 카드가 구멍 안에서 쑥 올라왔다가 다시 내려갑니다. (크기는 그대로, 구멍 앞쪽 흙이 카드 아랫부분을 가립니다)
 
     private List<ArcadeRules.Mole> _moles = new();
-    private bool[] _moleHit = Array.Empty<bool>();
+    private float[] _moleHitAt = Array.Empty<float>();
+
+    private static readonly Color WhackGround = Color.FromHtml("#17261c");
 
     private Rect2 HoleRect(int hole)
     {
@@ -344,17 +579,72 @@ public partial class ArcadeStage : Control
         return new Rect2(origin + new Vector2(hole % 3 * cell, hole / 3 * cell), new Vector2(cell, cell));
     }
 
+    private Vector2 HoleCenter(Rect2 rect) => rect.GetCenter() + new Vector2(0, rect.Size.Y * 0.3f);
+
+    private Vector2 CardSize(Rect2 rect) => new(rect.Size.X * 0.4f, rect.Size.X * 0.56f);
+
+    /// <summary>카드가 구멍 위로 얼마나 올라왔는지(0~1)입니다. 빠르게 튀어 오르고, 잠깐 머문 뒤 내려갑니다. 맞으면 쑥 들어갑니다.</summary>
+    private float MoleRise(int i)
+    {
+        var mole = _moles[i];
+        float age = _time - mole.Time;
+        float life = ArcadeRules.MoleLife;
+        if (age < 0 || age > life)
+        {
+            return 0;
+        }
+
+        if (_moleHitAt[i] >= 0)
+        {
+            float since = _time - _moleHitAt[i];
+            float atHit = RiseCurve(_moleHitAt[i] - mole.Time, life);
+            return Mathf.Max(0, atHit * (1 - since / 0.12f));
+        }
+
+        return RiseCurve(age, life);
+    }
+
+    private static float RiseCurve(float age, float life)
+    {
+        const float up = 0.16f;
+        const float down = 0.2f;
+        if (age < up)
+        {
+            // 살짝 넘쳤다가 자리 잡는 튀어오름
+            float t = age / up;
+            float c = 1.7f;
+            return 1 + (c + 1) * Mathf.Pow(t - 1, 3) + c * Mathf.Pow(t - 1, 2);
+        }
+
+        if (age > life - down)
+        {
+            float t = (life - age) / down;
+            return t * t;
+        }
+
+        return 1;
+    }
+
     private void WhackAt(Vector2 point)
     {
         for (int i = 0; i < _moles.Count; i++)
         {
             var mole = _moles[i];
-            if (_moleHit[i] || _time < mole.Time || _time > mole.Time + ArcadeRules.MoleLife || !HoleRect(mole.Hole).HasPoint(point))
+            if (_moleHitAt[i] >= 0 || MoleRise(i) < 0.35f)
             {
                 continue;
             }
 
-            _moleHit[i] = true;
+            var rect = HoleRect(mole.Hole);
+            var size = CardSize(rect);
+            var bottom = HoleCenter(rect);
+            var card = new Rect2(bottom - new Vector2(size.X / 2, size.Y * MoleRise(i)), size).Grow(8);
+            if (!card.HasPoint(point))
+            {
+                continue;
+            }
+
+            _moleHitAt[i] = _time;
             Score = Math.Max(0, Score + (mole.Bomb ? -2 : 1));
             Audio.Sfx.Play(mole.Bomb ? "error" : "play_action", mole.Bomb ? -4f : -8f, 1.2f);
             return;
@@ -363,47 +653,87 @@ public partial class ArcadeStage : Control
 
     private void DrawWhack()
     {
+        // 0) 잔디 바닥
+        DrawRect(new Rect2(Vector2.Zero, Size), WhackGround);
+
+        // 1) 구멍 안쪽 (어두운 타원)
         for (int hole = 0; hole < 9; hole++)
         {
             var rect = HoleRect(hole);
-            var center = rect.GetCenter() + new Vector2(0, rect.Size.Y * 0.28f);
-            DrawSetTransform(center, 0, new Vector2(1f, 0.35f));
-            DrawCircle(Vector2.Zero, rect.Size.X * 0.36f, Color.FromHtml("#1b2130"), true, -1f, true);
+            var center = HoleCenter(rect);
+            float rx = rect.Size.X * 0.34f;
+            DrawSetTransform(center, 0, new Vector2(1f, 0.32f));
+            DrawCircle(Vector2.Zero, rx + 5, Color.FromHtml("#3a2c22"), true, -1f, true);
+            DrawCircle(Vector2.Zero, rx, Color.FromHtml("#07080c"), true, -1f, true);
             DrawSetTransform(Vector2.Zero, 0, Vector2.One);
         }
 
+        // 2) 카드 (크기는 그대로, 올라온 만큼 위로)
         for (int i = 0; i < _moles.Count; i++)
         {
+            if (_countdown > 0)
+            {
+                break;
+            }
+
+            float rise = MoleRise(i);
+            if (rise <= 0.01f)
+            {
+                continue;
+            }
+
             var mole = _moles[i];
-            float age = _time - mole.Time;
-            if (age < 0 || age > ArcadeRules.MoleLife || _countdown > 0)
-            {
-                continue;
-            }
-
-            // 튀어올랐다가 들어갑니다.
-            float up = Mathf.Sin(Mathf.Pi * age / ArcadeRules.MoleLife);
             var rect = HoleRect(mole.Hole);
-            var size = new Vector2(rect.Size.X * 0.42f, rect.Size.X * 0.58f);
-            var bottom = rect.GetCenter() + new Vector2(0, rect.Size.Y * 0.28f);
-            var card = new Rect2(bottom - new Vector2(size.X / 2, size.Y * up), new Vector2(size.X, size.Y * up));
-            if (card.Size.Y < 2)
-            {
-                continue;
-            }
-
-            var bg = _moleHit[i] ? new Color(0.3f, 0.3f, 0.3f) : mole.Bomb ? Color.FromHtml("#b3261e") : Color.FromHtml("#1d2340");
-            DrawRect(card, bg);
-            DrawRect(card, mole.Bomb ? Colors.White : UiTheme.Gold, false, 2f);
-            var mid = card.GetCenter();
+            var size = CardSize(rect);
+            var bottom = HoleCenter(rect);
+            var card = new Rect2(bottom - new Vector2(size.X / 2, size.Y * rise), size);
+            bool hit = _moleHitAt[i] >= 0;
+            var bg = hit ? new Color(0.35f, 0.35f, 0.38f) : mole.Bomb ? Color.FromHtml("#b3261e") : Color.FromHtml("#1d2340");
+            var border = mole.Bomb ? Colors.White : UiTheme.Gold;
+            DrawStyleBox(UiTheme.Box(bg, border, 2, 7, 0), card);
+            DrawStyleBox(UiTheme.Box(new Color(0, 0, 0, 0), new Color(border, 0.35f), 1, 5, 0), card.Grow(-5));
+            var mid = card.Position + new Vector2(size.X / 2, size.Y * 0.45f);
             if (mole.Bomb)
             {
-                DrawString(UiTheme.Title, new Vector2(card.Position.X, mid.Y + 14), "!", HorizontalAlignment.Center, card.Size.X, 36, Colors.White);
+                DrawCircle(mid + new Vector2(0, 3), size.X * 0.22f, Color.FromHtml("#1a1a1a"), true, -1f, true);
+                DrawLine(mid + new Vector2(size.X * 0.12f, -size.X * 0.14f), mid + new Vector2(size.X * 0.22f, -size.X * 0.3f), Color.FromHtml("#e8c07a"), 2, true);
+                DrawCircle(mid + new Vector2(size.X * 0.22f, -size.X * 0.3f), 3 + Mathf.Sin(_time * 40) * 1.2f, Color.FromHtml("#ffb347"), true, -1f, true);
             }
-            else if (card.Size.Y > 20)
+            else
             {
-                SuitIcons.DrawStar(this, mid, Mathf.Min(14f, card.Size.Y * 0.25f), UiTheme.Gold);
+                SuitIcons.DrawStar(this, mid, size.X * 0.24f, hit ? UiTheme.TextDim : UiTheme.Gold);
             }
+
+            if (hit)
+            {
+                float since = _time - _moleHitAt[i];
+                DrawString(UiTheme.Title, new Vector2(card.Position.X - 20, card.Position.Y - 6 - since * 60), mole.Bomb ? "-2" : "+1",
+                    HorizontalAlignment.Center, card.Size.X + 40, 26, mole.Bomb ? UiTheme.Danger : UiTheme.Gold);
+            }
+        }
+
+        // 3) 구멍 앞쪽 흙: 구멍 가운데 줄 아래를 덮어서 카드가 구멍 속에서 올라오는 것처럼 보이게 합니다.
+        for (int hole = 0; hole < 9; hole++)
+        {
+            var rect = HoleRect(hole);
+            var center = HoleCenter(rect);
+            float rx = rect.Size.X * 0.34f;
+            DrawRect(new Rect2(rect.Position.X, center.Y, rect.Size.X, rect.End.Y - center.Y), WhackGround);
+            // 앞쪽 테두리 (아래 반원)
+            var points = new List<Vector2>();
+            for (int k = 0; k <= 24; k++)
+            {
+                float angle = Mathf.Pi * k / 24f;
+                points.Add(center + new Vector2(Mathf.Cos(angle) * (rx + 5), Mathf.Sin(angle) * (rx + 5) * 0.32f));
+            }
+
+            for (int k = 24; k >= 0; k--)
+            {
+                float angle = Mathf.Pi * k / 24f;
+                points.Add(center + new Vector2(Mathf.Cos(angle) * rx, Mathf.Sin(angle) * rx * 0.32f));
+            }
+
+            DrawColoredPolygon(points.ToArray(), Color.FromHtml("#5a4432"));
         }
     }
 

@@ -446,13 +446,6 @@ text = "턴 넘기기"
 custom_minimum_size = Vector2(120, 42)
 layout_mode = 2
 
-[node name="YachtBar" type="HBoxContainer" parent="Layout/Root/Left"]
-unique_name_in_owner = true
-theme_override_constants/separation = 6
-visible = false
-alignment = 1
-layout_mode = 2
-
 [node name="Hand" type="Control" parent="Layout/Root/Left"]
 script = ExtResource("8_r")
 unique_name_in_owner = true

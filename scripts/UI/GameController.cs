@@ -145,8 +145,6 @@ public partial class GameController : Control
     private GuideView _guide = null!;
     private MinigameOverlay _minigame = null!;
     private ArcadeOverlay _arcade = null!;
-    private HBoxContainer _yachtBar = null!;
-    private string _yachtSignature = "";
     private CheckButton _themeToggle = null!;
     private CheckButton _soloThemeToggle = null!;
     private Control _lobbyMenu = null!;
@@ -960,8 +958,8 @@ public partial class GameController : Control
         RefreshMinigame(view, finished);
         RefreshArcade(view, finished);
         ShowThemeBannerWhenFree(view);
-        RefreshYachtBar(view, finished);
         _themeTable.SetView(view, seat => _session!.NameOf(seat));
+        _backdrop.SetTheme(view.Theme, view.Board?.BombDanger ?? false);
 
         if (finished)
         {
@@ -1436,6 +1434,10 @@ public partial class GameController : Control
 
         var names = _session.LobbyNames;
         bool isHost = _session.IsHost;
+        if (!_session.Playing)
+        {
+            _backdrop.SetTheme(ThemeId.None);
+        }
 
         foreach (var child in _roomPlayers.GetChildren())
         {
@@ -1667,10 +1669,6 @@ public partial class GameController : Control
         {
             parts.Add($"별 {view.Stars[seat]}/{ArcadeRules.StarsToWin}");
         }
-        else if (view.Theme == ThemeId.Yacht && seat < view.YachtDone.Length)
-        {
-            parts.Add($"족보 {view.YachtDone[seat].Count}/{YachtRules.CategoriesToWin}");
-        }
         else if (view.Board is { } board && seat < board.RacePos.Length)
         {
             switch (view.Theme)
@@ -1734,61 +1732,6 @@ public partial class GameController : Control
         else if (_arcade.Visible && !_arcade.ShowingResult)
         {
             _arcade.Close();
-        }
-    }
-
-    /// <summary>
-    /// 야추 족보판입니다. 등록한 족보는 금색, 지금 등록할 수 있는 족보는 눌러서 등록, 나머지는 흐리게 보입니다.
-    /// </summary>
-    private void RefreshYachtBar(PlayerView view, bool finished)
-    {
-        bool show = view.Theme == ThemeId.Yacht && !finished;
-        _yachtBar.Visible = show;
-        if (!show)
-        {
-            return;
-        }
-
-        var done = view.PlayerId < view.YachtDone.Length ? view.YachtDone[view.PlayerId] : Array.Empty<YachtCategory>();
-        string signature = string.Join(",", done) + "|" + string.Join(",", view.YachtOptions);
-        if (signature == _yachtSignature)
-        {
-            return;
-        }
-
-        _yachtSignature = signature;
-        foreach (var child in _yachtBar.GetChildren())
-        {
-            child.QueueFree();
-        }
-
-        _yachtBar.AddChild(UiTheme.MakeLabel($"족보 {done.Count}/{YachtRules.CategoriesToWin}", 14, UiTheme.Gold));
-        foreach (var category in YachtRules.All)
-        {
-            bool registered = done.Contains(category);
-            bool available = view.YachtOptions.Contains(category);
-            var button = new Button
-            {
-                Text = registered ? $"✓ {YachtRules.Name(category)}" : YachtRules.Name(category),
-                TooltipText = YachtRules.Describe(category),
-                FocusMode = FocusModeEnum.None,
-                Disabled = !available,
-                CustomMinimumSize = new Vector2(96, 32),
-                MouseDefaultCursorShape = available ? CursorShape.PointingHand : CursorShape.Arrow,
-            };
-            UiTheme.StyleButton(button, available ? UiTheme.ButtonKind.Primary : UiTheme.ButtonKind.Secondary, 13);
-            if (registered)
-            {
-                button.Modulate = new Color(1f, 0.85f, 0.4f);
-            }
-            else if (!available)
-            {
-                button.Modulate = new Color(1, 1, 1, 0.5f);
-            }
-
-            var chosen = category;
-            button.Pressed += () => _session?.Submit(PlayerAction.YachtRegister(chosen));
-            _yachtBar.AddChild(button);
         }
     }
 
@@ -2009,12 +1952,6 @@ public partial class GameController : Control
                 }
 
                 _bingoLines[e.Player] = e.Target;
-                break;
-
-            case GameEventType.YachtRegistered:
-                _fx.FloatText(SeatAnchor(e.Player), $"{e.Text}!", UiTheme.Gold, me ? 44 : 32, 0.7f);
-                _fx.Ring(SeatAnchor(e.Player), UiTheme.Gold, 170, 0.5f);
-                Audio.Sfx.Play("augment_gain", me ? 0f : -5f);
                 break;
 
             case GameEventType.JackpotSpun:
@@ -2319,6 +2256,10 @@ public partial class GameController : Control
         _colorPill = GetNode<PanelContainer>("%ColorPill");
         _themeTable = new ThemeTableView { Visible = false };
         _table.AddChild(_themeTable);
+        var felt = GetNode<TextureRect>("Felt");
+        _backdrop = new ThemeBackdrop();
+        felt.AddSibling(_backdrop);
+        _backdrop.Attach(felt);
         _colorPillLabel = GetNode<Label>("%ColorPillLabel");
         _penaltyBadge = GetNode<PanelContainer>("%PenaltyBadge");
         _penaltyLabel = GetNode<Label>("%PenaltyLabel");
@@ -2398,7 +2339,6 @@ public partial class GameController : Control
         _minigame.Submitted += action => _session?.Submit(action);
         _arcade = GetNode<ArcadeOverlay>("%Arcade");
         _arcade.Submitted += score => _session?.Submit(PlayerAction.ArcadeScore(score));
-        _yachtBar = GetNode<HBoxContainer>("%YachtBar");
         BindLobby();
         BindSettings();
 
@@ -2662,6 +2602,7 @@ public partial class GameController : Control
     }
 
     private ThemeTableView _themeTable = null!;
+    private ThemeBackdrop _backdrop = null!;
     private readonly System.Collections.Generic.Dictionary<int, int> _bingoLines = new();
 
     // ───────────── UI 생성 ─────────────

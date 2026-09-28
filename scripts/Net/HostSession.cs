@@ -487,13 +487,6 @@ public sealed class HostSession : GameSession
     /// <summary>개발용: 미니게임 대회에서 봇들이 바로 점수를 내게 합니다.</summary>
     public void DebugFinishArcadeBots() => _arcadeElapsed = 999f;
 
-    /// <summary>개발용: 족보를 만들기 좋은 카드를 내 손에 넣습니다.</summary>
-    public void DebugYachtHand()
-    {
-        _engine?.DebugYachtHand(MySeat);
-        Broadcast();
-    }
-
     /// <summary>개발용: 게임 중에도 다음 판 테마를 정합니다.</summary>
     public void DebugForceNextTheme(ThemeId theme) => RoomOptions = RoomOptions with { ForcedTheme = (int)theme };
 

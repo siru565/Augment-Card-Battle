@@ -520,13 +520,6 @@ public class RuleBasedBot : IBot
             return BotUtil.MakeAbilityChoice(view, best, rng, randomChoices: false);
         }
 
-        // 야추 테마: 등록할 수 있는 족보가 있으면 어려운 것부터 등록합니다.
-        if (view.YachtOptions.Count > 0)
-        {
-            var best = view.YachtOptions.OrderByDescending(c => (int)c).First();
-            return PlayerAction.YachtRegister(best);
-        }
-
         if (view.PlayableCardIds.Count == 0)
         {
             return BotUtil.NoPlayableAction(view);
