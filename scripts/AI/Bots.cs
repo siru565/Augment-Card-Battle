@@ -180,6 +180,12 @@ public static class BotUtil
             return PlayerAction.ChooseDraw(playable.Count > 0 ? playable[rng.Next(playable.Count)] : rng.Next(view.DrawChoices.Count));
         }
 
+        // 교환: 보여 준 상대 카드 중 가장 쓸모 있는 카드를 가져옵니다.
+        if (view.SwapChoices.Count > 0)
+        {
+            return PlayerAction.ChooseSwap(randomChoices ? rng.Next(view.SwapChoices.Count) : BestSwap(view));
+        }
+
         if (view.AugmentChoices.Count > 0)
         {
             int index = randomChoices
@@ -405,6 +411,24 @@ public static class BotUtil
         }
 
         return best < 0 ? 0 : best >= BingoRules.LinesToWin ? 600 : best > before ? 90 : 25;
+    }
+
+    /// <summary>교환으로 가져올 카드를 고릅니다. 프리즘·공격 카드 > 내 손에 많은 문양 > 큰 숫자</summary>
+    private static int BestSwap(PlayerView view)
+    {
+        int Value(Card card)
+        {
+            if (card.IsWild)
+            {
+                return 1000;
+            }
+
+            int value = Card.IsDrawAttack(card.Kind) ? 500 : card.IsAction ? 200 : 0;
+            value += view.Hand.Count(c => c.Color == card.Color) * 20;
+            return value + Math.Max(card.Number, 0);
+        }
+
+        return Enumerable.Range(0, view.SwapChoices.Count).OrderByDescending(i => Value(view.SwapChoices[i])).First();
     }
 
     public static bool Has(PlayerView view, string augmentName) =>

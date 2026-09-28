@@ -111,7 +111,7 @@ public sealed record Card(int Id, CardColor Color, CardKind Kind, int Number = -
             $"다음 사람에게 +{DrawAmount(kind)} 공격! 받은 사람은 문양에 상관없이 같은 +{DrawAmount(kind)}이나 프리즘 +4를 얹어 합산해서 넘길 수 있고, 못 넘기면 자기 차례에 모두 받습니다.",
         CardKind.Wild => "아무 때나 낼 수 있고, 원하는 문양으로 바꿉니다.",
         CardKind.WildDrawFour => "원하는 문양으로 바꾸고 다음 사람에게 +4 공격! 어떤 +카드 위에도 얹을 수 있고, 받은 사람은 +1·+2·+3·+4 무엇이든 얹어 넘길 수 있습니다.",
-        CardKind.Swap => "지정한 상대와 무작위 카드를 1장씩 맞바꿉니다.",
+        CardKind.Swap => "지정한 상대의 카드 3장을 보고 1장을 골라 가져옵니다. 내 카드 1장(무작위)을 대신 줍니다.",
         CardKind.Seal => "지정한 상대는 다음 차례에 숫자 카드만 낼 수 있습니다.",
         CardKind.Copy => "직전에 발동한 카드 효과를 한 번 더 발동합니다.",
         CardKind.Frenzy => "이번 턴에 같은 문양 숫자 카드를 원하는 만큼 연달아 냅니다. 다 내면 '폭주 끝내기'를 누릅니다.",

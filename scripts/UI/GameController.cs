@@ -556,6 +556,8 @@ public partial class GameController : Control
         }
 
         _bingoLines.Clear();
+        _minigame.Forget();
+        _arcade.Forget();
         Audio.Sfx.Play("deal", -4f);
         Audio.Music.SetInGame(true);
         _wasMyTurn = false;
@@ -955,6 +957,7 @@ public partial class GameController : Control
         RefreshAbilityOverlay(view);
         RefreshAugmentOverlay(view);
         RefreshGambleOverlay(view);
+        RefreshSwapOverlay(view);
         RefreshMinigame(view, finished);
         RefreshArcade(view, finished);
         ShowThemeBannerWhenFree(view);
@@ -1635,7 +1638,9 @@ public partial class GameController : Control
     private void RefreshMinigame(PlayerView view, bool finished)
     {
         var game = view.Minigame;
-        if (game != null && !finished && game.Id != _minigame.ShownId)
+        // 내가 해야 하는 미니게임인데 창이 닫혀 있으면 다시 엽니다. (창이 안 떠서 게임이 멈추는 일이 없게)
+        bool mineHidden = game != null && game.Player == view.PlayerId && !_minigame.Visible;
+        if (game != null && !finished && (game.Id != _minigame.ShownId || mineHidden))
         {
             bool mine = game.Player == view.PlayerId;
             _minigame.Open(game, mine, _session!.NameOf(game.Player));
@@ -1720,7 +1725,7 @@ public partial class GameController : Control
     {
         if (view.Arcade is { } arcade && !finished)
         {
-            if (arcade.Id != _arcade.ShownId)
+            if (arcade.Id != _arcade.ShownId || (view.MyArcade != null && !_arcade.Visible))
             {
                 _arcade.Open(arcade, view.PlayerId);
             }
@@ -1905,6 +1910,16 @@ public partial class GameController : Control
             case GameEventType.ArcadeResult:
                 _arcade.ShowResult(e, seat => _session!.NameOf(seat), _session?.View?.Stars ?? Array.Empty<int>());
                 Audio.Sfx.Play(e.Target == _session?.MySeat ? "win" : "augment_gain", -2f);
+                break;
+
+            case GameEventType.CardsSwapped:
+                _fx.FloatText(SeatAnchor(e.Player), "교환!", UiTheme.Gold, me ? 40 : 30, 0.5f);
+                if (targetMe && e.Card != null)
+                {
+                    ShowToast($"{who}가 내 [{e.Card}]을 가져갔습니다", UiTheme.Danger);
+                }
+
+                Audio.Sfx.Play("play_action", -4f, 1.1f);
                 break;
 
             case GameEventType.BossHit:
@@ -2306,6 +2321,7 @@ public partial class GameController : Control
         var gamble = GetNode<ChoiceOverlay>("%GambleOverlay");
         _gambleOverlay = gamble;
         _gambleRow = gamble.Row;
+        _swapOverlay = GetNode<ChoiceOverlay>("%SwapOverlay");
 
         // 결과 화면 (screens/GameOver.tscn)
         _gameOverOverlay = GetNode<Control>("%GameOver");
@@ -2646,6 +2662,48 @@ public partial class GameController : Control
         }
 
         _gambleOverlay.Visible = show;
+    }
+
+    // ───────────── 교환 카드 선택 창 ─────────────
+
+    private ChoiceOverlay _swapOverlay = null!;
+    private string _swapSignature = "";
+
+    /// <summary>교환 카드: 상대 카드 몇 장을 펼쳐 보여 주고, 누른 카드를 가져옵니다.</summary>
+    private void RefreshSwapOverlay(PlayerView view)
+    {
+        bool show = view.SwapChoices.Count > 0 && !view.Winner.HasValue;
+        string signature = string.Join(",", view.SwapChoices.Select(c => c.Id));
+        if (show && signature != _swapSignature)
+        {
+            _swapSignature = signature;
+            _swapOverlay.SubtitleLabel.Text = $"{_session!.NameOf(view.SwapTarget)}의 카드 {view.SwapChoices.Count}장 중 1장을 골라 가져옵니다. 내 카드 1장(무작위)을 대신 줍니다.";
+            foreach (var child in _swapOverlay.Row.GetChildren())
+            {
+                child.QueueFree();
+            }
+
+            for (int i = 0; i < view.SwapChoices.Count; i++)
+            {
+                int index = i;
+                var card = new CardView
+                {
+                    Card = view.SwapChoices[i],
+                    CustomMinimumSize = new Vector2(150, 216),
+                    Playable = true,
+                    LiftOnHover = true,
+                };
+                card.Clicked += _ => Submit(PlayerAction.ChooseSwap(index));
+                _swapOverlay.Row.AddChild(card);
+            }
+        }
+
+        if (!show)
+        {
+            _swapSignature = "";
+        }
+
+        _swapOverlay.Visible = show;
     }
 
     // ───────────── 설정 창 ─────────────

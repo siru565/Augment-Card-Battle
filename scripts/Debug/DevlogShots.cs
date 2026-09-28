@@ -270,6 +270,23 @@ public partial class DevlogShots : Node
             }
         }
 
+        // 8-5. 교환 카드: 상대 카드 3장 중 1장 고르기 (마지막 테마 판에서 내 차례에 바로 띄웁니다)
+        if (_game.IsHumanTurn)
+        {
+            Host.DebugEditState(s =>
+            {
+                var opponent = s.Players.First(p => p.Id != View.PlayerId && p.Active && p.Hand.Count > 0);
+                s.SwapChoices.Clear();
+                s.SwapChoices.AddRange(opponent.Hand.Take(3));
+                s.SwapTarget = opponent.Id;
+            });
+            await Wait(0.6);
+            await Capture("39_swap_choice.png");
+            _game.Session!.Submit(PlayerAction.ChooseSwap(0));
+            await Wait(0.8);
+            await Capture("40_swap_done.png");
+        }
+
         _game.DebugForcedTheme = -2;
 
         // 9. 대기방

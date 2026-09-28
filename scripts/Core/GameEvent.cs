@@ -42,6 +42,9 @@ public enum GameEventType
     ArcadeResult,
 
 
+    /// <summary>교환 카드로 카드를 맞바꿨습니다. Player = 낸 사람, Target = 상대, Card = 가져온 카드</summary>
+    CardsSwapped,
+
     /// <summary>빙고 칸이 찍혔습니다. Amount = 칸 번호(0~8), Target = 완성한 줄 수</summary>
     BingoMarked,
 

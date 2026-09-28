@@ -27,6 +27,16 @@ public partial class MinigameOverlay : ColorRect
     /// <summary>지금 보여 주는 미니게임 번호입니다. (같은 미니게임을 두 번 열지 않게)</summary>
     public int ShownId { get; private set; } = -1;
 
+    /// <summary>
+    /// 새 게임을 시작할 때 부릅니다. 게임마다 번호가 1부터 다시 매겨지므로,
+    /// 이전 게임의 번호를 기억하고 있으면 새 게임의 같은 번호를 "이미 연 것"으로 착각해서 창이 안 뜹니다.
+    /// </summary>
+    public void Forget()
+    {
+        ShownId = -1;
+        Visible = false;
+    }
+
     public override void _Ready()
     {
         _title = GetNode<Label>("%Title");

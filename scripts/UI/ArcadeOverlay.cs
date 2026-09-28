@@ -27,6 +27,16 @@ public partial class ArcadeOverlay : ColorRect
 
     public int ShownId { get; private set; } = -1;
 
+    /// <summary>
+    /// 새 게임을 시작할 때 부릅니다. 게임마다 번호가 1부터 다시 매겨지므로,
+    /// 이전 게임의 번호를 기억하고 있으면 새 게임의 같은 번호를 "이미 연 것"으로 착각해서 창이 안 뜹니다.
+    /// </summary>
+    public void Forget()
+    {
+        ShownId = -1;
+        Visible = false;
+    }
+
     /// <summary>결과를 보여 주는 중이면 true입니다. (그동안 게임 상태가 바뀌어도 닫지 않습니다)</summary>
     public bool ShowingResult => _closeAt > 0;
 

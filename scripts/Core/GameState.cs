@@ -133,6 +133,11 @@ public sealed class GameState
     /// <summary>도박사 증강으로 뽑은 2장입니다. 비어 있지 않으면 현재 플레이어가 한 장을 골라야 합니다.</summary>
     public List<Card> GambleCards { get; } = new();
 
+    /// <summary>교환 카드: 상대 손패에서 펼쳐 보여 준 카드들과 그 상대입니다. 차례인 사람이 1장을 고릅니다.</summary>
+    public List<Card> SwapChoices { get; } = new();
+
+    public int SwapTarget { get; set; } = -1;
+
     /// <summary>지배자 증강: 이번 각성에서 두 번째 능력을 고르는 중인지 표시합니다.</summary>
     public bool AwakenSecondPick { get; set; }
 
@@ -277,7 +282,7 @@ public sealed class GameState
     public PlayerView ViewFor(int playerId)
     {
         bool myTurn = CurrentPlayer == playerId && !IsFinished && Players[playerId].Active;
-        bool blocked = ChoosingAbility || ChoosingAugment || PayingDebt || Drafting || GambleCards.Count > 0 || PendingMinigame != null || Arcade != null;
+        bool blocked = ChoosingAbility || ChoosingAugment || PayingDebt || Drafting || GambleCards.Count > 0 || SwapChoices.Count > 0 || PendingMinigame != null || Arcade != null;
         var me = Players[playerId];
         var hand = me.Hand.ToList();
 
@@ -357,12 +362,14 @@ public sealed class GameState
             Winner: Winner)
         {
             // 특수 증강 고르기나 억지 뽑기가 먼저 끝나야 미니게임을 합니다. (엔진도 같은 순서로 받습니다)
-            Minigame = ChoosingAugment || PayingDebt || Drafting || GambleCards.Count > 0 ? null : PendingMinigame,
+            Minigame = ChoosingAugment || PayingDebt || Drafting || GambleCards.Count > 0 || SwapChoices.Count > 0 ? null : PendingMinigame,
             WinGoals = Players.Select(WinGoalsOf).ToArray(),
             Theme = Theme,
             Stars = Players.Select(p => p.Stars).ToArray(),
             Arcade = Arcade == null ? null : new ArcadeInfo(Arcade.Id, Arcade.Game, Arcade.Seed, Arcade.Players, Arcade.Scores.Keys.ToArray()),
             Board = ThemeBoardFor(playerId),
+            SwapChoices = myTurn ? SwapChoices.ToList() : new List<Card>(),
+            SwapTarget = SwapChoices.Count > 0 ? SwapTarget : -1,
         };
     }
 
@@ -536,6 +543,12 @@ public sealed record PlayerView(
 
     /// <summary>진행 중인 미니게임 대회입니다.</summary>
     public ArcadeInfo? Arcade { get; init; }
+
+    /// <summary>교환 카드: 내가 고를 수 있는 상대 카드들입니다. (내 차례일 때만)</summary>
+    public IReadOnlyList<Card> SwapChoices { get; init; } = Array.Empty<Card>();
+
+    /// <summary>교환 카드로 카드를 고르는 중인 상대 자리입니다. 없으면 -1 (모두에게 보입니다)</summary>
+    public int SwapTarget { get; init; } = -1;
 
     /// <summary>빙고 · 레이스 · 영토 · 임무 · 보스 · 폭탄 테마의 공개 정보입니다. (그 외 테마면 null)</summary>
     public ThemeBoard? Board { get; init; }

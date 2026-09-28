@@ -13,6 +13,7 @@ public enum ActionType
     ChooseAugment,
     ForcedDraw,
     ChooseDraw,
+    ChooseSwap,
     Minigame,
     ArcadeScore,
 }
@@ -52,6 +53,9 @@ public readonly record struct PlayerAction(
 
     /// <summary>도박사: 뽑은 2장 중 index번째를 가집니다.</summary>
     public static PlayerAction ChooseDraw(int index) => new(ActionType.ChooseDraw, index);
+
+    /// <summary>교환 카드: 상대 카드 중 가져올 카드(보여 준 카드의 번호)를 고릅니다.</summary>
+    public static PlayerAction ChooseSwap(int index) => new(ActionType.ChooseSwap, index);
 
     /// <summary>특수 증강 선택지 중 index번째를 고릅니다.</summary>
     public static PlayerAction ChooseAugment(int index) => new(ActionType.ChooseAugment, index);
@@ -213,6 +217,12 @@ public sealed class GameEngine
         else if (playerId != State.CurrentPlayer)
         {
             return ActionResult.Fail("자기 차례가 아닙니다.");
+        }
+        else if (State.SwapChoices.Count > 0)
+        {
+            result = action.Type == ActionType.ChooseSwap
+                ? TryChooseSwap(playerId, action.CardId)
+                : ActionResult.Fail("먼저 가져올 카드를 골라야 합니다.");
         }
         else if (State.GambleCards.Count > 0)
         {
@@ -699,6 +709,12 @@ public sealed class GameEngine
                 return Punish(Card.DrawAmount(kind), kind);
 
             case CardKind.Swap:
+                // 낸 사람이 아직 게임 중이면 상대 카드 몇 장을 보고 직접 고릅니다. (손패를 다 내서 빠졌으면 예전처럼 무작위)
+                if (State.IsActive(current) && StartSwapChoice(current, target))
+                {
+                    return null;
+                }
+
                 SwapRandomCards(current, target);
                 return 1;
 
@@ -819,6 +835,55 @@ public sealed class GameEngine
         handA.Add(cardB);
         handB.Add(cardA);
         Emit($"    → {NameOf(a)}와 {NameOf(b)}가 카드 1장을 맞바꿨습니다.");
+    }
+
+    /// <summary>교환 카드로 볼 수 있는 상대 카드 수입니다.</summary>
+    public const int SwapReveal = 3;
+
+    /// <summary>교환: 상대 손패에서 무작위로 몇 장을 펼쳐 보여 줍니다. 바꿀 카드가 없으면 false</summary>
+    private bool StartSwapChoice(int current, int target)
+    {
+        var mine = State.Players[current].Hand;
+        var theirs = State.Players[target].Hand;
+        if (mine.Count == 0 || theirs.Count == 0)
+        {
+            return false;
+        }
+
+        State.SwapChoices.Clear();
+        State.SwapChoices.AddRange(theirs.OrderBy(_ => Rng.Next()).Take(SwapReveal));
+        State.SwapTarget = target;
+        Emit($"    → {NameOf(current)}가 {NameOf(target)}의 카드 {State.SwapChoices.Count}장 중 가져올 카드를 고르는 중입니다.");
+        return true;
+    }
+
+    private ActionResult TryChooseSwap(int playerId, int index)
+    {
+        if (index < 0 || index >= State.SwapChoices.Count)
+        {
+            return ActionResult.Fail("잘못된 선택입니다.");
+        }
+
+        int target = State.SwapTarget;
+        var taken = State.SwapChoices[index];
+        State.SwapChoices.Clear();
+        State.SwapTarget = -1;
+
+        var mine = State.Players[playerId].Hand;
+        var theirs = State.Players[target].Hand;
+        if (theirs.Remove(taken) && mine.Count > 0)
+        {
+            // 내 카드는 무작위로 한 장 넘겨줍니다. (가져온 카드는 빼고)
+            var given = mine[Rng.Next(mine.Count)];
+            mine.Remove(given);
+            mine.Add(taken);
+            theirs.Add(given);
+            Emit($"    → {NameOf(playerId)}가 {NameOf(target)}의 [{taken}]을 가져가고 카드 1장을 넘겨줬습니다.");
+            Raise(new GameEvent(GameEventType.CardsSwapped, playerId, target, taken));
+        }
+
+        FinishTurn(1);
+        return ActionResult.Success();
     }
 
     /// <summary>상대의 특수 증강 1개를 빼앗습니다. (현재 덱에는 없는 카드입니다)</summary>
@@ -1896,6 +1961,8 @@ public sealed class GameEngine
         State.PendingMinigame = null;
         State.Arcade = null;
         ReturnGambleCards();
+        State.SwapChoices.Clear();
+        State.SwapTarget = -1;
         Emit($"게임 종료 · 최종 순위: {string.Join(", ", State.Players.OrderBy(p => p.Rank).Select(p => $"{p.Rank}등 {NameOf(p.Id)}"))}");
     }
 
@@ -1923,6 +1990,8 @@ public sealed class GameEngine
             State.PendingAugments.Clear();
             State.PendingMinigame = null;
             ReturnGambleCards();
+        State.SwapChoices.Clear();
+        State.SwapTarget = -1;
             EndTurn(1);
         }
     }
